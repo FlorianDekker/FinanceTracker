@@ -488,7 +488,12 @@ function buildTable() {
         pending[idx].sub            = result.sub
         pending[idx].confidence     = "high"
         pending[idx].possiblySterre = false
-        buildTable()
+        // Show brief confirmation — don't rebuild table (would close it)
+        const confirm = new Alert()
+        confirm.title   = "✓ Gewijzigd"
+        confirm.message = `${mainDisplay(result.cat)}${result.sub ? " · " + subDisplay(result.cat, result.sub) : ""}`
+        confirm.addAction("OK")
+        await confirm.present()
       }
     }
 
