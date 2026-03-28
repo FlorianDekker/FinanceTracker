@@ -410,18 +410,12 @@ async function pickSubOnly(mainKey) {
 // ─── COLORS & TABLE ──────────────────────────────────────────────────────────
 
 const C = {
-  green:      new Color("#34C759"),
-  orange:     new Color("#FF9500"),
-  red:        new Color("#FF3B30"),
-  blue:       new Color("#007AFF"),
-  gray:       new Color("#8E8E93"),
-  lightGray:  new Color("#F2F2F7"),
-  rowBg:      Color.white(),
-  catBg:      new Color("#F9F9FB"),
-  headerBg:   new Color("#1C1C1E"),
-  white:      Color.white(),
-  dark:       new Color("#1C1C1E"),
-  label:      new Color("#3C3C43"),
+  green:  new Color("#30D158"),
+  orange: new Color("#FF9F0A"),
+  gray:   new Color("#636366"),
+  white:  Color.white(),
+  bg:     new Color("#000000"),
+  rowBg:  new Color("#1C1C1E"),
 }
 
 const table = new UITable()
@@ -430,58 +424,64 @@ table.showSeparators = true
 function buildTable() {
   table.removeAllRows()
 
-  // ── Header / save row
+  // ── Save row
   const hRow = new UITableRow()
-  hRow.height = 56
-  hRow.backgroundColor = C.headerBg
-  const hLeft = UITableCell.text("💾  Opslaan", `${pending.length} transacties`)
-  hLeft.widthWeight = 70
-  hLeft.titleColor    = C.white
-  hLeft.subtitleColor = C.gray
-  hLeft.titleFont     = Font.boldSystemFont(15)
-  hLeft.subtitleFont  = Font.systemFont(12)
-  const hRight = UITableCell.text("Alles controleren ↓", "tik een rij om te wijzigen")
-  hRight.widthWeight   = 30
-  hRight.rightAligned()
-  hRight.titleColor    = C.blue
-  hRight.subtitleColor = C.gray
-  hRight.titleFont     = Font.systemFont(12)
-  hRight.subtitleFont  = Font.systemFont(10)
-  hRow.addCell(hLeft)
-  hRow.addCell(hRight)
+  hRow.height = 50
+  hRow.backgroundColor = C.bg
+  const hCell = UITableCell.text(`Opslaan  (${pending.length})`, "tik een rij om categorie te wijzigen")
+  hCell.titleColor    = C.green
+  hCell.subtitleColor = C.gray
+  hCell.titleFont     = Font.boldSystemFont(15)
+  hCell.subtitleFont  = Font.systemFont(11)
+  hRow.addCell(hCell)
   hRow.onSelect = async () => { await saveAll() }
   table.addRow(hRow)
 
+  // ── Transaction rows (one per transaction)
   for (let i = 0; i < pending.length; i++) {
-    const tx = pending[i]
-    const isCredit = tx.type === "credit"
-    const highConf = tx.confidence === "high" && !tx.possiblySterre
+    const tx  = pending[i]
     const idx = i
+    const highConf = tx.confidence === "high" && !tx.possiblySterre
 
-    // ── ROW A: merchant + flag  →  tap to change main category
-    const rowA = new UITableRow()
-    rowA.height = 52
-    rowA.backgroundColor = C.rowBg
+    const row = new UITableRow()
+    row.height = 44
+    row.backgroundColor = C.rowBg
 
-    // Amount (left, colored)
+    // Date
+    const dateCell = UITableCell.text(fmtDate(tx.date))
+    dateCell.widthWeight = 18
+    dateCell.titleFont   = Font.systemFont(12)
+    dateCell.titleColor  = C.gray
+
+    // Merchant + optional flag
+    const merch    = tx.merchant.length > 22 ? tx.merchant.slice(0,20) + "…" : tx.merchant
+    const flag     = tx.possiblySterre ? " ⚠️" : ""
+    const merchCell = UITableCell.text(merch + flag)
+    merchCell.widthWeight = 42
+    merchCell.titleFont   = Font.systemFont(13)
+    merchCell.titleColor  = C.white
+
+    // Amount
     const amtCell = UITableCell.text(fmtAmount(tx.amount, tx.type))
-    amtCell.widthWeight  = 28
-    amtCell.titleFont    = Font.boldSystemFont(15)
-    amtCell.titleColor   = isCredit ? C.green : C.dark
+    amtCell.widthWeight = 20
+    amtCell.rightAligned()
+    amtCell.titleFont   = Font.systemFont(13)
+    amtCell.titleColor  = tx.type === "credit" ? C.green : C.white
 
-    // Merchant + flag (right)
-    const merch     = tx.merchant.length > 24 ? tx.merchant.slice(0,22) + "…" : tx.merchant
-    const flagHint  = tx.possiblySterre ? "⚠️ Mogelijk Sterre" : fmtDate(tx.date)
-    const merchCell = UITableCell.text(merch, flagHint)
-    merchCell.widthWeight    = 72
-    merchCell.titleFont      = Font.mediumSystemFont(14)
-    merchCell.subtitleFont   = Font.systemFont(11)
-    merchCell.titleColor     = C.dark
-    merchCell.subtitleColor  = tx.possiblySterre ? C.orange : C.gray
+    // Category
+    const catLabel = mainDisplay(tx.cat)
+    const catCell  = UITableCell.text(catLabel)
+    catCell.widthWeight = 20
+    catCell.rightAligned()
+    catCell.titleFont   = Font.systemFont(12)
+    catCell.titleColor  = highConf ? C.green : C.orange
 
-    rowA.addCell(amtCell)
-    rowA.addCell(merchCell)
-    rowA.onSelect = async () => {
+    row.addCell(dateCell)
+    row.addCell(merchCell)
+    row.addCell(amtCell)
+    row.addCell(catCell)
+
+    row.onSelect = async () => {
       const result = await pickCategoryFull()
       if (result) {
         pending[idx].cat            = result.cat
@@ -491,44 +491,8 @@ function buildTable() {
         buildTable()
       }
     }
-    table.addRow(rowA)
 
-    // ── ROW B: category + subcategory  →  tap to change subcategory
-    const rowB = new UITableRow()
-    rowB.height = 34
-    rowB.backgroundColor = C.catBg
-
-    const indentCell = UITableCell.text("  ↳")
-    indentCell.widthWeight = 10
-    indentCell.titleFont   = Font.systemFont(11)
-    indentCell.titleColor  = C.gray
-
-    const catLabel = mainDisplay(tx.cat)
-    const subLabel = subDisplay(tx.cat, tx.sub)
-    const catCell  = UITableCell.text(catLabel)
-    catCell.widthWeight = 45
-    catCell.titleFont   = Font.mediumSystemFont(12)
-    catCell.titleColor  = highConf ? C.green : C.orange
-
-    const subCell = UITableCell.text(subLabel || "geen subcategorie")
-    subCell.widthWeight = 45
-    subCell.rightAligned()
-    subCell.titleFont   = Font.systemFont(11)
-    subCell.titleColor  = subLabel ? C.label : C.gray
-
-    rowB.addCell(indentCell)
-    rowB.addCell(catCell)
-    rowB.addCell(subCell)
-    rowB.onSelect = async () => {
-      const result = await pickSubOnly(pending[idx].cat)
-      if (result) {
-        pending[idx].sub            = result.sub
-        pending[idx].confidence     = "high"
-        pending[idx].possiblySterre = false
-        buildTable()
-      }
-    }
-    table.addRow(rowB)
+    table.addRow(row)
   }
 }
 
