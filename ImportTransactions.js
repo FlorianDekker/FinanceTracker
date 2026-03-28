@@ -349,34 +349,57 @@ function fmtAmount(amount, type) {
 function mainDisplay(key)       { return DISPLAY_MAIN[key] || key }
 function subDisplay(mKey, sKey) { return sKey && DISPLAY_SUB[mKey] ? (DISPLAY_SUB[mKey][sKey] || sKey) : "" }
 
-async function pickCategory() {
+async function pickMainCat() {
   const mainDisplays = Object.keys(CATEGORY.main)
+  const a = new Alert()
+  a.title = "Kies categorie"
+  for (const d of mainDisplays) a.addAction(d)
+  a.addCancelAction("Annuleren")
+  const i = await a.present()
+  if (i < 0) return null
+  return { display: mainDisplays[i], key: CATEGORY.main[mainDisplays[i]] }
+}
 
-  const a1 = new Alert()
-  a1.title = "Kies categorie"
-  for (const d of mainDisplays) a1.addAction(d)
-  a1.addCancelAction("Annuleren")
-  const i1 = await a1.present()
-  if (i1 < 0) return null
+async function pickSubCat(mainKey) {
+  const subs = CATEGORY.sub[mainKey]
+  if (!subs || Object.keys(subs).length === 0) return { key: "" }
+  const subDisplays = Object.keys(subs)
+  const a = new Alert()
+  a.title = "Kies subcategorie"
+  a.addAction("Geen subcategorie")
+  for (const d of subDisplays) a.addAction(d)
+  a.addCancelAction("← Terug")
+  const i = await a.present()
+  if (i < 0) return null           // "Terug" → caller loops back
+  if (i === 0) return { key: "" }  // geen subcategorie
+  return { key: subs[subDisplays[i - 1]] }
+}
 
-  const newMainDisplay = mainDisplays[i1]
-  const newMainKey = CATEGORY.main[newMainDisplay]
-  const subs = CATEGORY.sub[newMainKey]
-  let newSubKey = ""
-
-  if (subs && Object.keys(subs).length > 0) {
-    const subDisplays = Object.keys(subs)
-    const a2 = new Alert()
-    a2.title = "Kies subcategorie"
-    a2.addAction("Geen subcategorie")
-    for (const d of subDisplays) a2.addAction(d)
-    a2.addCancelAction("Terug")
-    const i2 = await a2.present()
-    if (i2 < 0) return null
-    if (i2 > 0) newSubKey = subs[subDisplays[i2 - 1]]
+// Pick full category + subcategory; "Terug" in subcategory loops back to category picker
+async function pickCategoryFull() {
+  while (true) {
+    const main = await pickMainCat()
+    if (!main) return null
+    const sub = await pickSubCat(main.key)
+    if (sub !== null) return { cat: main.key, sub: sub.key }
+    // sub === null means "Terug" → loop to re-pick main category
   }
+}
 
-  return { cat: newMainKey, sub: newSubKey }
+// Pick only subcategory for the current main category
+async function pickSubOnly(mainKey) {
+  const subs = CATEGORY.sub[mainKey]
+  if (!subs || Object.keys(subs).length === 0) {
+    const a = new Alert()
+    a.title = "Geen subcategorieën"
+    a.message = `${mainDisplay(mainKey)} heeft geen subcategorieën.`
+    a.addAction("OK")
+    await a.present()
+    return null
+  }
+  const sub = await pickSubCat(mainKey)
+  if (sub === null) return null
+  return { cat: mainKey, sub: sub.key }
 }
 
 const COLOR_GREEN  = new Color("#4CAF50")
@@ -444,11 +467,28 @@ function buildTable() {
 
     const idx = i
     row.onSelect = async () => {
-      const result = await pickCategory()
+      const tx = pending[idx]
+      // Ask what to change
+      const menu = new Alert()
+      menu.title   = tx.merchant.length > 22 ? tx.merchant.slice(0,20) + "…" : tx.merchant
+      menu.message = `${fmtDate(tx.date)}  ·  ${fmtAmount(tx.amount, tx.type)}`
+      menu.addAction("Wijzig categorie")
+      menu.addAction("Wijzig subcategorie")
+      menu.addCancelAction("Annuleren")
+      const choice = await menu.present()
+      if (choice < 0) return
+
+      let result = null
+      if (choice === 0) {
+        result = await pickCategoryFull()
+      } else {
+        result = await pickSubOnly(tx.cat)
+      }
+
       if (result) {
-        pending[idx].cat           = result.cat
-        pending[idx].sub           = result.sub
-        pending[idx].confidence    = "high"
+        pending[idx].cat            = result.cat
+        pending[idx].sub            = result.sub
+        pending[idx].confidence     = "high"
         pending[idx].possiblySterre = false
         buildTable()
       }
