@@ -44,6 +44,15 @@ if (!inputText.trim()) {
   Script.complete()
 }
 
+// DEBUG: show first 300 chars so we can diagnose format issues
+const debugAlert = new Alert()
+debugAlert.title = "Debug: bestand gelezen"
+debugAlert.message = inputText.slice(0, 300)
+debugAlert.addAction("Doorgaan")
+debugAlert.addAction("Stoppen")
+const debugChoice = await debugAlert.present()
+if (debugChoice !== 0) { Script.complete() }
+
 // ─── 2. PARSE ABN AMRO CSV ────────────────────────────────────────────────────
 
 function parseSemicolonLine(line) {
