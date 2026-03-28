@@ -24,29 +24,23 @@ let inputText = ""
 
 if (args.fileURLs && args.fileURLs.length > 0) {
   let filePath = args.fileURLs[0]
-  // Strip file:// prefix that iOS passes via Share Sheet
-  if (filePath.startsWith("file://")) {
-    filePath = decodeURIComponent(filePath.slice(7))
-  }
+  if (filePath.startsWith("file://")) filePath = decodeURIComponent(filePath.slice(7))
   const data = Data.fromFile(filePath)
   if (data) inputText = data.toRawString()
 }
 
-// Fallback: read TestTransactions_ABN.csv from iCloud (for testing)
+// No file via Share Sheet → show file picker
 if (!inputText.trim()) {
-  const testPath = fm.joinPath(dir, "TestTransactions_ABN.csv")
-  if (fm.fileExists(testPath)) {
-    await fm.downloadFileFromiCloud(testPath)
-    inputText = fm.readString(testPath)
+  const picked = await DocumentPicker.open(["public.data", "public.item", "public.text"])
+  if (picked && picked.length > 0) {
+    let filePath = picked[0]
+    if (filePath.startsWith("file://")) filePath = decodeURIComponent(filePath.slice(7))
+    const data = Data.fromFile(filePath)
+    if (data) inputText = data.toRawString()
   }
 }
 
 if (!inputText.trim()) {
-  const a = new Alert()
-  a.title = "Geen bestand"
-  a.message = "Deel een ABN AMRO CSV via de Share Sheet, of zet TestTransactions_ABN.csv in iCloud om te testen."
-  a.addAction("OK")
-  await a.present()
   Script.complete()
 }
 
