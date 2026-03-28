@@ -75,6 +75,9 @@ function parseABNAmount(amountStr) {
   return parseFloat(amountStr.replace(/\./g, "").replace(",", ".")) || 0
 }
 
+// Strip BOM (UTF-8 or UTF-16) that Windows/Excel adds to exported files
+inputText = inputText.replace(/^\uFEFF/, "").replace(/^\xFF\xFE/, "").replace(/^\xFE\xFF/, "")
+
 const lines = inputText.split(/\r?\n/).filter(l => l.trim())
 
 if (lines.length < 2) {
@@ -86,16 +89,22 @@ if (lines.length < 2) {
   Script.complete()
 }
 
-const headerCols = parseSemicolonLine(lines[0]).map(h => h.toLowerCase())
+// Normalize header: strip BOM from first column, lowercase, trim
+const headerCols = parseSemicolonLine(lines[0]).map(h =>
+  h.toLowerCase().replace(/^\uFEFF/, "").trim()
+)
 
-// Detect new format: Datum;Naam / Omschrijving;...;Af Bij;Bedrag (EUR);...
-const isNewFormat = headerCols.some(h => h.includes("af bij") || h === "datum")
-// Detect old format: Rekeningnummer;Muntsoort;Transactiedatum;Beginsaldo;Eindsaldo;...
+// Detect new format: Datum + Af Bij + Bedrag columns
+const isNewFormat = headerCols.some(h => h.includes("datum")) &&
+                    (headerCols.some(h => h.includes("af bij") || h.includes("af/bij")) ||
+                     headerCols.some(h => h.includes("bedrag")))
+
+// Detect old format: Transactiedatum + Beginsaldo + Eindsaldo
 const isOldFormat = !isNewFormat && headerCols.some(h => h.includes("transactiedatum"))
 
-const colDate   = headerCols.findIndex(h => h === "datum" || h.includes("transactiedatum"))
+const colDate   = headerCols.findIndex(h => h.includes("datum"))
 const colName   = headerCols.findIndex(h => h.includes("naam") || h.includes("omschrijving"))
-const colAfBij  = headerCols.findIndex(h => h.includes("af bij"))
+const colAfBij  = headerCols.findIndex(h => h.includes("af bij") || h.includes("af/bij"))
 const colBedrag = headerCols.findIndex(h => h.includes("bedrag"))
 const colBegin  = headerCols.findIndex(h => h.includes("beginsaldo"))
 const colEind   = headerCols.findIndex(h => h.includes("eindsaldo"))
@@ -103,7 +112,7 @@ const colEind   = headerCols.findIndex(h => h.includes("eindsaldo"))
 if (!isNewFormat && !isOldFormat) {
   const a = new Alert()
   a.title = "Onbekend formaat"
-  a.message = "Dit ziet er niet uit als een ABN AMRO export. Probeer een ander bestand."
+  a.message = `Kon het formaat niet herkennen.\n\nEerste regel:\n${lines[0].slice(0,150)}`
   a.addAction("OK")
   await a.present()
   Script.complete()
