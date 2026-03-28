@@ -44,14 +44,6 @@ if (!inputText.trim()) {
   Script.complete()
 }
 
-// DEBUG: show first 300 chars so we can diagnose format issues
-const debugAlert = new Alert()
-debugAlert.title = "Debug: bestand gelezen"
-debugAlert.message = inputText.slice(0, 300)
-debugAlert.addAction("Doorgaan")
-debugAlert.addAction("Stoppen")
-const debugChoice = await debugAlert.present()
-if (debugChoice !== 0) { Script.complete() }
 
 // ─── 2. PARSE ABN AMRO CSV ────────────────────────────────────────────────────
 
@@ -80,7 +72,7 @@ inputText = inputText.replace(/^\uFEFF/, "").replace(/^\xFF\xFE/, "").replace(/^
 
 const lines = inputText.split(/\r?\n/).filter(l => l.trim())
 
-if (lines.length < 2) {
+if (lines.length < 1) {
   const a = new Alert()
   a.title = "Leeg bestand"
   a.message = "Het bestand bevat geen transacties."
@@ -89,64 +81,54 @@ if (lines.length < 2) {
   Script.complete()
 }
 
-// Normalize header: strip BOM from first column, lowercase, trim
-const headerCols = parseSemicolonLine(lines[0]).map(h =>
-  h.toLowerCase().replace(/^\uFEFF/, "").trim()
-)
+// ABN AMRO .tab format (no header row):
+// col 0: account number (digits)
+// col 1: currency (EUR)
+// col 2: date (YYYYMMDD)
+// col 3: begin balance
+// col 4: end balance
+// col 5: interest date
+// col 6: signed amount (negative = debit, positive = credit)
+// col 7+: description parts (merchant info, reference, location)
 
-// Detect new format: Datum + Af Bij + Bedrag columns
-const isNewFormat = headerCols.some(h => h.includes("datum")) &&
-                    (headerCols.some(h => h.includes("af bij") || h.includes("af/bij")) ||
-                     headerCols.some(h => h.includes("bedrag")))
-
-// Detect old format: Transactiedatum + Beginsaldo + Eindsaldo
-const isOldFormat = !isNewFormat && headerCols.some(h => h.includes("transactiedatum"))
-
-const colDate   = headerCols.findIndex(h => h.includes("datum"))
-const colName   = headerCols.findIndex(h => h.includes("naam") || h.includes("omschrijving"))
-const colAfBij  = headerCols.findIndex(h => h.includes("af bij") || h.includes("af/bij"))
-const colBedrag = headerCols.findIndex(h => h.includes("bedrag"))
-const colBegin  = headerCols.findIndex(h => h.includes("beginsaldo"))
-const colEind   = headerCols.findIndex(h => h.includes("eindsaldo"))
-
-if (!isNewFormat && !isOldFormat) {
-  const a = new Alert()
-  a.title = "Onbekend formaat"
-  a.message = `Kon het formaat niet herkennen.\n\nEerste regel:\n${lines[0].slice(0,150)}`
-  a.addAction("OK")
-  await a.present()
-  Script.complete()
+function extractMerchant(descParts) {
+  let desc = descParts.join(" ").trim()
+  // Remove common noise from ABN AMRO descriptions
+  desc = desc.replace(/BEA,?\s*Apple Pay\s*/gi, "")
+  desc = desc.replace(/^BEA,?\s*/gi, "")
+  desc = desc.replace(/^SEPA\s+\S+\s*/gi, "")
+  desc = desc.replace(/,PAS\d+/gi, "")
+  desc = desc.replace(/\bPAS\d+/gi, "")
+  desc = desc.replace(/NR:[A-Z0-9]+,?\s*/gi, "")
+  desc = desc.replace(/\d{2}\.\d{2}\.\d{2}\/\d{2}:\d{2}/g, "")
+  desc = desc.replace(/\s{2,}/g, " ").trim()
+  // Return first meaningful segment
+  return desc.split(/\t/)[0].trim() || desc
 }
 
 const parsed = []
-for (let i = 1; i < lines.length; i++) {
-  const cols = parseSemicolonLine(lines[i])
-  if (cols.length < 3) continue
+for (const line of lines) {
+  const cols = line.split("\t")
+  if (cols.length < 7) continue
 
-  let date, merchant, amount, type
+  // Validate: col[0] should be account number (digits), col[1] should be EUR
+  if (!/^\d{6,}/.test(cols[0].trim())) continue
+  if (cols[1].trim().toUpperCase() !== "EUR") continue
 
-  if (isNewFormat) {
-    date     = parseABNDate(cols[colDate] || "")
-    merchant = (cols[colName] || "").trim()
-    amount   = parseABNAmount(cols[colBedrag] || "0")
-    type     = (cols[colAfBij] || "").toLowerCase() === "bij" ? "credit" : "debit"
-  } else {
-    date     = parseABNDate(cols[colDate] || "")
-    merchant = (cols[colName] || "").trim()
-    const begin = parseABNAmount(cols[colBegin] || "0")
-    const eind  = parseABNAmount(cols[colEind]  || "0")
-    amount   = Math.abs(eind - begin)
-    type     = eind >= begin ? "credit" : "debit"
-  }
+  const date    = parseABNDate(cols[2].trim())
+  const amtRaw  = parseABNAmount(cols[6].trim())
+  const amount  = Math.abs(amtRaw)
+  const type    = amtRaw >= 0 ? "credit" : "debit"
+  const merchant = extractMerchant(cols.slice(7))
 
-  if (!date || !merchant || amount <= 0) continue
-  parsed.push({ date, merchant, amount, type })
+  if (!date || amount <= 0) continue
+  parsed.push({ date, merchant: merchant || "Onbekend", amount, type })
 }
 
 if (parsed.length === 0) {
   const a = new Alert()
   a.title = "Geen transacties"
-  a.message = "Kon geen geldige transacties lezen uit het bestand."
+  a.message = "Kon geen geldige transacties lezen. Zorg dat je het Excel (txt) bestand exporteert vanuit ABN AMRO."
   a.addAction("OK")
   await a.present()
   Script.complete()
