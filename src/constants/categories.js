@@ -1,0 +1,171 @@
+// Master category + subcategory list, ported from ImportTransactions.js
+
+export const CATEGORIES = [
+  {
+    key: 'woning',
+    label: 'Woning',
+    icon: '🏠',
+    order: 0,
+    type: 'expense',
+    subs: [
+      { key: 'huur', label: 'Huur' },
+      { key: 'energie', label: 'Energie' },
+      { key: 'afvalstoffenheffing', label: 'Afvalstoffenheffing' },
+      { key: 'waterschapbelasting', label: 'Waterschapbelasting' },
+      { key: 'woning_kopen', label: 'Woning kopen' },
+    ],
+  },
+  {
+    key: 'abonnementen',
+    label: 'Abonnementen',
+    icon: '📱',
+    order: 1,
+    type: 'expense',
+    subs: [
+      { key: 'spotify', label: 'Spotify' },
+      { key: 'sportabonnement', label: 'Sportabonnement' },
+      { key: 'telefoonabonnement', label: 'Telefoon abonnement' },
+      { key: 'zorgverzekering', label: 'Zorgverzekering' },
+      { key: 'aansprakelijkheidsverzekering', label: 'Aansprakelijkheidsverzekering' },
+    ],
+  },
+  {
+    key: 'boodschappen',
+    label: 'Boodschappen',
+    icon: '🛒',
+    order: 2,
+    type: 'expense',
+    subs: [
+      { key: 'supermarkt', label: 'Supermarkt' },
+      { key: 'eten_onderweg', label: 'Eten onderweg' },
+      { key: 'met_vrienden', label: 'Met vrienden' },
+    ],
+  },
+  {
+    key: 'reiskosten',
+    label: 'Reiskosten',
+    icon: '🚌',
+    order: 3,
+    type: 'expense',
+    subs: [],
+  },
+  {
+    key: 'cadeaus_overig',
+    label: "Cadeau's overig",
+    icon: '🎁',
+    order: 4,
+    type: 'expense',
+    subs: [],
+  },
+  {
+    key: 'sterre',
+    label: 'Sterre',
+    icon: '💛',
+    order: 5,
+    type: 'expense',
+    subs: [
+      { key: 'cadeaus_sterre', label: "Cadeau's Sterre" },
+      { key: 'dates_sterre', label: 'Dates Sterre' },
+    ],
+  },
+  {
+    key: 'gezondheid_verzorging',
+    label: 'Gezondheid & verzorging',
+    icon: '💊',
+    order: 6,
+    type: 'expense',
+    subs: [
+      { key: 'kapper', label: 'Kapper' },
+      { key: 'toilet', label: 'Toilet' },
+      { key: 'wasserette', label: 'Wasserette' },
+    ],
+  },
+  {
+    key: 'vakantie',
+    label: 'Vakantie',
+    icon: '✈️',
+    order: 7,
+    type: 'expense',
+    subs: [],
+  },
+  {
+    key: 'afspreken_vrienden',
+    label: 'Afspreken vrienden',
+    icon: '👬',
+    order: 8,
+    type: 'expense',
+    subs: [
+      { key: 'cafe', label: 'Café' },
+      { key: 'concerten', label: 'Concerten' },
+      { key: 'thuis', label: 'Thuis' },
+      { key: 'uiteten_afhalen', label: 'Uiteten & afhalen' },
+    ],
+  },
+  {
+    key: 'kleding',
+    label: 'Kleding',
+    icon: '👕',
+    order: 9,
+    type: 'expense',
+    subs: [],
+  },
+  {
+    key: 'overige_kosten',
+    label: 'Overige kosten',
+    icon: '💸',
+    order: 10,
+    type: 'expense',
+    subs: [
+      { key: 'boete', label: 'Boete' },
+      { key: 'doneren', label: 'Doneren' },
+      { key: 'belasting', label: 'Belasting' },
+      { key: 'werkgerelateerde_kosten', label: 'Werkgerelateerde kosten' },
+    ],
+  },
+  {
+    key: 'hobbys',
+    label: "Hobby's",
+    icon: '🎮',
+    order: 11,
+    type: 'expense',
+    subs: [
+      { key: 'hobby_projecten', label: 'Hobby projecten' },
+      { key: 'gamen', label: 'Gamen' },
+      { key: 'boeken', label: 'Boeken' },
+      { key: 'planten', label: 'Planten' },
+      { key: 'sporten', label: 'Sporten' },
+      { key: 'interieur', label: 'Interieur' },
+    ],
+  },
+  {
+    key: 'investeren',
+    label: 'Investeren',
+    icon: '📈',
+    order: 12,
+    type: 'expense',
+    subs: [],
+  },
+  {
+    key: 'bankoverschrijving',
+    label: 'Bankoverschrijving',
+    icon: '🏦',
+    order: 13,
+    type: 'transfer',
+    subs: [],
+  },
+  {
+    key: 'salaris',
+    label: 'Salaris',
+    icon: '💰',
+    order: 14,
+    type: 'income',
+    subs: [],
+  },
+]
+
+// Quick lookup maps
+export const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.key, c]))
+export const EXPENSE_CATEGORIES = CATEGORIES.filter(c => c.type === 'expense')
+export const FIXED_CATEGORIES = new Set(['woning', 'abonnementen', 'vakantie', 'reiskosten'])
+export const MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
+export const MONTHS_LONG = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December']
