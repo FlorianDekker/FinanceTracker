@@ -1,0 +1,61 @@
+{
+  "categories": {
+    "woning": {
+      "budget": 1300,
+      "spent": 2992.5899999999997
+    },
+    "abonnementen": {
+      "budget": 50,
+      "spent": 683.56
+    },
+    "boodschappen": {
+      "budget": 200,
+      "spent": 4012.319999999996
+    },
+    "reiskosten": {
+      "budget": 30.5,
+      "spent": 891.0399999999998
+    },
+    "cadeaus_overig": {
+      "budget": 30,
+      "spent": 76.92999999999999
+    },
+    "sterre": {
+      "budget": 50,
+      "spent": 248.57
+    },
+    "gezondheid_verzorging": {
+      "budget": 50,
+      "spent": 134.56
+    },
+    "vakantie": {
+      "budget": 0,
+      "spent": 1361.22
+    },
+    "afspreken_vrienden": {
+      "budget": 50,
+      "spent": 144.89
+    },
+    "kleding": {
+      "budget": 30,
+      "spent": 86
+    },
+    "overige_kosten": {
+      "budget": 0,
+      "spent": 943.5
+    },
+    "hobbys": {
+      "budget": 6.2,
+      "spent": 54.39
+    },
+    "investeren": {
+      "budget": 0
+    },
+    "bankoverschrijving": {
+      "budget": 0
+    },
+    "salaris": {
+      "budget": 0
+    }
+  }
+}
