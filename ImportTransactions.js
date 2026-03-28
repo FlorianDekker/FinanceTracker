@@ -23,7 +23,12 @@ if (fm.fileExists(csvPath))  await fm.downloadFileFromiCloud(csvPath)
 let inputText = ""
 
 if (args.fileURLs && args.fileURLs.length > 0) {
-  const data = Data.fromFile(args.fileURLs[0])
+  let filePath = args.fileURLs[0]
+  // Strip file:// prefix that iOS passes via Share Sheet
+  if (filePath.startsWith("file://")) {
+    filePath = decodeURIComponent(filePath.slice(7))
+  }
+  const data = Data.fromFile(filePath)
   if (data) inputText = data.toRawString()
 }
 
