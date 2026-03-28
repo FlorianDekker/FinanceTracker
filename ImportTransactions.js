@@ -349,44 +349,49 @@ function fmtAmount(amount, type) {
 function mainDisplay(key)       { return DISPLAY_MAIN[key] || key }
 function subDisplay(mKey, sKey) { return sKey && DISPLAY_SUB[mKey] ? (DISPLAY_SUB[mKey][sKey] || sKey) : "" }
 
+// NOTE: We never use addCancelAction — it dismisses the UITable in Scriptable.
+// All "cancel/back" options are regular addAction entries checked by index.
+
 async function pickMainCat() {
-  const mainDisplays = Object.keys(CATEGORY.main)
+  const displays = Object.keys(CATEGORY.main)
   const a = new Alert()
   a.title = "Kies categorie"
-  for (const d of mainDisplays) a.addAction(d)
-  a.addCancelAction("Annuleren")
+  for (const d of displays) a.addAction(d)
+  a.addAction("✕  Annuleren")
   const i = await a.present()
-  if (i < 0) return null
-  return { display: mainDisplays[i], key: CATEGORY.main[mainDisplays[i]] }
+  if (i < 0 || i === displays.length) return null
+  return { key: CATEGORY.main[displays[i]] }
 }
 
 async function pickSubCat(mainKey) {
   const subs = CATEGORY.sub[mainKey]
   if (!subs || Object.keys(subs).length === 0) return { key: "" }
-  const subDisplays = Object.keys(subs)
+  const displays = Object.keys(subs)
   const a = new Alert()
   a.title = "Kies subcategorie"
   a.addAction("Geen subcategorie")
-  for (const d of subDisplays) a.addAction(d)
-  a.addCancelAction("← Terug")
+  for (const d of displays) a.addAction(d)
+  a.addAction("← Terug")
   const i = await a.present()
-  if (i < 0) return null           // "Terug" → caller loops back
-  if (i === 0) return { key: "" }  // geen subcategorie
-  return { key: subs[subDisplays[i - 1]] }
+  const backIdx = displays.length + 1
+  if (i < 0 || i === backIdx) return null  // Terug → caller loops
+  if (i === 0) return { key: "" }
+  return { key: subs[displays[i - 1]] }
 }
 
-// Pick full category + subcategory; "Terug" in subcategory loops back to category picker
+// Full picker: choosing a main category then subcategory.
+// "← Terug" in subcategory loops back to main category picker.
 async function pickCategoryFull() {
   while (true) {
     const main = await pickMainCat()
     if (!main) return null
     const sub = await pickSubCat(main.key)
     if (sub !== null) return { cat: main.key, sub: sub.key }
-    // sub === null means "Terug" → loop to re-pick main category
+    // sub === null → "Terug" → loop back to main category
   }
 }
 
-// Pick only subcategory for the current main category
+// Only pick subcategory for an already-chosen main category.
 async function pickSubOnly(mainKey) {
   const subs = CATEGORY.sub[mainKey]
   if (!subs || Object.keys(subs).length === 0) {
@@ -402,11 +407,22 @@ async function pickSubOnly(mainKey) {
   return { cat: mainKey, sub: sub.key }
 }
 
-const COLOR_GREEN  = new Color("#4CAF50")
-const COLOR_ORANGE = new Color("#FF9800")
-const COLOR_GRAY   = new Color("#888888")
-const COLOR_WHITE  = Color.white()
-const COLOR_DARK   = new Color("#1a1a2e")
+// ─── COLORS & TABLE ──────────────────────────────────────────────────────────
+
+const C = {
+  green:      new Color("#34C759"),
+  orange:     new Color("#FF9500"),
+  red:        new Color("#FF3B30"),
+  blue:       new Color("#007AFF"),
+  gray:       new Color("#8E8E93"),
+  lightGray:  new Color("#F2F2F7"),
+  rowBg:      Color.white(),
+  catBg:      new Color("#F9F9FB"),
+  headerBg:   new Color("#1C1C1E"),
+  white:      Color.white(),
+  dark:       new Color("#1C1C1E"),
+  label:      new Color("#3C3C43"),
+}
 
 const table = new UITable()
 table.showSeparators = true
@@ -414,77 +430,59 @@ table.showSeparators = true
 function buildTable() {
   table.removeAllRows()
 
-  // ── Save button row
-  const headerRow = new UITableRow()
-  headerRow.height = 50
-  headerRow.backgroundColor = COLOR_DARK
-  const saveCell = UITableCell.text(
-    `Opslaan (${pending.length} transacties)`,
-    "Tik hier om alles op te slaan"
-  )
-  saveCell.centerAligned()
-  saveCell.titleColor  = COLOR_WHITE
-  saveCell.subtitleColor = COLOR_GRAY
-  headerRow.addCell(saveCell)
-  headerRow.onSelect = async () => { await saveAll() }
-  table.addRow(headerRow)
+  // ── Header / save row
+  const hRow = new UITableRow()
+  hRow.height = 56
+  hRow.backgroundColor = C.headerBg
+  const hLeft = UITableCell.text("💾  Opslaan", `${pending.length} transacties`)
+  hLeft.widthWeight = 70
+  hLeft.titleColor    = C.white
+  hLeft.subtitleColor = C.gray
+  hLeft.titleFont     = Font.boldSystemFont(15)
+  hLeft.subtitleFont  = Font.systemFont(12)
+  const hRight = UITableCell.text("Alles controleren ↓", "tik een rij om te wijzigen")
+  hRight.widthWeight   = 30
+  hRight.rightAligned()
+  hRight.titleColor    = C.blue
+  hRight.subtitleColor = C.gray
+  hRight.titleFont     = Font.systemFont(12)
+  hRight.subtitleFont  = Font.systemFont(10)
+  hRow.addCell(hLeft)
+  hRow.addCell(hRight)
+  hRow.onSelect = async () => { await saveAll() }
+  table.addRow(hRow)
 
-  // ── Transaction rows
   for (let i = 0; i < pending.length; i++) {
     const tx = pending[i]
-    const row = new UITableRow()
-    row.height = 62
-
-    // Left: date + amount
-    const leftCell = UITableCell.text(fmtDate(tx.date), fmtAmount(tx.amount, tx.type))
-    leftCell.widthWeight = 25
-    leftCell.titleFont    = Font.mediumSystemFont(13)
-    leftCell.subtitleFont = Font.systemFont(12)
-    leftCell.subtitleColor = tx.type === "credit" ? COLOR_GREEN : COLOR_GRAY
-
-    // Middle: merchant + sterre hint
-    const merch = tx.merchant.length > 20 ? tx.merchant.slice(0, 18) + "…" : tx.merchant
-    const hint  = tx.possiblySterre ? "⚠️ Sterre?" : ""
-    const midCell = UITableCell.text(merch, hint)
-    midCell.widthWeight    = 40
-    midCell.titleFont      = Font.systemFont(13)
-    midCell.subtitleFont   = Font.systemFont(11)
-    midCell.subtitleColor  = COLOR_ORANGE
-
-    // Right: category
-    const catLabel = mainDisplay(tx.cat)
-    const subLabel = subDisplay(tx.cat, tx.sub) || " "
-    const rightCell = UITableCell.text(catLabel, subLabel)
-    rightCell.widthWeight  = 35
-    rightCell.titleFont    = Font.systemFont(12)
-    rightCell.subtitleFont = Font.systemFont(11)
-    rightCell.rightAligned()
-    rightCell.titleColor   = (tx.confidence === "high" && !tx.possiblySterre) ? COLOR_GREEN : COLOR_ORANGE
-
-    row.addCell(leftCell)
-    row.addCell(midCell)
-    row.addCell(rightCell)
-
+    const isCredit = tx.type === "credit"
+    const highConf = tx.confidence === "high" && !tx.possiblySterre
     const idx = i
-    row.onSelect = async () => {
-      const tx = pending[idx]
-      // Ask what to change
-      const menu = new Alert()
-      menu.title   = tx.merchant.length > 22 ? tx.merchant.slice(0,20) + "…" : tx.merchant
-      menu.message = `${fmtDate(tx.date)}  ·  ${fmtAmount(tx.amount, tx.type)}`
-      menu.addAction("Wijzig categorie")
-      menu.addAction("Wijzig subcategorie")
-      menu.addCancelAction("Annuleren")
-      const choice = await menu.present()
-      if (choice < 0) return
 
-      let result = null
-      if (choice === 0) {
-        result = await pickCategoryFull()
-      } else {
-        result = await pickSubOnly(tx.cat)
-      }
+    // ── ROW A: merchant + flag  →  tap to change main category
+    const rowA = new UITableRow()
+    rowA.height = 52
+    rowA.backgroundColor = C.rowBg
 
+    // Amount (left, colored)
+    const amtCell = UITableCell.text(fmtAmount(tx.amount, tx.type))
+    amtCell.widthWeight  = 28
+    amtCell.titleFont    = Font.boldSystemFont(15)
+    amtCell.titleColor   = isCredit ? C.green : C.dark
+
+    // Merchant + flag (right)
+    const merch     = tx.merchant.length > 24 ? tx.merchant.slice(0,22) + "…" : tx.merchant
+    const flagHint  = tx.possiblySterre ? "⚠️ Mogelijk Sterre" : fmtDate(tx.date)
+    const merchCell = UITableCell.text(merch, flagHint)
+    merchCell.widthWeight    = 72
+    merchCell.titleFont      = Font.mediumSystemFont(14)
+    merchCell.subtitleFont   = Font.systemFont(11)
+    merchCell.titleColor     = C.dark
+    merchCell.subtitleColor  = tx.possiblySterre ? C.orange : C.gray
+
+    rowA.addCell(amtCell)
+    rowA.addCell(merchCell)
+    rowA.onSelect = async () => {
+      const result = await pickCategoryFull()
       if (result) {
         pending[idx].cat            = result.cat
         pending[idx].sub            = result.sub
@@ -493,8 +491,44 @@ function buildTable() {
         buildTable()
       }
     }
+    table.addRow(rowA)
 
-    table.addRow(row)
+    // ── ROW B: category + subcategory  →  tap to change subcategory
+    const rowB = new UITableRow()
+    rowB.height = 34
+    rowB.backgroundColor = C.catBg
+
+    const indentCell = UITableCell.text("  ↳")
+    indentCell.widthWeight = 10
+    indentCell.titleFont   = Font.systemFont(11)
+    indentCell.titleColor  = C.gray
+
+    const catLabel = mainDisplay(tx.cat)
+    const subLabel = subDisplay(tx.cat, tx.sub)
+    const catCell  = UITableCell.text(catLabel)
+    catCell.widthWeight = 45
+    catCell.titleFont   = Font.mediumSystemFont(12)
+    catCell.titleColor  = highConf ? C.green : C.orange
+
+    const subCell = UITableCell.text(subLabel || "geen subcategorie")
+    subCell.widthWeight = 45
+    subCell.rightAligned()
+    subCell.titleFont   = Font.systemFont(11)
+    subCell.titleColor  = subLabel ? C.label : C.gray
+
+    rowB.addCell(indentCell)
+    rowB.addCell(catCell)
+    rowB.addCell(subCell)
+    rowB.onSelect = async () => {
+      const result = await pickSubOnly(pending[idx].cat)
+      if (result) {
+        pending[idx].sub            = result.sub
+        pending[idx].confidence     = "high"
+        pending[idx].possiblySterre = false
+        buildTable()
+      }
+    }
+    table.addRow(rowB)
   }
 }
 
@@ -502,9 +536,10 @@ async function saveAll() {
   const confirm = new Alert()
   confirm.title   = `${pending.length} transacties opslaan?`
   confirm.message = "Dit voegt alle transacties toe aan je CSV en werkt je budget bij."
-  confirm.addAction("Opslaan")
-  confirm.addCancelAction("Annuleren")
-  if (await confirm.present() < 0) return
+  confirm.addAction("✓  Opslaan")
+  confirm.addAction("✕  Annuleren")
+  const r = await confirm.present()
+  if (r !== 0) return
 
   // Load dictionary
   let data = {}
