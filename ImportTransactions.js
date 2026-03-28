@@ -53,7 +53,9 @@ if (!inputText.trim()) {
 // ─── 2. PARSE ABN AMRO CSV ────────────────────────────────────────────────────
 
 function parseSemicolonLine(line) {
-  return line.split(";").map(f => f.trim().replace(/^"|"$/g, ""))
+  // ABN AMRO exports use either semicolons (CSV) or tabs (Excel txt)
+  const sep = line.includes("\t") ? "\t" : ";"
+  return line.split(sep).map(f => f.trim().replace(/^"|"$/g, ""))
 }
 
 function parseABNDate(dateStr) {
