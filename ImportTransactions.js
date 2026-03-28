@@ -428,7 +428,7 @@ function buildTable() {
   const hRow = new UITableRow()
   hRow.height = 50
   hRow.backgroundColor = C.bg
-  const hCell = UITableCell.text(`Opslaan  (${pending.length})`, "tik een rij om categorie te wijzigen")
+  const hCell = UITableCell.text(`Opslaan (${pending.length} transacties)`, "tik een rij om te wijzigen")
   hCell.titleColor    = C.green
   hCell.subtitleColor = C.gray
   hCell.titleFont     = Font.boldSystemFont(15)
@@ -437,49 +437,48 @@ function buildTable() {
   hRow.onSelect = async () => { await saveAll() }
   table.addRow(hRow)
 
-  // ── Transaction rows (one per transaction)
+  // ── Transaction rows
   for (let i = 0; i < pending.length; i++) {
     const tx  = pending[i]
     const idx = i
     const highConf = tx.confidence === "high" && !tx.possiblySterre
 
     const row = new UITableRow()
-    row.height = 44
+    row.height = 60
     row.backgroundColor = C.rowBg
 
-    // Date
-    const dateCell = UITableCell.text(fmtDate(tx.date))
-    dateCell.widthWeight = 18
-    dateCell.titleFont   = Font.systemFont(12)
-    dateCell.titleColor  = C.gray
+    // Left: date + amount
+    const leftCell = UITableCell.text(fmtDate(tx.date), fmtAmount(tx.amount, tx.type))
+    leftCell.widthWeight   = 25
+    leftCell.titleFont     = Font.mediumSystemFont(13)
+    leftCell.subtitleFont  = Font.systemFont(12)
+    leftCell.titleColor    = C.white
+    leftCell.subtitleColor = tx.type === "credit" ? C.green : C.gray
 
-    // Merchant + optional flag
-    const merch    = tx.merchant.length > 22 ? tx.merchant.slice(0,20) + "…" : tx.merchant
-    const flag     = tx.possiblySterre ? " ⚠️" : ""
-    const merchCell = UITableCell.text(merch + flag)
-    merchCell.widthWeight = 42
-    merchCell.titleFont   = Font.systemFont(13)
-    merchCell.titleColor  = C.white
+    // Middle: merchant + sterre hint
+    const merch   = tx.merchant.length > 20 ? tx.merchant.slice(0,18) + "…" : tx.merchant
+    const hint    = tx.possiblySterre ? "⚠️ Sterre?" : ""
+    const midCell = UITableCell.text(merch, hint)
+    midCell.widthWeight   = 42
+    midCell.titleFont     = Font.systemFont(13)
+    midCell.subtitleFont  = Font.systemFont(11)
+    midCell.titleColor    = C.white
+    midCell.subtitleColor = C.orange
 
-    // Amount
-    const amtCell = UITableCell.text(fmtAmount(tx.amount, tx.type))
-    amtCell.widthWeight = 20
-    amtCell.rightAligned()
-    amtCell.titleFont   = Font.systemFont(13)
-    amtCell.titleColor  = tx.type === "credit" ? C.green : C.white
+    // Right: category + subcategory
+    const catLabel  = mainDisplay(tx.cat)
+    const subLabel  = subDisplay(tx.cat, tx.sub) || " "
+    const rightCell = UITableCell.text(catLabel, subLabel)
+    rightCell.widthWeight   = 33
+    rightCell.rightAligned()
+    rightCell.titleFont     = Font.systemFont(12)
+    rightCell.subtitleFont  = Font.systemFont(11)
+    rightCell.titleColor    = highConf ? C.green : C.orange
+    rightCell.subtitleColor = C.gray
 
-    // Category
-    const catLabel = mainDisplay(tx.cat)
-    const catCell  = UITableCell.text(catLabel)
-    catCell.widthWeight = 20
-    catCell.rightAligned()
-    catCell.titleFont   = Font.systemFont(12)
-    catCell.titleColor  = highConf ? C.green : C.orange
-
-    row.addCell(dateCell)
-    row.addCell(merchCell)
-    row.addCell(amtCell)
-    row.addCell(catCell)
+    row.addCell(leftCell)
+    row.addCell(midCell)
+    row.addCell(rightCell)
 
     row.onSelect = async () => {
       const result = await pickCategoryFull()
