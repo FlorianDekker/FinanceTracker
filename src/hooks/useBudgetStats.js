@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { useCategories } from './useCategories'
+import { CATEGORY_MAP } from '../constants/categories'
 
 export function useBudgetStats(year, month) {
   const categories = useCategories()
@@ -24,12 +25,17 @@ export function useBudgetStats(year, month) {
     const spentBefore = {}
 
     for (const tx of allYearTxs) {
-      if (tx.type === 'credit') continue
+      const catType = CATEGORY_MAP[tx.category]?.type
+      // Skip income credits (salary) — they're not spending
+      if (tx.type === 'credit' && catType === 'income') continue
+      // Skip bankoverschrijving entirely
+      if (tx.category === 'bankoverschrijving') continue
+      const amount = tx.type === 'credit' ? -tx.amount : tx.amount
       const m = Number(tx.date.slice(5, 7))
       if (tx.date.startsWith(prefix)) {
-        spent[tx.category] = (spent[tx.category] ?? 0) + tx.amount
+        spent[tx.category] = (spent[tx.category] ?? 0) + amount
       } else if (m < month) {
-        spentBefore[tx.category] = (spentBefore[tx.category] ?? 0) + tx.amount
+        spentBefore[tx.category] = (spentBefore[tx.category] ?? 0) + amount
       }
     }
 

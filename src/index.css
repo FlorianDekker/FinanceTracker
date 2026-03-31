@@ -13,10 +13,11 @@
 
 body {
   margin: 0;
-  background: #111111;
+  background: #0a0a0a;
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
@@ -30,4 +31,13 @@ body {
 }
 .safe-top {
   padding-top: env(safe-area-inset-top);
+}
+
+/* Press feedback on all interactive elements */
+button, a, label[for], label:has(input) {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+button:active, a:active, label:active {
+  opacity: 0.65;
+  transform: scale(0.97);
 }

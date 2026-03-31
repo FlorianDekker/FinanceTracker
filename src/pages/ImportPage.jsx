@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { parseABNExport } from '../utils/parsers'
+import { parseABNExport, parseABNExcel } from '../utils/parsers'
 import { categorize } from '../utils/categorizer'
 import { getExistingKeys, dedupKey } from '../utils/importHelpers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
@@ -19,10 +19,12 @@ export function ImportPage() {
     if (!file) return
     setError(null)
     try {
-      const text = await file.text()
-      const parsed = parseABNExport(text)
+      const isExcel = /\.(xls|xlsx)$/i.test(file.name)
+      const parsed = isExcel
+        ? await parseABNExcel(file)
+        : parseABNExport(await file.text())
       if (parsed.length === 0) {
-        setError('Geen transacties gevonden. Exporteer het Excel-bestand (.txt) vanuit ABN AMRO.')
+        setError('Geen transacties gevonden. Controleer of je het juiste ABN AMRO exportbestand hebt geselecteerd.')
         return
       }
       const existingKeys = await getExistingKeys()
@@ -32,8 +34,8 @@ export function ImportPage() {
         return
       }
       const withCats = newOnes.map(tx => {
-        const { cat, sub, confidence, possiblySterre } = categorize(tx.merchant, tx.amount, tx.type)
-        return { ...tx, category: cat, subcategory: sub, confidence, possiblySterre, note: tx.merchant }
+        const { cat, sub, confidence, possiblySterre, needsManual } = categorize(tx.merchant, tx.amount, tx.type, tx.remi)
+        return { ...tx, category: cat, subcategory: sub, confidence, possiblySterre, needsManual, note: tx.merchant }
       })
       setPending(withCats)
       setStep('review')
@@ -43,7 +45,7 @@ export function ImportPage() {
   }
 
   async function handleSave() {
-    const txs = pending.map(({ merchant, confidence, possiblySterre, ...tx }) => tx)
+    const txs = pending.map(({ merchant, confidence, possiblySterre, needsManual, remi, ...tx }) => tx)
     await bulkAddTransactions(txs)
     setSaved(txs.length)
     setStep('done')
@@ -93,20 +95,31 @@ export function ImportPage() {
                 onClick={() => setEditIdx(idx)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left"
               >
-                <div className="text-center w-12 shrink-0">
+                <div className="text-left w-20 shrink-0">
                   <div className="text-xs text-muted">{fmtDate(tx.date)}</div>
                   <div className={`text-sm font-semibold ${tx.type === 'credit' ? 'text-green' : 'text-white'}`}>
                     {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate">{tx.merchant}</div>
+                  <div className={`text-sm ${editIdx === idx ? '' : 'truncate'}`}>{tx.merchant}</div>
+                  {tx.remi && (
+                    <div className={`text-xs text-muted ${editIdx === idx ? '' : 'truncate'}`}>{tx.remi}</div>
+                  )}
                   {tx.possiblySterre && (
-                    <div className="text-xs text-orange">⚠️ Sterre?</div>
+                    <div className="text-xs text-red">❤️ Sterre?</div>
+                  )}
+                  {tx.needsManual && (
+                    <div className="text-xs text-orange">⚠️ Voeg handmatige transactie toe</div>
                   )}
                 </div>
-                <div className={`text-right shrink-0 ${isLowConf ? 'text-orange' : 'text-green'}`}>
-                  <div className="text-xs">{cat?.icon} {cat?.label}</div>
+                <div className="text-right shrink-0">
+                  <div className={`flex items-center justify-end gap-1 text-xs ${isLowConf ? 'text-orange' : 'text-green'}`}>
+                    {isLowConf && (
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-orange text-white text-[9px] font-bold leading-none">?</span>
+                    )}
+                    {cat?.icon} {cat?.label}
+                  </div>
                   {tx.subcategory && (
                     <div className="text-[10px] text-muted">
                       {cat?.subs?.find(s => s.key === tx.subcategory)?.label}
@@ -121,6 +134,8 @@ export function ImportPage() {
         {editIdx !== null && (
           <CategoryPicker
             current={{ category: pending[editIdx].category, subcategory: pending[editIdx].subcategory }}
+            merchant={pending[editIdx].merchant}
+            remi={pending[editIdx].remi}
             onSelect={(cat, sub) => handleCategoryChange(editIdx, cat, sub)}
             onClose={() => setEditIdx(null)}
           />
@@ -145,28 +160,37 @@ export function ImportPage() {
         <label className="block bg-surface rounded-xl border-2 border-dashed border-border p-8 text-center cursor-pointer">
           <div className="text-4xl mb-3">📤</div>
           <div className="font-medium">Selecteer ABN AMRO exportbestand</div>
-          <div className="text-xs text-muted mt-1">.txt of .csv</div>
-          <input type="file" accept=".txt,.csv,.tab" className="hidden" onChange={handleFile} />
+          <div className="text-xs text-muted mt-1">.xls, .xlsx of .txt</div>
+          <input type="file" accept=".xls,.xlsx,.txt,.csv,.tab,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={handleFile} />
         </label>
+
       </div>
     </PageWrapper>
   )
 }
 
-function CategoryPicker({ current, onSelect, onClose }) {
+function CategoryPicker({ current, merchant, remi, onSelect, onClose }) {
   const [mainCat, setMainCat] = useState(null)
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-50" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl safe-bottom max-h-[70vh] overflow-y-auto">
-        <div className="flex justify-between items-center px-4 py-3 border-b border-border sticky top-0 bg-surface">
-          {mainCat ? (
-            <button onClick={() => setMainCat(null)} className="text-green text-sm">← Terug</button>
-          ) : (
-            <span className="font-semibold text-sm">Kies categorie</span>
+      <div className="fixed inset-0 bg-black/60 z-40 animate-fade-in" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-surface rounded-t-2xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up">
+        <div className="sticky top-0 bg-surface border-b border-border">
+          {merchant && (
+            <div className="px-4 pt-3 pb-2 border-b border-border/50">
+              <div className="text-sm font-medium">{merchant}</div>
+              {remi && <div className="text-xs text-muted mt-0.5">{remi}</div>}
+            </div>
           )}
-          <button onClick={onClose} className="text-muted">✕</button>
+          <div className="flex justify-between items-center px-4 py-3">
+            {mainCat ? (
+              <button onClick={() => setMainCat(null)} className="text-green text-sm">← Terug</button>
+            ) : (
+              <span className="font-semibold text-sm">Kies categorie</span>
+            )}
+            <button onClick={onClose} className="text-muted">✕</button>
+          </div>
         </div>
 
         {!mainCat ? (

@@ -44,7 +44,7 @@ export const CATEGORIES = [
   {
     key: 'reiskosten',
     label: 'Reiskosten',
-    icon: '🚌',
+    icon: '🚆',
     order: 3,
     type: 'expense',
     subs: [],
@@ -60,7 +60,7 @@ export const CATEGORIES = [
   {
     key: 'sterre',
     label: 'Sterre',
-    icon: '💛',
+    icon: '🥰',
     order: 5,
     type: 'expense',
     subs: [
@@ -125,7 +125,7 @@ export const CATEGORIES = [
   {
     key: 'hobbys',
     label: "Hobby's",
-    icon: '🎮',
+    icon: '🎨',
     order: 11,
     type: 'expense',
     subs: [
@@ -154,6 +154,14 @@ export const CATEGORIES = [
     subs: [],
   },
   {
+    key: 'voorschot',
+    label: 'Voorschot',
+    icon: '🤝',
+    order: 15,
+    type: 'transfer',
+    subs: [],
+  },
+  {
     key: 'salaris',
     label: 'Salaris',
     icon: '💰',
@@ -169,3 +177,22 @@ export const EXPENSE_CATEGORIES = CATEGORIES.filter(c => c.type === 'expense')
 export const FIXED_CATEGORIES = new Set(['woning', 'abonnementen', 'vakantie', 'reiskosten'])
 export const MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
 export const MONTHS_LONG = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December']
+
+export const CAT_COLORS = {
+  woning:               '#FF9F0A',
+  abonnementen:         '#5E5CE6',
+  boodschappen:         '#30D158',
+  reiskosten:           '#64D2FF',
+  cadeaus_overig:       '#BF5AF2',
+  sterre:               '#FF375F',
+  gezondheid_verzorging:'#34C759',
+  vakantie:             '#0A84FF',
+  afspreken_vrienden:   '#FF6B6B',
+  kleding:              '#FFD60A',
+  overige_kosten:       '#8E8E93',
+  hobbys:               '#FF453A',
+  investeren:           '#30B0C7',
+  voorschot:            '#AC8E68',
+  salaris:              '#32D74B',
+  bankoverschrijving:   '#636366',
+}

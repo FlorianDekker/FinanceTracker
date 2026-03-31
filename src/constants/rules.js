@@ -4,7 +4,7 @@
 
 export const RULES = [
   // Woning
-  { kw: ['huur', 'hypotheek'],                                          cat: 'woning',               sub: 'huur' },
+  { kw: ['huur', 'hypotheek', 'universiteit van amsterdam', 'uva huur'], cat: 'woning',              sub: 'huur' },
   { kw: ['vattenfall', 'eneco', 'nuon', 'essent', 'greenchoice', 'energie'], cat: 'woning',          sub: 'energie' },
   { kw: ['afvalstoffenheffing'],                                         cat: 'woning',               sub: 'afvalstoffenheffing' },
   { kw: ['waterschapbelasting', 'waterschap'],                          cat: 'woning',               sub: 'waterschapbelasting' },
@@ -16,7 +16,7 @@ export const RULES = [
   { kw: ['aansprakelijkheids'],                                         cat: 'abonnementen',         sub: 'aansprakelijkheidsverzekering' },
   // Boodschappen
   { kw: ['albert heijn', 'ah to go', 'jumbo', 'lidl', 'aldi', 'vomar', 'plus supermarkt', 'boons', 'spar', 'dirk', 'hoogvliet'], cat: 'boodschappen', sub: 'supermarkt' },
-  { kw: ['thuisbezorgd', 'uber eats', 'deliveroo', 'mcdonalds', 'subway', 'burger king', 'dominos', 'bakker'], cat: 'boodschappen', sub: 'eten_onderweg' },
+  { kw: ['thuisbezorgd', 'uber eats', 'deliveroo', 'mcdonalds', 'subway', 'burger king', 'dominos', 'bakker', 'umcu'], cat: 'boodschappen', sub: 'eten_onderweg' },
   // Gezondheid
   { kw: ['kruidvat', 'etos', 'apotheek', 'da drogist', 'rituals', 'drogist'], cat: 'gezondheid_verzorging', sub: '' },
   { kw: ['kapper', 'haircut'],                                          cat: 'gezondheid_verzorging', sub: 'kapper' },
@@ -37,6 +37,9 @@ export const RULES = [
   { kw: ['steam', 'playstation', 'xbox', 'nintendo'],                  cat: 'hobbys',               sub: 'gamen' },
   // Belasting
   { kw: ['belastingdienst', 'belasting', 'cjib'],                      cat: 'overige_kosten',       sub: 'belasting' },
+  // Voorschot
+  { kw: ['paypal'], cat: 'voorschot', sub: '' },
   // Bankoverschrijving / sparen
-  { kw: ['spaarrekening', 'sparen', 'oranje spaar'],                   cat: 'bankoverschrijving',   sub: '' },
+  { kw: ['spaarrekening', 'sparen', 'oranje spaar', 'duo hoofdrekening', 'direct savings'], cat: 'bankoverschrijving', sub: '' },
+  { kw: ['revolut'], cat: 'bankoverschrijving', sub: '', needsManual: true },
 ]
