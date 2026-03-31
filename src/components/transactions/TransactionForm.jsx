@@ -37,10 +37,10 @@ export function TransactionForm({ onClose, existing }) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/60 z-50" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60 z-40 animate-fade-in" onClick={onClose} />
 
       {/* Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl p-4 safe-bottom max-h-[90vh] overflow-y-auto">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-surface rounded-t-2xl p-4 pb-24 max-h-[90vh] overflow-y-auto animate-slide-up">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-base font-semibold">{existing ? 'Bewerken' : 'Transactie toevoegen'}</h2>
           <button onClick={onClose} className="text-muted text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>

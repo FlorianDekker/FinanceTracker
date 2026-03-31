@@ -1,32 +1,25 @@
-// Progress bar with pace knob, replicating Budget Widget 2.js rendering
-
 export function BudgetBar({ ratio, bufferRatio, overspent }) {
-  const fillPct = overspent ? 100 : Math.round((1 - ratio) * 100)
-  // Green fill goes from left = ratio * 100% width
-  const greenPct = Math.round(ratio * 100)
-  const redPct = overspent ? Math.round(Math.min(100, (1 - ratio) * 100)) : 0
+  const greenPct = overspent ? 0 : Math.round(ratio * 100)
 
   return (
-    <div className="relative h-[17px] rounded-full bg-border overflow-hidden">
+    <div className="relative h-[6px] rounded-full bg-surface-2 overflow-visible">
       {overspent ? (
-        // Red bar for overspent
-        <div
-          className="absolute inset-y-0 left-0 rounded-full bg-red"
-          style={{ width: '100%' }}
-        />
+        <div className="absolute inset-0 rounded-full bg-red opacity-90" />
       ) : (
-        // Green fill
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-green"
-          style={{ width: `${greenPct}%` }}
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{
+            width: `${greenPct}%`,
+            background: 'linear-gradient(90deg, #25a244 0%, #30D158 100%)',
+          }}
         />
       )}
 
-      {/* Pace knob: grey pill showing where you need to be to stay on pace */}
-      {!overspent && bufferRatio > 0 && bufferRatio < 1 && (
+      {/* Pace knob */}
+      {!overspent && bufferRatio > 0.01 && bufferRatio < 0.99 && (
         <div
-          className="absolute top-[2px] bottom-[2px] w-[5px] rounded-full bg-[#bdbdbd] opacity-90"
-          style={{ left: `calc(${Math.round(bufferRatio * 100)}% - 3px)` }}
+          className="absolute top-1/2 -translate-y-1/2 w-[3px] h-[10px] rounded-full bg-white/60"
+          style={{ left: `calc(${Math.round(bufferRatio * 100)}% - 1.5px)` }}
         />
       )}
     </div>

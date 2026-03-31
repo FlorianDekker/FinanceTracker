@@ -18,13 +18,12 @@ export function useYearGrid(year) {
     const monthTotals = Array(12).fill(0)
 
     for (const tx of txs) {
-      if (tx.type !== 'debit') continue
       const m = parseInt(tx.date.slice(5, 7), 10) - 1
       if (m < 0 || m > 11) continue
-      if (matrix[tx.category]) {
-        matrix[tx.category][m] += tx.amount
-      }
-      monthTotals[m] += tx.amount
+      if (!matrix[tx.category]) continue
+      const delta = tx.type === 'debit' ? tx.amount : -tx.amount
+      matrix[tx.category][m] += delta
+      monthTotals[m] += delta
     }
 
     return { matrix, monthTotals }
