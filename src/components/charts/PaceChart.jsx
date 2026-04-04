@@ -10,7 +10,7 @@ import {
 } from 'chart.js'
 import { useState } from 'react'
 import { usePaceData, setPaceExcluded, DEFAULT_PACE_EXCLUDED } from '../../hooks/usePaceData'
-import { euroCompact, euro } from '../../utils/formatters'
+import { euroCompact, euro, euroParts } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCategories } from '../../hooks/useCategories'
@@ -168,9 +168,16 @@ export function PaceChart({ year, month }) {
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
             {isAhead ? 'Onder budget' : 'Over budget'}
           </div>
-          <div className={`text-3xl font-extrabold tabular-nums tracking-tight ${isAhead ? 'text-green' : 'text-red'}`}>
-            {isAhead ? `+${euro(diff)}` : `-${euro(-diff)}`}
-          </div>
+          {(() => {
+            const p = euroParts(Math.abs(diff))
+            return (
+              <div className={`tabular-nums tracking-tight ${isAhead ? 'text-green' : 'text-red'}`}>
+                <span className="text-lg font-bold align-top">{isAhead ? '+' : '-'}€</span>
+                <span className="text-4xl font-extrabold">{p.whole}</span>
+                <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{p.dec}</span>
+              </div>
+            )
+          })()}
           <div className={`text-sm font-bold tabular-nums mt-0.5 ${isAhead ? 'text-green' : 'text-red'}`} style={{ opacity: 0.3 }}>
             {pctUsed}%
           </div>
