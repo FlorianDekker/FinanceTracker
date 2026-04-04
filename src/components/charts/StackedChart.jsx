@@ -131,7 +131,7 @@ export function StackedChart({ year }) {
     <div>
       <div className="bg-surface rounded-2xl p-4 mb-4">
         <div className="text-xs text-muted mb-1">Totale uitgaven in {year}</div>
-        <div className="text-2xl font-bold tabular-nums text-white">{euro(yearTotal)}</div>
+        <div className="text-2xl font-bold tabular-nums">{euro(yearTotal)}</div>
         <div className="text-xs text-muted mt-1">
           Gem. {euro(avgMonthly)}/mnd · Duurste: {MONTHS[maxMonth]} · Goedkoopste: {MONTHS[minMonth]}
         </div>

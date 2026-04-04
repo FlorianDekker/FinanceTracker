@@ -121,7 +121,7 @@ export function DailyChart({ year, month }) {
     <div>
       <div className="card p-4 mb-4">
         <div className="text-xs text-muted mb-1">Dagelijkse uitgaven</div>
-        <div className="text-2xl font-bold tabular-nums text-white">{euro(total)}</div>
+        <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(total)}</div>
         <div className="text-xs text-muted mt-1">
           Gem. {euro(average)} / dag · Piekdag: dag {highDay} ({euro(maxSpend)})
         </div>
@@ -181,14 +181,17 @@ function DayTransactionSheet({ day, year, month, onClose }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl sheet-handle max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
         <div className="sticky top-0 z-10">
-          <div className="px-5 pt-4 pb-4 flex items-center justify-between" style={{ background: 'var(--color-accent)' }}>
-            <div>
-              <div className="text-base font-bold text-white">{fmtDate(dateStr)}</div>
-              {sorted && <div className="text-xs text-white/70">{euro(dayTotal)} · {sorted.length} transacties</div>}
+          <div className="px-5 pt-2 pb-4 flex flex-col items-center justify-between" style={{ background: 'var(--color-accent)' }}>
+            <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
+            <div className="flex items-center justify-between w-full">
+              <div>
+                <div className="text-base font-bold text-white">{fmtDate(dateStr)}</div>
+                {sorted && <div className="text-xs text-white/70">{euro(dayTotal)} · {sorted.length} transacties</div>}
+              </div>
+              <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
             </div>
-            <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
           </div>
         </div>
 

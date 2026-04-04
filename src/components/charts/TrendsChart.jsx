@@ -115,7 +115,7 @@ export function TrendsChart({ year }) {
     <div>
       <div className="bg-surface rounded-2xl p-4 mb-4">
         <div className="text-xs text-muted mb-1">Categorie trends {year}</div>
-        <div className="text-lg font-bold text-white">
+        <div className="text-lg font-bold">
           Meeste uitgaven: {topCat?.icon} {topCat?.label}
         </div>
         <div className="text-xs text-muted mt-1">
