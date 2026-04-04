@@ -261,8 +261,8 @@ function CategorySheet({ cat, year, month, onClose }) {
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
       <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[75vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
         {/* Colored category header */}
-        <div className="sticky top-0 z-10">
-          <div className="px-5 pt-2 pb-4 rounded-t-3xl flex flex-col" style={{ background: `linear-gradient(135deg, ${CAT_COLORS[cat.key] ?? '#8E8E93'}, ${CAT_COLORS[cat.key] ?? '#8E8E93'}CC)` }}>
+        <div className="sticky top-0 z-10 rounded-t-3xl" style={{ background: CAT_COLORS[cat.key] ?? '#8E8E93' }}>
+          <div className="px-5 pt-2 pb-4 flex flex-col" style={{ background: `linear-gradient(135deg, ${CAT_COLORS[cat.key] ?? '#8E8E93'}, ${CAT_COLORS[cat.key] ?? '#8E8E93'}CC)` }}>
             <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

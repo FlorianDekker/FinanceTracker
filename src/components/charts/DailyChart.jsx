@@ -182,7 +182,7 @@ function DayTransactionSheet({ day, year, month, onClose }) {
     <>
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
       <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="sticky top-0 z-10">
+        <div className="sticky top-0 z-10 rounded-t-3xl" style={{ background: 'var(--color-accent)' }}>
           <div className="px-5 pt-2 pb-4 flex flex-col items-center justify-between" style={{ background: 'var(--color-accent)' }}>
             <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
             <div className="flex items-center justify-between w-full">
