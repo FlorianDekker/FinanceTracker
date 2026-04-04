@@ -176,7 +176,7 @@ export const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.key, c]))
 export const EXPENSE_CATEGORIES = CATEGORIES.filter(c => c.type === 'expense')
 export const FIXED_CATEGORIES = new Set(['woning', 'abonnementen', 'vakantie', 'reiskosten'])
 export const MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
-export const MONTHS_LONG = ['Januari', 'Februari', 'Maart', 'April2', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December']
+export const MONTHS_LONG = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December']
 
 export const CAT_COLORS = {
   woning:               '#FF9F0A',
