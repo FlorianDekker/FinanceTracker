@@ -134,7 +134,7 @@ export function StackedChart({ year }) {
   return (
     <div>
       <div className="bg-surface rounded-2xl p-4 mb-4">
-        <div className="text-xs text-muted mb-1">Uitgaven per maand {year}</div>
+        <div className="text-xs text-muted mb-1">Totale uitgaven in {year}</div>
         <div className="text-2xl font-bold tabular-nums text-white">{euro(yearTotal)}</div>
         <div className="text-xs text-muted mt-1">
           Gem. {euro(avgMonthly)}/mnd · Duurste: {MONTHS[maxMonth]} · Goedkoopste: {MONTHS[minMonth]}
@@ -144,16 +144,20 @@ export function StackedChart({ year }) {
       <Bar data={chartData} options={options} plugins={[avgPlugin]} />
 
       {/* Category legend sorted by total */}
-      <div className="mt-4 space-y-1.5">
+      <div className="mt-4 space-y-2">
         {legendCats.filter(c => c.total > 0).map(cat => {
           const color = CAT_COLORS[cat.key] ?? '#8E8E93'
-          const pct = yearTotal > 0 ? Math.round((cat.total / yearTotal) * 100) : 0
+          const pct = yearTotal > 0 ? (cat.total / yearTotal) * 100 : 0
           return (
-            <div key={cat.key} className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-              <span className="text-xs text-white/70 flex-1 truncate">{cat.icon} {cat.label}</span>
-              <span className="text-[11px] text-muted tabular-nums">{pct}%</span>
-              <span className="text-xs font-semibold tabular-nums w-14 text-right">{euro(cat.total)}</span>
+            <div key={cat.key} className="relative overflow-hidden rounded-xl py-2.5 px-3 flex items-center gap-3">
+              <div
+                className="absolute inset-y-0 left-0 rounded-xl"
+                style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: color, opacity: 0.15 }}
+              />
+              <div className="w-2.5 h-2.5 rounded-full shrink-0 relative" style={{ backgroundColor: color }} />
+              <span className="text-sm text-white/80 flex-1 truncate relative">{cat.icon} {cat.label}</span>
+              <span className="text-xs text-muted tabular-nums relative">{Math.round(pct)}%</span>
+              <span className="text-sm font-semibold tabular-nums w-16 text-right relative">{euro(cat.total)}</span>
             </div>
           )
         })}
