@@ -14,6 +14,12 @@ export function SettingsPage() {
   const [inputVal, setInputVal] = useState('')
   const [importStatus, setImportStatus] = useState(null)
   const totalTxCount = useLiveQuery(() => db.transactions.count(), [])
+  const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? true), [])
+
+  async function toggleConfidence() {
+    const current = showConfidence ?? true
+    await db.settings.put({ key: 'showConfidence', value: !current })
+  }
 
   function startEdit(cat) {
     setEditingCat(cat)
@@ -166,6 +172,23 @@ return (
           <button onClick={handleClearData} className="w-full flex items-center gap-3 px-4 py-3 text-left text-red">
             <span className="text-xl">🗑️</span>
             <span className="text-sm">Wis alle transacties</span>
+          </button>
+        </div>
+      </section>
+
+      {/* Admin */}
+      <section className="px-4 pt-4 pb-2">
+        <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Admin</h2>
+        <div className="bg-surface rounded-xl divide-y divide-border overflow-hidden">
+          <button onClick={toggleConfidence} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+            <span className="text-xl">🧠</span>
+            <div className="flex-1">
+              <div className="text-sm">Toon confidence bij importeren</div>
+              <div className="text-xs text-muted">Toont bron en percentage bij categorie-suggesties</div>
+            </div>
+            <div className={`w-11 h-6 rounded-full relative transition-colors ${showConfidence ? 'bg-green' : 'bg-border'}`}>
+              <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${showConfidence ? 'translate-x-5' : 'translate-x-0.5'}`} />
+            </div>
           </button>
         </div>
       </section>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { parseABNExport, parseABNExcel } from '../utils/parsers'
 import { categorizeWithLearning } from '../utils/categorizer'
 import { getExistingKeys, dedupKey } from '../utils/importHelpers'
@@ -7,6 +8,7 @@ import { recordEvent, bulkRecordEvents } from '../utils/merchantLearning'
 import { euro, fmtDate } from '../utils/formatters'
 import { CATEGORY_MAP, CATEGORIES } from '../constants/categories'
 import { PageWrapper } from '../components/layout/PageWrapper'
+import { db } from '../db/db'
 
 export function ImportPage() {
   const [step, setStep] = useState('upload') // upload | review | done
@@ -14,6 +16,7 @@ export function ImportPage() {
   const [saved, setSaved] = useState(0)
   const [editIdx, setEditIdx] = useState(null)
   const [error, setError] = useState(null)
+  const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? true), [])
 
   async function handleFile(e) {
     const file = e.target.files?.[0]
@@ -134,19 +137,19 @@ export function ImportPage() {
                       {cat?.subs?.find(s => s.key === tx.subcategory)?.label}
                     </div>
                   )}
-                  {tx.source === 'recurring' && (
+                  {showConfidence && tx.source === 'recurring' && (
                     <div className="text-[9px] text-green mt-0.5">🔄 Terugkerend · {tx.confidencePct}%</div>
                   )}
-                  {tx.source === 'learned' && tx.eventCount > 0 && (
+                  {showConfidence && tx.source === 'learned' && tx.eventCount > 0 && (
                     <div className={`text-[9px] mt-0.5 ${tx.confidencePct >= 70 ? 'text-blue' : 'text-orange'}`}>🧠 Geleerd ({tx.eventCount}x) · {tx.confidencePct}%</div>
                   )}
-                  {tx.source === 'similar' && (
+                  {showConfidence && tx.source === 'similar' && (
                     <div className="text-[9px] text-orange mt-0.5">🧠 Vergelijkbaar · {tx.confidencePct}%</div>
                   )}
-                  {tx.source === 'rules' && (
+                  {showConfidence && tx.source === 'rules' && (
                     <div className="text-[9px] text-muted mt-0.5">📋 Regel · {tx.confidencePct}%</div>
                   )}
-                  {tx.source === 'unknown' && (
+                  {showConfidence && tx.source === 'unknown' && (
                     <div className="text-[9px] text-orange mt-0.5">❓ Onbekend</div>
                   )}
                 </div>
