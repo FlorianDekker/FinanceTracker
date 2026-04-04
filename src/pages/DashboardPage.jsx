@@ -75,26 +75,25 @@ export function DashboardPage() {
   return (
     <PageWrapper>
       {/* Header */}
-      <div className="sticky top-0 z-10 safe-top" style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
+      <div className="sticky top-0 z-10 safe-top" style={{ background: 'var(--color-accent)' }}>
         <div className="flex items-center justify-between px-5 py-3">
-          <button onClick={() => goMonth('prev')} className="text-muted px-2 py-1 text-2xl font-light">‹</button>
+          <button onClick={() => goMonth('prev')} className="px-2 py-1 text-2xl font-light" style={{ color: 'rgba(255,255,255,0.7)' }}>‹</button>
           <div className="flex items-center gap-2.5">
-            <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>{MONTHS_LONG[month - 1]} {year}</span>
+            <span className="text-lg font-bold tracking-tight text-white">{MONTHS_LONG[month - 1]} {year}</span>
             {!isCurrentMonth && (
-              <button onClick={goToNow} className="text-[10px] font-bold text-accent bg-accent-dim rounded-full px-2.5 py-1">Nu</button>
+              <button onClick={goToNow} className="text-[10px] font-bold rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}>Nu</button>
             )}
           </div>
-          <button onClick={() => goMonth('next')} className="text-muted px-2 py-1 text-2xl font-light">›</button>
+          <button onClick={() => goMonth('next')} className="px-2 py-1 text-2xl font-light" style={{ color: 'rgba(255,255,255,0.7)' }}>›</button>
         </div>
         <div className="flex justify-center pb-3">
-          <div className="flex rounded-full p-0.5" style={{ background: 'var(--color-surface-2)' }}>
+          <div className="flex rounded-full p-0.5" style={{ background: 'rgba(255,255,255,0.15)' }}>
             {['cards', 'list'].map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                  view === v ? 'btn-accent' : 'text-muted'
-                }`}
+                className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200`}
+                style={view === v ? { background: '#fff', color: 'var(--color-accent)' } : { color: 'rgba(255,255,255,0.7)' }}
               >
                 {v === 'cards' ? 'Kaarten' : 'Lijst'}
               </button>
@@ -217,7 +216,7 @@ function CategoryCard({ cat, onClick }) {
     <button
       onClick={onClick}
       className="p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-150 active:scale-[0.97] overflow-hidden"
-      style={{ background: color + '0A', borderRadius: 20, boxShadow: 'var(--shadow-card)' }}
+      style={{ background: color + '18', borderRadius: 20, boxShadow: 'var(--shadow-card)' }}
     >
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
