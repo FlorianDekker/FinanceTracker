@@ -4,7 +4,7 @@ import { useYearGrid } from '../../hooks/useYearGrid'
 import { euroCompact, euro, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { TransactionForm } from '../transactions/TransactionForm'
-import { EXPENSE_CATEGORIES, MONTHS, MONTHS_LONG, CATEGORY_MAP } from '../../constants/categories'
+import { EXPENSE_CATEGORIES, MONTHS, MONTHS_LONG, CATEGORY_MAP, CAT_COLORS } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
 
@@ -158,16 +158,17 @@ function YearGridSheet({ cat, year, month, onClose }) {
     <>
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
       <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl sheet-handle max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
-          <div>
-            <div className="font-semibold text-sm">{cat.icon} {cat.label} — {MONTHS_LONG[month - 1]}</div>
-            {sorted && (
-              <div className={`text-xs mt-0.5 ${netTotal < 0 ? 'text-blue' : 'text-muted'}`}>
-                Netto: {netTotal < 0 ? '+' : ''}{euro(Math.abs(netTotal))} · {sorted.length} transacties
+        <div className="sticky top-0 z-10">
+          <div className="px-5 pt-4 pb-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${CAT_COLORS[cat.key] ?? '#8E8E93'}, ${CAT_COLORS[cat.key] ?? '#8E8E93'}CC)` }}>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{cat.icon}</span>
+              <div>
+                <div className="text-base font-bold text-white">{cat.label} — {MONTHS_LONG[month - 1]}</div>
+                {sorted && <div className="text-xs text-white/70">Netto: {netTotal < 0 ? '+' : ''}{euro(Math.abs(netTotal))} · {sorted.length} transacties</div>}
               </div>
-            )}
+            </div>
+            <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
           </div>
-          <button onClick={onClose} className="text-muted">✕</button>
         </div>
 
         {sorted === null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}

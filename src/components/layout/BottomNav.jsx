@@ -15,7 +15,6 @@ export function BottomNav() {
       style={{
         background: 'var(--color-surface)',
         boxShadow: 'var(--shadow-nav)',
-        borderTop: '1px solid var(--color-border)',
       }}
     >
       <div className="flex">
@@ -26,20 +25,22 @@ export function BottomNav() {
             end={tab.exact}
             replace
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center flex-1 py-2.5 gap-0.5 text-[10px] font-semibold transition-all duration-200 ${
-                isActive ? 'text-accent' : 'text-muted'
+              `relative flex flex-col items-center justify-center flex-1 pt-2 pb-2.5 gap-1 text-[10px] font-semibold transition-all duration-200 ${
+                isActive ? '' : 'text-muted'
               }`
             }
+            style={({ isActive }) => isActive ? { color: 'var(--color-text)' } : {}}
           >
             {({ isActive }) => (
               <>
-                <div
-                  className={`w-12 h-7 flex items-center justify-center rounded-full transition-all duration-200 ${
-                    isActive ? 'bg-accent-dim' : ''
-                  }`}
-                >
-                  <span className="text-xl leading-none">{tab.icon}</span>
-                </div>
+                {/* Active indicator line */}
+                {isActive && (
+                  <div
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full"
+                    style={{ background: 'var(--color-accent)' }}
+                  />
+                )}
+                <span className="text-[22px] leading-none mt-0.5">{tab.icon}</span>
                 <span>{tab.label}</span>
               </>
             )}
