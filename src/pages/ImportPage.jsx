@@ -109,7 +109,7 @@ export function ImportPage() {
               >
                 <div className="text-left w-20 shrink-0">
                   <div className="text-xs text-muted">{fmtDate(tx.date)}</div>
-                  <div className={`text-sm font-semibold ${tx.type === 'credit' ? 'text-green' : 'text-white'}`}>
+                  <div className={`text-sm font-semibold ${tx.type === 'credit' ? 'text-green' : ''}`} style={tx.type !== 'credit' ? { color: 'var(--color-text)' } : {}}>
                     {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
                   </div>
                 </div>

@@ -194,9 +194,9 @@ export function SpendingDonut({ year, month }) {
                 className="absolute inset-y-0 left-0 rounded-xl"
                 style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: color, opacity: 0.15 }}
               />
-              <div className="w-8 h-8 rounded-full shrink-0 relative flex items-center justify-center text-sm" style={{ backgroundColor: color + '20' }}>{c.icon}</div>
+              <div className="w-3 h-3 rounded-full shrink-0 relative" style={{ backgroundColor: color }} />
               <div className="flex-1 min-w-0 text-left relative">
-                <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{c.label}</div>
+                <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{c.icon} {c.label}</div>
               </div>
               <div className="text-right relative">
                 <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(c.spent)}</div>
