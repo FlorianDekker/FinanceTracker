@@ -1,20 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
-import { CategoryRow } from '../components/dashboard/CategoryRow'
 import { useBudgetStats } from '../hooks/useBudgetStats'
 import { euro, fmtDate } from '../utils/formatters'
-import { MONTHS_LONG, CATEGORY_MAP } from '../constants/categories'
+import { MONTHS_LONG, CAT_COLORS } from '../constants/categories'
 import { TransactionForm } from '../components/transactions/TransactionForm'
 import { useMonth } from '../hooks/useMonth'
 import { useSheetGestures } from '../hooks/useSheetGestures'
 import { db } from '../db/db'
 
 export function DashboardPage() {
-  const { year, month, animDir, showPill, isCurrentMonth, goMonth, goToNow, animating } = useMonth()
+  const { year, month, animDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
   const [selectedCat, setSelectedCat] = useState(null)
   const listRef = useRef(null)
-  const catTouchStart = useRef(null)
 
   const stats = useBudgetStats(year, month)
   const expenseStats = stats.filter(c => c.type === 'expense')
@@ -41,7 +39,7 @@ export function DashboardPage() {
       const dx = Math.abs(e.touches[0].clientX - startX)
       const dy = Math.abs(e.touches[0].clientY - startY)
       if (horizontal === null) {
-        if (dx < 6 && dy < 6) return  // ambiguous — let browser scroll freely
+        if (dx < 6 && dy < 6) return
         horizontal = dx > dy
       }
       if (horizontal) e.preventDefault()
@@ -65,24 +63,6 @@ export function DashboardPage() {
     }
   }, [])
 
-  function onCatTouchStart(e) {
-    catTouchStart.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-      scrollY: window.scrollY,
-    }
-  }
-  function onCatTouchEnd(cat, e) {
-    if (!catTouchStart.current) return
-    const start = catTouchStart.current
-    catTouchStart.current = null
-    const dx = Math.abs(e.changedTouches[0].clientX - start.x)
-    const dy = Math.abs(e.changedTouches[0].clientY - start.y)
-    const scrolled = Math.abs(window.scrollY - start.scrollY) > 2
-    if (dx < 8 && dy < 8 && !scrolled) setSelectedCat(cat)
-  }
-  function onCatTouchCancel() { catTouchStart.current = null }
-
   const slideClass = animDir === 'left'
     ? 'animate-slide-in-left'
     : animDir === 'right'
@@ -91,7 +71,7 @@ export function DashboardPage() {
 
   return (
     <PageWrapper>
-      {/* Sticky month header — same style as Transacties */}
+      {/* Sticky month header */}
       <div className="sticky top-0 z-10 bg-bg px-4 py-2 safe-top border-b border-border">
         <div className="flex items-center justify-between">
           <button onClick={() => goMonth('prev')} className="text-muted px-2 py-1 text-xl">‹</button>
@@ -105,20 +85,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Budget summary */}
-      <div className="px-4 pt-5 pb-4 text-center">
-        <div className="text-[11px] font-medium text-muted uppercase tracking-widest mb-2">
-          {isOver ? 'Over budget' : 'Nog beschikbaar'}
-        </div>
-        <div className={`text-[52px] font-bold tracking-tight leading-none tabular-nums ${isOver ? 'text-red' : 'text-green'}`}>
-          {isOver ? `-${euro(Math.abs(totalRemaining))}` : euro(totalRemaining)}
-        </div>
-        <div className="text-xs text-muted mt-2">
-          <span className="text-white/60">{euro(totalSpent)}</span> uitgegeven · <span className="text-white/60">{euro(totalBudget)}</span> budget
-        </div>
-      </div>
-
-      {/* Floating month pill — upper third */}
+      {/* Floating month pill */}
       {showPill && (
         <div className="fixed inset-x-0 top-1/3 -translate-y-1/2 flex justify-center z-30 pointer-events-none">
           <div className="bg-surface/95 border border-border rounded-2xl px-8 py-4 text-lg font-semibold animate-scale-in shadow-lg">
@@ -127,36 +94,38 @@ export function DashboardPage() {
         </div>
       )}
 
-      <div ref={listRef} className={`touch-pan-y ${slideClass}`}>
-        <div className="divide-y divide-border">
-          {expenseStats.map(cat => (
-            <button
-              key={cat.key}
-              className="w-full text-left"
-              onTouchStart={onCatTouchStart}
-              onTouchEnd={e => onCatTouchEnd(cat, e)}
-              onTouchCancel={onCatTouchCancel}
-            >
-              <CategoryRow category={cat} />
-            </button>
-          ))}
+      <div ref={listRef} className={`touch-pan-y px-4 pb-6 ${slideClass}`}>
+        {/* Budget summary */}
+        <div className="pt-5 pb-4 text-center">
+          <div className="text-[11px] font-medium text-muted uppercase tracking-widest mb-2">
+            {isOver ? 'Over budget' : 'Nog beschikbaar'}
+          </div>
+          <div className={`text-[52px] font-bold tracking-tight leading-none tabular-nums ${isOver ? 'text-red' : 'text-green'}`}>
+            {isOver ? `-${euro(Math.abs(totalRemaining))}` : euro(totalRemaining)}
+          </div>
+          <div className="text-xs text-muted mt-2">
+            <span className="text-white/60">{euro(totalSpent)}</span> uitgegeven · <span className="text-white/60">{euro(totalBudget)}</span> budget
+          </div>
         </div>
-        {voorschotStat && (
-          <>
-            <div className="px-4 pt-4 pb-1">
-              <span className="text-xs text-muted uppercase tracking-wider">Voorschot</span>
+
+        {/* Expense category cards */}
+        <div className="mb-2">
+          <div className="text-[10px] text-muted uppercase tracking-widest mb-2 px-1">Uitgaven · {euro(totalSpent)}</div>
+          <div className="grid grid-cols-3 gap-2.5">
+            {expenseStats.map(cat => (
+              <CategoryCard key={cat.key} cat={cat} onClick={() => setSelectedCat(cat)} />
+            ))}
+          </div>
+        </div>
+
+        {/* Voorschot */}
+        {voorschotStat && voorschotStat.spent > 0 && (
+          <div className="mt-4">
+            <div className="text-[10px] text-muted uppercase tracking-widest mb-2 px-1">Voorschot</div>
+            <div className="grid grid-cols-3 gap-2.5">
+              <CategoryCard cat={voorschotStat} onClick={() => setSelectedCat(voorschotStat)} />
             </div>
-            <div className="divide-y divide-border border-t border-border">
-              <button
-                className="w-full text-left"
-                onTouchStart={onCatTouchStart}
-                onTouchEnd={e => onCatTouchEnd(voorschotStat, e)}
-                onTouchCancel={onCatTouchCancel}
-              >
-                <CategoryRow category={voorschotStat} />
-              </button>
-            </div>
-          </>
+          </div>
         )}
       </div>
 
@@ -169,6 +138,51 @@ export function DashboardPage() {
         />
       )}
     </PageWrapper>
+  )
+}
+
+function CategoryCard({ cat, onClick }) {
+  const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+  const spent = cat.spent
+  const budget = cat.budget
+  const ratio = budget > 0 ? Math.min(spent / budget, 1) : (spent > 0 ? 1 : 0)
+  const overspent = budget > 0 && spent > budget
+
+  return (
+    <button
+      onClick={onClick}
+      className="relative rounded-2xl p-3 flex flex-col items-center gap-1.5 text-center overflow-hidden"
+      style={{ backgroundColor: color + '15' }}
+    >
+      {/* Category name */}
+      <div className="text-[10px] text-white/70 truncate w-full leading-tight">{cat.label}</div>
+
+      {/* Icon */}
+      <div
+        className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+        style={{ backgroundColor: color + '25' }}
+      >
+        {cat.icon}
+      </div>
+
+      {/* Amount */}
+      <div className={`text-xs font-bold tabular-nums ${overspent ? 'text-red' : 'text-white'}`}>
+        {euro(spent)}
+      </div>
+
+      {/* Progress bar */}
+      {budget > 0 && (
+        <div className="w-full h-[3px] rounded-full mt-0.5" style={{ backgroundColor: color + '20' }}>
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${Math.round(ratio * 100)}%`,
+              backgroundColor: overspent ? '#D32F2F' : color,
+            }}
+          />
+        </div>
+      )}
+    </button>
   )
 }
 
