@@ -14,11 +14,11 @@ export function SettingsPage() {
   const [inputVal, setInputVal] = useState('')
   const [importStatus, setImportStatus] = useState(null)
   const totalTxCount = useLiveQuery(() => db.transactions.count(), [])
-  const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? true), [])
+  const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? false), [])
   const theme = useLiveQuery(() => db.settings.get('theme').then(r => r?.value ?? 'dark'), [])
 
   async function toggleConfidence() {
-    const current = showConfidence ?? true
+    const current = showConfidence ?? false
     await db.settings.put({ key: 'showConfidence', value: !current })
   }
 
@@ -214,8 +214,8 @@ return (
           <button onClick={toggleConfidence} className="w-full flex items-center gap-3 px-4 py-3 text-left">
             <span className="text-xl">🧠</span>
             <div className="flex-1">
-              <div className="text-sm">Toon confidence bij importeren</div>
-              <div className="text-xs text-muted">Toont bron en percentage bij categorie-suggesties</div>
+              <div className="text-sm">Toon betrouwbaarheid bij het importeren</div>
+              <div className="text-xs text-muted">Geef per categorie-suggestie de bron en het percentage weer</div>
             </div>
             <div className={`w-11 h-6 rounded-full relative transition-colors ${showConfidence ? 'bg-green' : 'bg-border'}`}>
               <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${showConfidence ? 'translate-x-5' : 'translate-x-0.5'}`} />

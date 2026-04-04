@@ -16,7 +16,7 @@ export function ImportPage() {
   const [saved, setSaved] = useState(0)
   const [editIdx, setEditIdx] = useState(null)
   const [error, setError] = useState(null)
-  const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? true), [])
+  const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? false), [])
 
   async function handleFile(e) {
     const file = e.target.files?.[0]
