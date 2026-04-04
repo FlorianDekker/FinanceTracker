@@ -153,6 +153,32 @@ return (
         </div>
       )}
 
+      {/* Accent color picker — first setting */}
+      <section className="px-4 pt-4 pb-2">
+        <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Accentkleur</h2>
+        <div className="card p-4">
+          <div className="grid grid-cols-6 gap-2.5">
+            {ACCENT_OPTIONS.map(opt => (
+              <button
+                key={opt.color}
+                onClick={() => setAccent(opt.color)}
+                className="flex flex-col items-center gap-1"
+              >
+                <div
+                  className="w-9 h-9 rounded-full transition-all duration-150"
+                  style={{
+                    backgroundColor: opt.color,
+                    boxShadow: accentColor === opt.color ? `0 0 0 3px var(--color-bg), 0 0 0 5px ${opt.color}` : 'none',
+                    transform: accentColor === opt.color ? 'scale(1.1)' : 'scale(1)',
+                  }}
+                />
+                <span className="text-[9px]" style={{ color: accentColor === opt.color ? 'var(--color-text)' : 'var(--color-muted)' }}>{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Budget per category */}
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Maandbudget</h2>
@@ -230,35 +256,6 @@ return (
               >
                 Licht
               </button>
-            </div>
-          </div>
-
-          {/* Accent color picker */}
-          <div className="px-4 py-3">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-xl">🎨</span>
-              <div className="flex-1">
-                <div className="text-sm" style={{ color: 'var(--color-text)' }}>Accentkleur</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-6 gap-2">
-              {ACCENT_OPTIONS.map(opt => (
-                <button
-                  key={opt.color}
-                  onClick={() => setAccent(opt.color)}
-                  className="flex flex-col items-center gap-1"
-                >
-                  <div
-                    className="w-9 h-9 rounded-full transition-all duration-150"
-                    style={{
-                      backgroundColor: opt.color,
-                      boxShadow: accentColor === opt.color ? `0 0 0 3px var(--color-bg), 0 0 0 5px ${opt.color}` : 'none',
-                      transform: accentColor === opt.color ? 'scale(1.1)' : 'scale(1)',
-                    }}
-                  />
-                  <span className="text-[9px]" style={{ color: accentColor === opt.color ? 'var(--color-text)' : 'var(--color-muted)' }}>{opt.label}</span>
-                </button>
-              ))}
             </div>
           </div>
 
