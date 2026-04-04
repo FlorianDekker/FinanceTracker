@@ -15,6 +15,7 @@ export function SpendingDonut({ year, month }) {
   const stats = useBudgetStats(year, month)
   const [selectedCat, setSelectedCat] = useState(null)
   const chartRef = useRef(null)
+  const catsRef = useRef([])
 
   if (!stats.length) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
@@ -26,6 +27,7 @@ export function SpendingDonut({ year, month }) {
     .filter(c => c.key !== 'bankoverschrijving' && c.spent < 0)
     .sort((a, b) => a.spent - b.spent)
 
+  catsRef.current = cats
   const total = cats.reduce((s, c) => s + c.spent, 0)
 
   if (cats.length === 0) return (
@@ -67,12 +69,14 @@ export function SpendingDonut({ year, month }) {
       const { ctx } = chart
       const meta = chart.getDatasetMeta(0)
       if (!meta.data.length) return
+      const currentCats = catsRef.current
+      const currentTotal = currentCats.reduce((s, c) => s + c.spent, 0)
 
       // Only label segments that are big enough (>5%)
       meta.data.forEach((arc, i) => {
-        const cat = cats[i]
+        const cat = currentCats[i]
         if (!cat) return
-        const pct = total > 0 ? (cat.spent / total) * 100 : 0
+        const pct = currentTotal > 0 ? (cat.spent / currentTotal) * 100 : 0
         if (pct < 5) return
 
         const { x, y, startAngle, endAngle, innerRadius, outerRadius } = arc.getProps(['x', 'y', 'startAngle', 'endAngle', 'innerRadius', 'outerRadius'])
