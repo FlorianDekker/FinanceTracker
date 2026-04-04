@@ -87,12 +87,12 @@ export function ImportPage() {
   if (step === 'review') {
     return (
       <PageWrapper>
-        <div className="sticky top-0 z-10 glass px-4 py-3 safe-top flex justify-between items-center">
+        <div className="sticky top-0 z-10 px-4 py-3 safe-top flex justify-between items-center" style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
           <div>
             <div className="font-semibold">{pending.length} nieuwe transacties</div>
             <div className="text-xs text-muted">Tik een rij om categorie te wijzigen</div>
           </div>
-          <button onClick={handleSave} className="btn-gradient-green text-sm font-medium rounded-lg px-4 py-2">
+          <button onClick={handleSave} className="btn-accent text-sm font-medium rounded-lg px-4 py-2">
             Opslaan
           </button>
         </div>
@@ -184,7 +184,7 @@ export function ImportPage() {
           </div>
         )}
 
-        <label className="block glass rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer">
+        <label className="block card border-2 border-dashed p-8 text-center cursor-pointer">
           <div className="text-4xl mb-3">📤</div>
           <div className="font-medium">Selecteer ABN AMRO exportbestand</div>
           <div className="text-xs text-muted mt-1">.xls, .xlsx of .txt</div>
@@ -201,9 +201,9 @@ function CategoryPicker({ current, merchant, remi, onSelect, onClose }) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" onClick={onClose} style={{ backdropFilter: 'blur(4px)' }} />
-      <div className="fixed bottom-0 left-0 right-0 z-40 glass-heavy rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up sheet-handle">
-        <div className="sticky top-0 glass-heavy border-b border-border">
+      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+        <div className="sticky top-0 border-b border-border" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
           {merchant && (
             <div className="px-4 pt-3 pb-2 border-b border-border/50">
               <div className="text-sm font-medium">{merchant}</div>

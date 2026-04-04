@@ -51,10 +51,10 @@ export function TransactionForm({ onClose, existing }) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/50 z-50 animate-fade-in" onClick={onClose} style={{ backdropFilter: 'blur(4px)' }} />
+      <div className="fixed inset-0 bg-black/30 z-50 animate-fade-in" onClick={onClose} />
 
       {/* Sheet */}
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 glass-heavy rounded-t-3xl p-4 pb-24 max-h-[90vh] overflow-y-auto animate-slide-up sheet-handle">
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl p-4 pb-24 max-h-[90vh] overflow-y-auto animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-base font-semibold">{existing ? 'Bewerken' : 'Transactie toevoegen'}</h2>
           <button onClick={onClose} className="text-muted text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>
@@ -68,7 +68,8 @@ export function TransactionForm({ onClose, existing }) {
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full bg-border rounded-lg px-3 py-2 mt-1 text-white text-sm"
+              className="w-full rounded-lg px-3 py-2 mt-1 text-sm"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
             />
           </label>
 
@@ -82,7 +83,8 @@ export function TransactionForm({ onClose, existing }) {
                 placeholder="0,00"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                className="w-full bg-border rounded-lg px-3 py-2 mt-1 text-white text-sm"
+                className="w-full rounded-lg px-3 py-2 mt-1 text-sm"
+                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
               />
             </label>
             <div>
@@ -90,13 +92,15 @@ export function TransactionForm({ onClose, existing }) {
               <div className="flex rounded-lg overflow-hidden mt-1">
                 <button
                   onClick={() => setType('debit')}
-                  className={`px-4 py-2 text-sm font-medium ${type === 'debit' ? 'bg-red text-white' : 'bg-border text-muted'}`}
+                  className={`px-4 py-2 text-sm font-medium ${type === 'debit' ? 'bg-red text-white' : ''}`}
+                  style={type !== 'debit' ? { background: 'var(--color-surface-2)', color: 'var(--color-muted)' } : undefined}
                 >
                   Af
                 </button>
                 <button
                   onClick={() => setType('credit')}
-                  className={`px-4 py-2 text-sm font-medium ${type === 'credit' ? 'bg-green text-white' : 'bg-border text-muted'}`}
+                  className={`px-4 py-2 text-sm font-medium ${type === 'credit' ? 'bg-green text-white' : ''}`}
+                  style={type !== 'credit' ? { background: 'var(--color-surface-2)', color: 'var(--color-muted)' } : undefined}
                 >
                   Bij
                 </button>
@@ -110,7 +114,8 @@ export function TransactionForm({ onClose, existing }) {
             <select
               value={category}
               onChange={e => { setCategory(e.target.value); setSubcategory('') }}
-              className="w-full bg-border rounded-lg px-3 py-2 mt-1 text-white text-sm appearance-none"
+              className="w-full rounded-lg px-3 py-2 mt-1 text-sm appearance-none"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
             >
               <option value="">Kies categorie…</option>
               {CATEGORIES.map(c => (
@@ -126,7 +131,8 @@ export function TransactionForm({ onClose, existing }) {
               <select
                 value={subcategory}
                 onChange={e => setSubcategory(e.target.value)}
-                className="w-full bg-border rounded-lg px-3 py-2 mt-1 text-white text-sm appearance-none"
+                className="w-full rounded-lg px-3 py-2 mt-1 text-sm appearance-none"
+                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
               >
                 <option value="">Geen subcategorie</option>
                 {selectedCat.subs.map(s => (
@@ -144,7 +150,8 @@ export function TransactionForm({ onClose, existing }) {
               placeholder="Bijv. Albert Heijn"
               value={note}
               onChange={e => setNote(e.target.value)}
-              className="w-full bg-border rounded-lg px-3 py-2 mt-1 text-white text-sm"
+              className="w-full rounded-lg px-3 py-2 mt-1 text-sm"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
             />
           </label>
         </div>
@@ -153,7 +160,7 @@ export function TransactionForm({ onClose, existing }) {
           <button
             onClick={handleSave}
             disabled={saving || !date || !amount || !category}
-            className="w-full btn-gradient-green rounded-2xl py-3.5 text-base disabled:opacity-40"
+            className="w-full btn-accent rounded-2xl py-3.5 text-base disabled:opacity-40"
           >
             {saving ? 'Opslaan…' : 'Opslaan'}
           </button>

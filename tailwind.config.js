@@ -8,6 +8,9 @@ export default {
         surface: 'var(--color-surface)',
         'surface-2': 'var(--color-surface-2)',
         border: 'var(--color-border)',
+        accent: 'var(--color-accent)',
+        'accent-light': 'var(--color-accent-light)',
+        'accent-dim': 'var(--color-accent-dim)',
         green: 'var(--color-green)',
         'green-dim': 'var(--color-green-dim)',
         red: 'var(--color-red)',
@@ -17,7 +20,10 @@ export default {
         blue: 'var(--color-blue)',
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'Segoe UI', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Inter', 'Segoe UI', 'sans-serif'],
+      },
+      borderRadius: {
+        '2.5xl': '20px',
       },
       keyframes: {
         'slide-in-left': {

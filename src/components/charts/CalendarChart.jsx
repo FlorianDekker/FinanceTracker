@@ -57,7 +57,7 @@ export function CalendarChart({ year, month }) {
 
   return (
     <div>
-      <div className="bg-surface rounded-2xl p-4 mb-4">
+      <div className="card p-4 mb-4">
         <div className="text-xs text-muted mb-1">Kalender overzicht</div>
         <div className="flex items-baseline gap-3">
           <div className="text-2xl font-bold tabular-nums text-red">{euro(totalSpent)}</div>
@@ -136,9 +136,9 @@ function DaySheet({ day, year, month, onClose }) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" style={{ backdropFilter: 'blur(4px)' }} onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 glass-heavy rounded-t-3xl sheet-handle max-h-[70vh] overflow-y-auto pb-24 animate-slide-up">
-        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface-solid)', borderBottom: '1px solid var(--color-border)' }}>
+      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl sheet-handle max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
           <div>
             <div className="font-semibold text-sm">{fmtDate(dateStr)}</div>
             <div className="text-xs mt-0.5 flex gap-2">
