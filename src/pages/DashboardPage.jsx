@@ -103,14 +103,6 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Floating month pill */}
-      {showPill && (
-        <div className="fixed inset-x-0 top-1/3 -translate-y-1/2 flex justify-center z-30 pointer-events-none">
-          <div className="card px-8 py-4 text-lg font-bold animate-scale-in" style={{ color: 'var(--color-text)' }}>
-            {MONTHS_LONG[month - 1]} {year}
-          </div>
-        </div>
-      )}
 
       <div ref={listRef} className={`touch-pan-y ${slideClass}`}>
         {/* Summary card */}
@@ -224,11 +216,12 @@ function CategoryCard({ cat, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="card p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-150 active:scale-[0.97] overflow-hidden"
+      className="p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-150 active:scale-[0.97] overflow-hidden"
+      style={{ background: color + '0A', borderRadius: 20, boxShadow: 'var(--shadow-card)' }}
     >
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
-        style={{ backgroundColor: color + '12' }}
+        style={{ backgroundColor: color + '18' }}
       >
         {cat.icon}
       </div>
@@ -242,12 +235,12 @@ function CategoryCard({ cat, onClick }) {
       </div>
 
       {budget > 0 && (
-        <div className="w-full h-[3px] rounded-full" style={{ backgroundColor: color + '15' }}>
+        <div className="w-full h-[3px] rounded-full" style={{ backgroundColor: 'var(--color-surface-2)' }}>
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${Math.round(ratio * 100)}%`,
-              backgroundColor: overspent ? 'var(--color-red)' : color,
+              backgroundColor: overspent ? 'var(--color-red)' : 'var(--color-green)',
             }}
           />
         </div>
