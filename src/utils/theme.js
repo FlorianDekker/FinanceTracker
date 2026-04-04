@@ -44,6 +44,20 @@ export function tickTheme() {
   return { color: c.textDim, font: { size: 10 } }
 }
 
+/**
+ * Apply an accent color to CSS variables at runtime.
+ * Computes light/dim variants from the hex color.
+ */
+export function applyAccentColor(hex) {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const root = document.documentElement.style
+  root.setProperty('--color-accent', hex)
+  root.setProperty('--color-accent-light', `rgba(${r}, ${g}, ${b}, 0.08)`)
+  root.setProperty('--color-accent-dim', `rgba(${r}, ${g}, ${b}, 0.06)`)
+}
+
 /** Common Chart.js grid config */
 export function gridTheme() {
   const c = chartColors()
