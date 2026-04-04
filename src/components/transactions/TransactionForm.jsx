@@ -3,6 +3,7 @@ import { addTransaction, updateTransaction, deleteTransaction } from '../../hook
 import { CATEGORIES } from '../../constants/categories'
 import { today } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
+import { recordEvent } from '../../utils/merchantLearning'
 
 export function TransactionForm({ onClose, existing }) {
   const [date, setDate] = useState(existing?.date ?? today())
@@ -23,8 +24,19 @@ export function TransactionForm({ onClose, existing }) {
     const tx = { date, amount: amt, type, category, subcategory, note }
     if (existing) {
       await updateTransaction(existing.id, tx)
+      // Learn from edits: record the category choice, with correction tracking
+      if (note) {
+        const catChanged = existing.category !== category
+        recordEvent(note, category, subcategory, amt, type, null,
+          catChanged ? { was: true, from: existing.category } : null
+        )
+      }
     } else {
       await addTransaction(tx)
+      // Learn from new manual transactions too
+      if (note) {
+        recordEvent(note, category, subcategory, amt, type, null, null)
+      }
     }
     setSaving(false)
     onClose()
