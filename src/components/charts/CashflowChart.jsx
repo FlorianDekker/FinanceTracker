@@ -7,6 +7,7 @@ import {
   Tooltip,
 } from 'chart.js'
 import { useState, useRef, useEffect } from 'react'
+import { TransactionForm } from '../transactions/TransactionForm'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCashflowData } from '../../hooks/useCashflowData'
 import { euro, euroCompact, fmtDate } from '../../utils/formatters'
@@ -167,6 +168,7 @@ function CashflowSheet({ monthData, mode, onClose }) {
   const { year, month } = monthData
   const prefix = `${year}-${String(month).padStart(2, '0')}`
   const sheetRef = useSheetGestures(onClose)
+  const [editing, setEditing] = useState(null)
 
   const txs = useLiveQuery(async () => {
     const all = await db.transactions.where('date').startsWith(prefix).toArray()
@@ -223,7 +225,7 @@ function CashflowSheet({ monthData, mode, onClose }) {
         {txs?.map(tx => {
           const cat = CATEGORY_MAP[tx.category]
           return (
-            <div key={tx.id} className="flex items-center gap-3 px-4 py-3 border-b border-border">
+            <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border text-left">
               <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💸'}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm truncate">{tx.note || cat?.label || tx.category}</div>
@@ -232,10 +234,11 @@ function CashflowSheet({ monthData, mode, onClose }) {
               <span className={`text-sm font-semibold shrink-0 tabular-nums ${isIncome || tx.type === 'credit' ? 'text-green' : 'text-red'}`}>
                 {isIncome || tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
               </span>
-            </div>
+            </button>
           )
         })}
       </div>
+      {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
     </>
   )
 }

@@ -7,6 +7,7 @@ import {
   Tooltip,
 } from 'chart.js'
 import { useState, useRef, useEffect } from 'react'
+import { TransactionForm } from '../transactions/TransactionForm'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDailySpending, setDailyIncludeVoorschot } from '../../hooks/useDailySpending'
 import { euro, euroCompact, fmtDate } from '../../utils/formatters'
@@ -170,6 +171,7 @@ export function DailyChart({ year, month }) {
 function DayTransactionSheet({ day, year, month, onClose }) {
   const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   const sheetRef = useSheetGestures(onClose)
+  const [editing, setEditing] = useState(null)
 
   const txs = useLiveQuery(
     () => db.transactions
@@ -198,7 +200,7 @@ function DayTransactionSheet({ day, year, month, onClose }) {
         {sorted?.map(tx => {
           const cat = CATEGORY_MAP[tx.category]
           return (
-            <div key={tx.id} className="flex items-center gap-3 px-4 py-3 border-b border-border">
+            <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border text-left">
               <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💸'}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm truncate">{tx.note || cat?.label || tx.category}</div>
@@ -207,10 +209,11 @@ function DayTransactionSheet({ day, year, month, onClose }) {
               <span className="text-sm font-semibold shrink-0 tabular-nums text-red">
                 -{euro(tx.amount)}
               </span>
-            </div>
+            </button>
           )
         })}
       </div>
+      {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
     </>
   )
 }
