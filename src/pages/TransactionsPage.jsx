@@ -82,18 +82,18 @@ export function TransactionsPage() {
   return (
     <PageWrapper>
       {/* Month selector */}
-      <div className="sticky top-0 z-10 safe-top" style={{ background: 'var(--color-accent)' }}>
-        <div className="flex items-center justify-between px-4 py-2.5">
-          <button onClick={() => goMonth('prev')} className="px-2 py-1 text-xl font-light" style={{ color: 'rgba(255,255,255,0.7)' }}>‹</button>
+      <div className="safe-top px-4 pt-4 pb-2" style={{ background: 'var(--color-bg)' }}>
+        <div className="flex items-center justify-between mb-2.5">
+          <button onClick={() => goMonth('prev')} className="text-muted text-xl px-1">‹</button>
           <div className="flex items-center gap-2">
-            <span className="font-bold text-white">{MONTHS_LONG[month - 1]} {year}</span>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>{MONTHS_LONG[month - 1]} {year}</h1>
             {!isCurrentMonth && (
-              <button onClick={goToNow} className="text-[10px] font-bold rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}>Nu</button>
+              <button onClick={goToNow} className="text-[10px] font-bold rounded-full px-2 py-0.5 btn-accent">Nu</button>
             )}
           </div>
-          <button onClick={() => goMonth('next')} className="px-2 py-1 text-xl font-light" style={{ color: 'rgba(255,255,255,0.7)' }}>›</button>
+          <button onClick={() => goMonth('next')} className="text-muted text-xl px-1">›</button>
         </div>
-        <div className="flex items-center gap-2 px-4 pb-2.5">
+        <div className="flex items-center gap-2">
           <input
             ref={searchRef}
             type="search"
@@ -104,13 +104,13 @@ export function TransactionsPage() {
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
             onKeyDown={e => e.key === 'Enter' && searchRef.current?.blur()}
-            className="flex-1 rounded-lg px-3 py-2 placeholder-white/50"
-            style={{ fontSize: '16px', background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none' }}
+            className="flex-1 rounded-xl px-3 py-2 placeholder-muted"
+            style={{ fontSize: '16px', background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}
           />
           {searchFocused && (
             <button
               onMouseDown={e => { e.preventDefault(); searchRef.current?.blur() }}
-              className="text-sm font-medium shrink-0 text-white"
+              className="text-sm font-semibold shrink-0 text-accent"
             >
               Klaar
             </button>

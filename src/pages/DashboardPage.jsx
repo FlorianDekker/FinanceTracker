@@ -75,25 +75,24 @@ export function DashboardPage() {
   return (
     <PageWrapper>
       {/* Header */}
-      <div className="sticky top-0 z-10 safe-top" style={{ background: 'var(--color-accent)' }}>
-        <div className="flex items-center justify-between px-5 py-3">
-          <button onClick={() => goMonth('prev')} className="px-2 py-1 text-2xl font-light" style={{ color: 'rgba(255,255,255,0.7)' }}>‹</button>
-          <div className="flex items-center gap-2.5">
-            <span className="text-lg font-bold tracking-tight text-white">{MONTHS_LONG[month - 1]} {year}</span>
+      <div className="safe-top px-5 pt-4 pb-2">
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={() => goMonth('prev')} className="text-muted text-xl px-1">‹</button>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>{MONTHS_LONG[month - 1]} {year}</h1>
             {!isCurrentMonth && (
-              <button onClick={goToNow} className="text-[10px] font-bold rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}>Nu</button>
+              <button onClick={goToNow} className="text-[10px] font-bold rounded-full px-2 py-0.5 btn-accent">Nu</button>
             )}
           </div>
-          <button onClick={() => goMonth('next')} className="px-2 py-1 text-2xl font-light" style={{ color: 'rgba(255,255,255,0.7)' }}>›</button>
+          <button onClick={() => goMonth('next')} className="text-muted text-xl px-1">›</button>
         </div>
-        <div className="flex justify-center pb-3">
-          <div className="flex rounded-full p-0.5" style={{ background: 'rgba(255,255,255,0.15)' }}>
+        <div className="flex justify-center">
+          <div className="flex rounded-full p-0.5" style={{ background: 'var(--color-surface-2)' }}>
             {['cards', 'list'].map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200`}
-                style={view === v ? { background: '#fff', color: 'var(--color-accent)' } : { color: 'rgba(255,255,255,0.7)' }}
+                className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${view === v ? 'btn-accent' : 'text-muted'}`}
               >
                 {v === 'cards' ? 'Kaarten' : 'Lijst'}
               </button>

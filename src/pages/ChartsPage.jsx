@@ -107,7 +107,7 @@ export function ChartsPage() {
     <div ref={pageRef} className="flex flex-col flex-1">
       <PageWrapper>
         {/* Tab pills + optional month row */}
-        <div className="sticky top-0 z-10 safe-top" style={{ background: 'var(--color-accent)' }}>
+        <div className="safe-top" style={{ background: 'var(--color-bg)' }}>
           <div ref={tabsRef} className="flex gap-2 py-3 overflow-x-auto scrollbar-none">
             <div className="w-3 shrink-0" />
             {tabs.map((t, i) => (
@@ -115,11 +115,10 @@ export function ChartsPage() {
                 key={t}
                 ref={el => tabRefs.current[i] = el}
                 onClick={() => goTo(i)}
-                className="shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200"
-                style={active === i
-                  ? { background: '#fff', color: 'var(--color-accent)' }
-                  : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }
-                }
+                className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
+                  active === i ? 'btn-accent' : 'text-muted'
+                }`}
+                style={active !== i ? { background: 'var(--color-surface-2)' } : {}}
               >
                 {t}
               </button>
@@ -129,14 +128,14 @@ export function ChartsPage() {
 
           {showMonthNav && (
             <div className="flex items-center justify-between px-4 pb-2">
-              <button onClick={() => goMonth('prev')} className="px-2 py-1 text-xl font-light" style={{ color: 'rgba(255,255,255,0.7)' }}>‹</button>
+              <button onClick={() => goMonth('prev')} className="text-muted text-xl px-1">‹</button>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-white">{MONTHS_LONG[month - 1]} {year}</span>
+                <span className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{MONTHS_LONG[month - 1]} {year}</span>
                 {!isCurrentMonth && (
-                  <button onClick={goToNow} className="text-[10px] font-bold rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}>Nu</button>
+                  <button onClick={goToNow} className="text-[10px] font-bold rounded-full px-2 py-0.5 btn-accent">Nu</button>
                 )}
               </div>
-              <button onClick={() => goMonth('next')} className="px-2 py-1 text-xl font-light" style={{ color: 'rgba(255,255,255,0.7)' }}>›</button>
+              <button onClick={() => goMonth('next')} className="text-muted text-xl px-1">›</button>
             </div>
           )}
         </div>
