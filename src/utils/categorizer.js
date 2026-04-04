@@ -52,11 +52,13 @@ export async function categorizeWithLearning(merchant, amount, type, remi = '') 
   const prediction = await predictCategory(merchant, amount, type, remi)
 
   if (prediction) {
+    const confidencePct = Math.round(prediction.confidence * 100)
     if (prediction.source === 'recurring' || prediction.confidence >= 0.7) {
       return {
         cat: prediction.cat,
         sub: prediction.sub,
         confidence: 'high',
+        confidencePct,
         possiblySterre: false,
         needsManual: false,
         source: prediction.source,
@@ -69,6 +71,7 @@ export async function categorizeWithLearning(merchant, amount, type, remi = '') 
         cat: prediction.cat,
         sub: prediction.sub,
         confidence: 'low',
+        confidencePct,
         possiblySterre: false,
         needsManual: true,
         source: prediction.source,
@@ -79,5 +82,5 @@ export async function categorizeWithLearning(merchant, amount, type, remi = '') 
   }
 
   // Fall back to hardcoded rules
-  return { ...categorize(merchant, amount, type, remi), source: 'rules', eventCount: 0, isRecurring: false }
+  return { ...categorize(merchant, amount, type, remi), source: 'rules', confidencePct: null, eventCount: 0, isRecurring: false }
 }
