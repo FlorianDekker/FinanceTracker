@@ -40,12 +40,16 @@ export function PaceChart({ year, month }) {
 
   const { actualCum, idealCum, daysInMonth, todayDay, diff, isAhead, actualToday, totalBudgetVariable } = data
 
+  const now = new Date()
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1
+
   const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
-  // Today line plugin
+  // Today line plugin — only shown for the current month
   const todayLinePlugin = {
     id: 'todayLine',
     afterDraw(chart) {
+      if (!isCurrentMonth) return
       const { ctx, chartArea, scales } = chart
       if (todayDay < 1 || todayDay > daysInMonth) return
       const x = scales.x.getPixelForValue(todayDay - 1)
@@ -58,7 +62,6 @@ export function PaceChart({ year, month }) {
       ctx.moveTo(x, chartArea.top)
       ctx.lineTo(x, chartArea.bottom)
       ctx.stroke()
-      // "Vandaag" label
       ctx.fillStyle = cc.textDim
       ctx.font = '9px -apple-system, sans-serif'
       ctx.textAlign = 'center'
@@ -155,65 +158,98 @@ export function PaceChart({ year, month }) {
     },
   }
 
+  const pctUsed = totalBudgetVariable > 0 ? Math.round((actualToday / totalBudgetVariable) * 100) : 0
+
   return (
     <div>
-      {/* Stats header */}
+      {/* Stats card */}
+      <div className="card p-5 mb-4">
+        <div className="flex items-start justify-between mb-1">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+              {isAhead ? 'Onder budget' : 'Over budget'}
+            </div>
+            <div className={`text-3xl font-extrabold tabular-nums tracking-tight ${isAhead ? 'text-green' : 'text-red'}`}>
+              {isAhead ? `+${euro(diff)}` : `-${euro(-diff)}`}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className={`text-2xl font-bold tabular-nums ${isAhead ? 'text-green' : 'text-red'}`} style={{ opacity: 0.2 }}>
+              {pctUsed}%
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <div className="flex-1 h-[6px] rounded-full" style={{ background: 'var(--color-surface-2)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${Math.min(pctUsed, 100)}%`,
+                background: isAhead ? 'var(--color-green)' : 'var(--color-red)',
+              }}
+            />
+          </div>
+        </div>
+        <div className="flex justify-between mt-2">
+          <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+            {isCurrentMonth ? `Dag ${todayDay}` : 'Volledige maand'} · {euro(actualToday)}
+          </span>
+          <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+            {euro(totalBudgetVariable)}
+          </span>
+        </div>
+      </div>
+
+      {/* Chart */}
       <div className="card p-4 mb-4">
-        <div className="text-xs text-muted mb-1">
-          {isAhead
-            ? `Op dit tempo houd je ${euro(diff)} over`
-            : `Op dit tempo ga je ${euro(-diff)} over budget`
-          }
-        </div>
-        <div className={`text-2xl font-bold tabular-nums ${isAhead ? 'text-green' : 'text-red'}`}>
-          {isAhead ? `+${euro(diff)}` : `-${euro(-diff)}`}
-        </div>
-        <div className="text-xs text-muted mt-1">
-          Dag {todayDay}/{daysInMonth} · {euro(actualToday)} van {euro(totalBudgetVariable)}
+        <Line data={chartData} options={options} plugins={[todayLinePlugin]} />
+        <div className="flex gap-4 mt-3 justify-center">
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            <span className="w-4 border-t-2 border-dashed inline-block" style={{ borderColor: 'var(--color-muted)' }} />
+            Ideaal
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            <span className="w-4 border-t-2 inline-block" style={{ borderColor: isAhead ? GREEN : RED }} />
+            Werkelijk
+          </span>
         </div>
       </div>
 
-      <Line data={chartData} options={options} plugins={[todayLinePlugin]} />
-
-      <div className="flex gap-4 mt-3 px-1">
-        <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className="w-4 border-t-2 border-dashed inline-block" style={{ borderColor: 'var(--color-muted)' }} />
-          Ideaal tempo
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className="w-4 border-t-2 inline-block" style={{ borderColor: isAhead ? GREEN : RED }} />
-          Werkelijk
-        </span>
-      </div>
-
-      {/* Category selector dropdown */}
-      <div className="mt-5">
+      {/* Category selector */}
+      <div className="card overflow-hidden">
         <button
           onClick={() => setShowCats(v => !v)}
-          className="flex items-center justify-between w-full bg-surface rounded-xl px-4 py-3"
+          className="flex items-center justify-between w-full px-4 py-3.5"
         >
           <div>
-            <div className="text-xs text-muted text-left">Categorieën meegenomen in budgettempo</div>
-            <div className="text-xs text-muted mt-0.5 text-left">{expenseCats.filter(c => !paceExcluded.has(c.key)).length} van {expenseCats.length} categorieën</div>
+            <div className="text-xs font-medium text-left" style={{ color: 'var(--color-text)' }}>Categorieën</div>
+            <div className="text-[11px] text-muted mt-0.5 text-left">{expenseCats.filter(c => !paceExcluded.has(c.key)).length} van {expenseCats.length} geselecteerd</div>
           </div>
-          <span className={`text-muted text-sm transition-transform ${showCats ? 'rotate-180' : ''}`}>▼</span>
+          <span className={`text-muted text-xs transition-transform duration-200 ${showCats ? 'rotate-180' : ''}`}>▼</span>
         </button>
 
         {showCats && (
-          <div className="bg-surface rounded-xl mt-1 divide-y divide-border overflow-hidden">
-            {expenseCats.map(cat => {
+          <div style={{ borderTop: '1px solid var(--color-border)' }}>
+            {expenseCats.map((cat, i) => {
               const included = !paceExcluded.has(cat.key)
               return (
                 <button
                   key={cat.key}
                   onClick={() => togglePaceCategory(cat.key)}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                  style={i < expenseCats.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
                 >
                   <span className="text-base w-6 text-center">{cat.icon}</span>
-                  <span className={`flex-1 text-xs ${included ? '' : 'text-muted'}`} style={included ? { color: 'var(--color-text)' } : {}}>{cat.label}</span>
-                  <span className={`w-5 h-5 rounded border flex items-center justify-center text-xs ${included ? 'bg-green border-green text-white' : 'border-border'}`}>
+                  <span className="flex-1 text-sm" style={{ color: included ? 'var(--color-text)' : 'var(--color-muted)' }}>{cat.label}</span>
+                  <div
+                    className="w-5 h-5 rounded-md flex items-center justify-center text-[10px]"
+                    style={included
+                      ? { background: 'var(--color-accent)', color: '#fff' }
+                      : { border: '1.5px solid var(--color-border)' }
+                    }
+                  >
                     {included ? '✓' : ''}
-                  </span>
+                  </div>
                 </button>
               )
             })}
