@@ -141,14 +141,6 @@ export function ChartsPage() {
           )}
         </div>
 
-        {/* Floating month pill */}
-        {showPill && showMonthNav && (
-          <div className="fixed inset-x-0 top-1/3 -translate-y-1/2 flex justify-center z-30 pointer-events-none">
-            <div className="card px-8 py-4 text-lg font-semibold animate-scale-in">
-              {MONTHS_LONG[month - 1]} {year}
-            </div>
-          </div>
-        )}
 
         <div className={`p-4 overflow-hidden touch-pan-y ${slideClass}`}>
           {active === 0 && <PaceChart year={year} month={month} />}

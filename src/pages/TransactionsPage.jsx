@@ -118,14 +118,6 @@ export function TransactionsPage() {
         </div>
       </div>
 
-      {/* Floating month pill */}
-      {showPill && (
-        <div className="fixed inset-x-0 top-1/3 -translate-y-1/2 flex justify-center z-30 pointer-events-none">
-          <div className="card px-8 py-4 text-lg font-semibold animate-scale-in">
-            {MONTHS_LONG[month - 1]} {year}
-          </div>
-        </div>
-      )}
 
       {/* List */}
       <div
@@ -154,7 +146,7 @@ export function TransactionsPage() {
                 <div className="text-sm font-medium truncate">{tx.note || cat?.label || tx.category}</div>
                 <div className="text-xs text-muted">{fmtDate(tx.date)} · {cat?.label}</div>
               </div>
-              <span className={`text-sm font-semibold shrink-0 ${tx.type === 'credit' ? 'text-green' : 'text-white'}`}>
+              <span className={`text-sm font-semibold shrink-0 ${tx.type === 'credit' ? 'text-green' : ''}`} style={tx.type !== 'credit' ? { color: 'var(--color-text)' } : {}}>
                 {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
               </span>
             </button>
