@@ -35,8 +35,8 @@ export function ImportPage() {
         return
       }
       const withCats = await Promise.all(newOnes.map(async tx => {
-        const { cat, sub, confidence, possiblySterre, needsManual, source, eventCount, isRecurring } = await categorizeWithLearning(tx.merchant, tx.amount, tx.type, tx.remi)
-        return { ...tx, category: cat, subcategory: sub, confidence, possiblySterre, needsManual, source, eventCount, isRecurring, _originalCategory: cat, note: tx.merchant }
+        const { cat, sub, confidence, confidencePct, possiblySterre, needsManual, source, eventCount, isRecurring } = await categorizeWithLearning(tx.merchant, tx.amount, tx.type, tx.remi)
+        return { ...tx, category: cat, subcategory: sub, confidence, confidencePct, possiblySterre, needsManual, source, eventCount, isRecurring, _originalCategory: cat, note: tx.merchant }
       }))
       setPending(withCats)
       setStep('review')
@@ -46,7 +46,7 @@ export function ImportPage() {
   }
 
   async function handleSave() {
-    const txs = pending.map(({ merchant, confidence, possiblySterre, needsManual, remi, source, eventCount, isRecurring, _originalCategory, ...tx }) => tx)
+    const txs = pending.map(({ merchant, confidence, confidencePct, possiblySterre, needsManual, remi, source, eventCount, isRecurring, _originalCategory, ...tx }) => tx)
     await bulkAddTransactions(txs)
     // Learn from all reviewed transactions
     await bulkRecordEvents(pending)
@@ -135,13 +135,16 @@ export function ImportPage() {
                     </div>
                   )}
                   {tx.source === 'recurring' && (
-                    <div className="text-[9px] text-green mt-0.5">🔄 Terugkerend</div>
+                    <div className="text-[9px] text-green mt-0.5">🔄 Terugkerend · {tx.confidencePct}%</div>
                   )}
                   {tx.source === 'learned' && tx.eventCount > 0 && (
-                    <div className="text-[9px] text-blue mt-0.5">🧠 Geleerd ({tx.eventCount}x)</div>
+                    <div className={`text-[9px] mt-0.5 ${tx.confidencePct >= 70 ? 'text-blue' : 'text-orange'}`}>🧠 Geleerd ({tx.eventCount}x) · {tx.confidencePct}%</div>
                   )}
                   {tx.source === 'similar' && (
-                    <div className="text-[9px] text-orange mt-0.5">🧠 Vergelijkbaar</div>
+                    <div className="text-[9px] text-orange mt-0.5">🧠 Vergelijkbaar · {tx.confidencePct}%</div>
+                  )}
+                  {tx.source === 'rules' && (
+                    <div className="text-[9px] text-muted mt-0.5">Regel</div>
                   )}
                 </div>
               </button>
