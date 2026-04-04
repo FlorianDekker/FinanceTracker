@@ -107,7 +107,7 @@ export function ChartsPage() {
     <div ref={pageRef} className="flex flex-col flex-1">
       <PageWrapper>
         {/* Tab pills + optional month row */}
-        <div className="sticky top-0 z-10 glass safe-top" style={{ borderBottom: '1px solid var(--color-border)' }}>
+        <div className="sticky top-0 z-10 safe-top" style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
           <div ref={tabsRef} className="flex gap-2 py-3 overflow-x-auto scrollbar-none">
             <div className="w-3 shrink-0" />
             {tabs.map((t, i) => (
@@ -117,7 +117,7 @@ export function ChartsPage() {
                 onClick={() => goTo(i)}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
                   active === i
-                    ? 'btn-gradient-green'
+                    ? 'btn-accent'
                     : 'bg-surface-2 text-muted'
                 }`}
               >
@@ -144,7 +144,7 @@ export function ChartsPage() {
         {/* Floating month pill */}
         {showPill && showMonthNav && (
           <div className="fixed inset-x-0 top-1/3 -translate-y-1/2 flex justify-center z-30 pointer-events-none">
-            <div className="glass rounded-2xl px-8 py-4 text-lg font-semibold animate-scale-in" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+            <div className="card px-8 py-4 text-lg font-semibold animate-scale-in">
               {MONTHS_LONG[month - 1]} {year}
             </div>
           </div>

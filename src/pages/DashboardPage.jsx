@@ -13,7 +13,7 @@ import { db } from '../db/db'
 export function DashboardPage() {
   const { year, month, animDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
   const [selectedCat, setSelectedCat] = useState(null)
-  const [view, setView] = useState('cards') // 'cards' | 'list'
+  const [view, setView] = useState('cards')
   const listRef = useRef(null)
   const catTouchStart = useRef(null)
 
@@ -74,32 +74,31 @@ export function DashboardPage() {
 
   return (
     <PageWrapper>
-      {/* Sticky header: month nav + view toggle */}
-      <div className="sticky top-0 z-10 glass safe-top" style={{ borderBottom: '1px solid var(--color-border)' }}>
-        <div className="flex items-center justify-between px-4 py-2.5">
-          <button onClick={() => goMonth('prev')} className="text-muted px-3 py-1 text-2xl font-light">‹</button>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold tracking-tight">{MONTHS_LONG[month - 1]} {year}</span>
+      {/* Header */}
+      <div className="sticky top-0 z-10 safe-top" style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
+        <div className="flex items-center justify-between px-5 py-3">
+          <button onClick={() => goMonth('prev')} className="text-muted px-2 py-1 text-2xl font-light">‹</button>
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>{MONTHS_LONG[month - 1]} {year}</span>
             {!isCurrentMonth && (
-              <button onClick={goToNow} className="text-[10px] text-green border border-green/30 rounded-full px-2.5 py-0.5 font-semibold">Nu</button>
+              <button onClick={goToNow} className="text-[10px] font-bold text-accent bg-accent-dim rounded-full px-2.5 py-1">Nu</button>
             )}
           </div>
-          <button onClick={() => goMonth('next')} className="text-muted px-3 py-1 text-2xl font-light">›</button>
+          <button onClick={() => goMonth('next')} className="text-muted px-2 py-1 text-2xl font-light">›</button>
         </div>
-        <div className="flex justify-center pb-2.5">
-          <div className="flex rounded-full p-0.5" style={{ backgroundColor: 'var(--color-surface-2)' }}>
-            <button
-              onClick={() => setView('cards')}
-              className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${view === 'cards' ? 'btn-gradient-green' : 'text-muted'}`}
-            >
-              Kaarten
-            </button>
-            <button
-              onClick={() => setView('list')}
-              className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${view === 'list' ? 'btn-gradient-green' : 'text-muted'}`}
-            >
-              Lijst
-            </button>
+        <div className="flex justify-center pb-3">
+          <div className="flex rounded-full p-0.5" style={{ background: 'var(--color-surface-2)' }}>
+            {['cards', 'list'].map(v => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                  view === v ? 'btn-accent' : 'text-muted'
+                }`}
+              >
+                {v === 'cards' ? 'Kaarten' : 'Lijst'}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -107,57 +106,63 @@ export function DashboardPage() {
       {/* Floating month pill */}
       {showPill && (
         <div className="fixed inset-x-0 top-1/3 -translate-y-1/2 flex justify-center z-30 pointer-events-none">
-          <div className="glass rounded-2xl px-8 py-4 text-lg font-semibold animate-scale-in" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+          <div className="card px-8 py-4 text-lg font-bold animate-scale-in" style={{ color: 'var(--color-text)' }}>
             {MONTHS_LONG[month - 1]} {year}
           </div>
         </div>
       )}
 
       <div ref={listRef} className={`touch-pan-y ${slideClass}`}>
-        {/* Budget summary */}
-        <div className="pt-6 pb-5 text-center px-4">
-          <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.15em] mb-2">
-            {isOver ? 'Over budget' : 'Nog beschikbaar'}
-          </div>
-          <div
-            className={`text-[52px] font-bold tracking-tight leading-none tabular-nums ${isOver ? 'text-red glow-red' : 'text-green glow-green'}`}
-          >
-            {isOver ? `-${euro(Math.abs(totalRemaining))}` : euro(totalRemaining)}
-          </div>
-          <div className="text-xs text-muted mt-3">
-            <span className="text-white/55 font-medium">{euro(totalSpent)}</span> uitgegeven · <span className="text-white/55 font-medium">{euro(totalBudget)}</span> budget
+        {/* Summary card */}
+        <div className="px-4 pt-5 pb-2">
+          <div className="card px-5 py-6 text-center">
+            <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--color-muted)' }}>
+              {isOver ? 'Over budget' : 'Nog beschikbaar'}
+            </div>
+            <div
+              className={`text-5xl font-extrabold tracking-tight leading-none tabular-nums ${isOver ? 'text-red' : 'text-green'}`}
+            >
+              {isOver ? `-${euro(Math.abs(totalRemaining))}` : euro(totalRemaining)}
+            </div>
+            <div className="flex justify-center gap-4 mt-4">
+              <div className="text-center">
+                <div className="text-lg font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(totalSpent)}</div>
+                <div className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Uitgegeven</div>
+              </div>
+              <div className="w-px" style={{ background: 'var(--color-border)' }} />
+              <div className="text-center">
+                <div className="text-lg font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(totalBudget)}</div>
+                <div className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Budget</div>
+              </div>
+            </div>
           </div>
         </div>
 
         {view === 'cards' ? (
-          <div className="px-4 pb-6">
-            {/* Expense category cards */}
-            <div className="mb-2">
-              <div className="text-[10px] text-muted uppercase tracking-widest mb-2 px-1">Uitgaven · {euro(totalSpent)}</div>
-              <div className="grid grid-cols-3 gap-2.5">
-                {expenseStats.map(cat => (
-                  <CategoryCard key={cat.key} cat={cat} onClick={() => setSelectedCat(cat)} />
-                ))}
-              </div>
+          <div className="px-4 pb-6 pt-2">
+            <div className="grid grid-cols-3 gap-3">
+              {expenseStats.map(cat => (
+                <CategoryCard key={cat.key} cat={cat} onClick={() => setSelectedCat(cat)} />
+              ))}
             </div>
 
-            {/* Voorschot */}
             {voorschotStat && voorschotStat.spent > 0 && (
               <div className="mt-4">
-                <div className="text-[10px] text-muted uppercase tracking-widest mb-2 px-1">Voorschot</div>
-                <div className="grid grid-cols-3 gap-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-widest mb-2 px-1" style={{ color: 'var(--color-muted)' }}>Voorschot</div>
+                <div className="grid grid-cols-3 gap-3">
                   <CategoryCard cat={voorschotStat} onClick={() => setSelectedCat(voorschotStat)} />
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="pb-6">
-            <div className="divide-y divide-border">
-              {expenseStats.map(cat => (
+          <div className="px-4 pb-6 pt-2">
+            <div className="card overflow-hidden">
+              {expenseStats.map((cat, i) => (
                 <button
                   key={cat.key}
                   className="w-full text-left"
+                  style={i < expenseStats.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
                   onTouchStart={e => { catTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, scrollY: window.scrollY } }}
                   onTouchEnd={e => {
                     if (!catTouchStart.current) return
@@ -171,11 +176,9 @@ export function DashboardPage() {
               ))}
             </div>
             {voorschotStat && (
-              <>
-                <div className="px-4 pt-4 pb-1">
-                  <span className="text-xs text-muted uppercase tracking-wider">Voorschot</span>
-                </div>
-                <div className="divide-y divide-border border-t border-border">
+              <div className="mt-4">
+                <div className="text-[10px] font-semibold uppercase tracking-widest mb-2 px-1" style={{ color: 'var(--color-muted)' }}>Voorschot</div>
+                <div className="card overflow-hidden">
                   <button
                     className="w-full text-left"
                     onTouchStart={e => { catTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, scrollY: window.scrollY } }}
@@ -189,19 +192,14 @@ export function DashboardPage() {
                     <CategoryRow category={voorschotStat} />
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
       </div>
 
       {selectedCat && (
-        <CategorySheet
-          cat={selectedCat}
-          year={year}
-          month={month}
-          onClose={() => setSelectedCat(null)}
-        />
+        <CategorySheet cat={selectedCat} year={year} month={month} onClose={() => setSelectedCat(null)} />
       )}
     </PageWrapper>
   )
@@ -217,43 +215,29 @@ function CategoryCard({ cat, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="relative rounded-3xl p-3.5 flex flex-col items-center gap-2 text-center overflow-hidden transition-transform duration-150 active:scale-[0.96]"
-      style={{
-        backgroundColor: color + '10',
-        border: `1px solid ${color}15`,
-        boxShadow: `inset 0 1px 0 ${color}10`,
-      }}
+      className="card p-3.5 flex flex-col items-center gap-2 text-center transition-all duration-150 active:scale-[0.96]"
+      style={{ borderLeft: `3px solid ${color}` }}
     >
-      {/* Category name */}
-      <div className="text-[10px] font-medium truncate w-full leading-tight" style={{ color: 'var(--color-text-tertiary)' }}>{cat.label}</div>
-
-      {/* Icon */}
       <div
-        className="w-11 h-11 rounded-full flex items-center justify-center text-xl"
-        style={{
-          background: `linear-gradient(135deg, ${color}20 0%, ${color}35 100%)`,
-          boxShadow: `0 2px 8px ${color}15`,
-        }}
+        className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl"
+        style={{ backgroundColor: color + '15' }}
       >
         {cat.icon}
       </div>
 
-      {/* Amount */}
-      <div className={`text-[13px] font-bold tabular-nums ${overspent ? 'text-red' : ''}`} style={!overspent ? { color: 'var(--color-text)' } : {}}>
+      <div className="text-[10px] font-semibold truncate w-full" style={{ color: 'var(--color-muted)' }}>{cat.label}</div>
+
+      <div className={`text-sm font-bold tabular-nums ${overspent ? 'text-red' : ''}`} style={!overspent ? { color: 'var(--color-text)' } : {}}>
         {euro(spent)}
       </div>
 
-      {/* Progress bar */}
       {budget > 0 && (
         <div className="w-full h-[4px] rounded-full" style={{ backgroundColor: color + '15' }}>
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${Math.round(ratio * 100)}%`,
-              background: overspent
-                ? 'linear-gradient(90deg, var(--color-red), #ff6b6b)'
-                : `linear-gradient(90deg, ${color}99, ${color})`,
-              boxShadow: ratio > 0.05 ? `0 0 6px ${overspent ? 'var(--color-red)' : color}30` : 'none',
+              backgroundColor: overspent ? 'var(--color-red)' : color,
             }}
           />
         </div>
@@ -272,24 +256,19 @@ function CategorySheet({ cat, year, month, onClose }) {
     () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key).sortBy('date'),
     [prefix, cat.key]
   )
-
   const sorted = txs ? [...txs].reverse() : null
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" style={{ backdropFilter: 'blur(4px)' }} onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 glass-heavy rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up sheet-handle">
-        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface-solid)', borderBottom: '1px solid var(--color-border)' }}>
-          <span className="font-semibold text-sm">{cat.icon} {cat.label}</span>
+      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+          <span className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{cat.icon} {cat.label}</span>
           <button onClick={onClose} className="text-muted text-lg">✕</button>
         </div>
 
-        {sorted === null && (
-          <div className="text-center text-muted py-8 text-sm">Laden…</div>
-        )}
-        {sorted?.length === 0 && (
-          <div className="text-center text-muted py-8 text-sm">Geen transacties deze maand</div>
-        )}
+        {sorted === null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
+        {sorted?.length === 0 && <div className="text-center text-muted py-8 text-sm">Geen transacties deze maand</div>}
         {sorted?.map(tx => {
           const sub = cat.subs?.find(s => s.key === tx.subcategory)
           return (
@@ -302,20 +281,20 @@ function CategorySheet({ cat, year, month, onClose }) {
                 if (Math.abs(e.changedTouches[0].clientX - s.x) < 8 && Math.abs(e.changedTouches[0].clientY - s.y) < 8) setEditing(tx)
               }}
               onTouchCancel={() => { txTouchStart.current = null }}
-              className="w-full flex items-center gap-3 px-4 py-3 border-b border-border text-left"
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+              style={{ borderBottom: '1px solid var(--color-border)' }}
             >
               <div className="flex-1 min-w-0">
-                <div className="text-sm truncate">{tx.note || cat.label}</div>
-                <div className="text-xs text-muted">{fmtDate(tx.date)}{sub ? ` · ${sub.label}` : ''}</div>
+                <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{tx.note || cat.label}</div>
+                <div className="text-xs" style={{ color: 'var(--color-muted)' }}>{fmtDate(tx.date)}{sub ? ` · ${sub.label}` : ''}</div>
               </div>
-              <span className={`text-sm font-semibold shrink-0 ${tx.type === 'credit' ? 'text-green' : 'text-red'}`}>
+              <span className={`text-sm font-bold shrink-0 tabular-nums ${tx.type === 'credit' ? 'text-green' : 'text-red'}`}>
                 {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
               </span>
             </button>
           )
         })}
       </div>
-
       {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
     </>
   )

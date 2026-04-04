@@ -82,7 +82,7 @@ export function TransactionsPage() {
   return (
     <PageWrapper>
       {/* Month selector */}
-      <div className="sticky top-0 z-10 glass px-4 py-2 safe-top" style={{ borderBottom: '1px solid var(--color-border)' }}>
+      <div className="sticky top-0 z-10 px-4 py-2 safe-top" style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
         <div className="flex items-center justify-between mb-2">
           <button onClick={() => goMonth('prev')} className="text-muted px-2 py-1 text-xl">‹</button>
           <div className="flex items-center gap-2">
@@ -104,8 +104,8 @@ export function TransactionsPage() {
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
             onKeyDown={e => e.key === 'Enter' && searchRef.current?.blur()}
-            className="flex-1 bg-surface rounded-lg px-3 py-2 text-white placeholder-muted border border-border"
-            style={{ fontSize: '16px' }}
+            className="flex-1 rounded-lg px-3 py-2 placeholder-muted border border-border"
+            style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
           />
           {searchFocused && (
             <button
@@ -121,7 +121,7 @@ export function TransactionsPage() {
       {/* Floating month pill */}
       {showPill && (
         <div className="fixed inset-x-0 top-1/3 -translate-y-1/2 flex justify-center z-30 pointer-events-none">
-          <div className="glass rounded-2xl px-8 py-4 text-lg font-semibold animate-scale-in" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+          <div className="card px-8 py-4 text-lg font-semibold animate-scale-in">
             {MONTHS_LONG[month - 1]} {year}
           </div>
         </div>

@@ -17,10 +17,10 @@ export default function App() {
     db.settings.get('migrationDone').then(row => {
       setMigrationDone(row?.value === true)
     })
-    // Load theme preference
+    // Load theme preference (light is default)
     db.settings.get('theme').then(row => {
-      const theme = row?.value ?? 'dark'
-      document.documentElement.classList.toggle('light', theme === 'light')
+      const theme = row?.value ?? 'light'
+      document.documentElement.classList.toggle('dark', theme === 'dark')
     })
   }, [])
 
@@ -45,7 +45,7 @@ export default function App() {
   return (
     <BrowserRouter basename="/FinanceTracker">
       <MonthProvider>
-        <div className="flex flex-col min-h-screen bg-bg text-white">
+        <div className="flex flex-col min-h-screen bg-bg" style={{ color: 'var(--color-text)' }}>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />

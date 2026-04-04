@@ -167,7 +167,7 @@ export function SpendingDonut({ year, month }) {
 
   return (
     <div>
-      <div className="bg-surface rounded-2xl p-4 mb-4">
+      <div className="card p-4 mb-4">
         <div className="text-xs text-muted mb-1">Totaal uitgegeven</div>
         <div className="text-2xl font-bold tabular-nums text-white">{euro(total)}</div>
         <div className="text-xs text-muted mt-1">
@@ -204,7 +204,7 @@ export function SpendingDonut({ year, month }) {
       </div>
 
       {earned.length > 0 && (
-        <div className="mt-4 bg-surface rounded-2xl p-3">
+        <div className="mt-4 card p-3">
           <div className="text-xs text-muted mb-2 uppercase tracking-wider">Terugontvangen</div>
           <div className="space-y-1.5">
             {earned.map(c => (
@@ -249,9 +249,9 @@ function CategoryTransactionSheet({ cat, year, month, color, onClose }) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" style={{ backdropFilter: 'blur(4px)' }} onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 glass-heavy rounded-t-3xl sheet-handle max-h-[70vh] overflow-y-auto pb-24 animate-slide-up">
-        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface-solid)', borderBottom: '1px solid var(--color-border)' }}>
+      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl sheet-handle max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
           <div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
