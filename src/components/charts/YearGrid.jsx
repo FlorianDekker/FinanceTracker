@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useYearGrid } from '../../hooks/useYearGrid'
 import { euroCompact, euro, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
+import { TransactionForm } from '../transactions/TransactionForm'
 import { EXPENSE_CATEGORIES, MONTHS, MONTHS_LONG, CATEGORY_MAP } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
@@ -144,6 +145,7 @@ export function YearGrid({ year }) {
 function YearGridSheet({ cat, year, month, onClose }) {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
   const sheetRef = useSheetGestures(onClose)
+  const [editing, setEditing] = useState(null)
 
   const txs = useLiveQuery(
     () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key).sortBy('date'),
@@ -171,7 +173,7 @@ function YearGridSheet({ cat, year, month, onClose }) {
         {sorted === null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
         {sorted?.length === 0 && <div className="text-center text-muted py-8 text-sm">Geen transacties</div>}
         {sorted?.map(tx => (
-          <div key={tx.id} className="flex items-center gap-3 px-4 py-3 border-b border-border">
+          <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border text-left">
             <div className="flex-1 min-w-0">
               <div className="text-sm truncate">{tx.note || cat.label}</div>
               <div className="text-xs text-muted">{fmtDate(tx.date)}</div>
@@ -179,9 +181,10 @@ function YearGridSheet({ cat, year, month, onClose }) {
             <span className={`text-sm font-semibold shrink-0 tabular-nums ${tx.type === 'credit' ? 'text-green' : 'text-red'}`}>
               {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
             </span>
-          </div>
+          </button>
         ))}
       </div>
+      {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
     </>
   )
 }

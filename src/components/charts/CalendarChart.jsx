@@ -4,6 +4,7 @@ import { db } from '../../db/db'
 import { CATEGORY_MAP } from '../../constants/categories'
 import { euro, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
+import { TransactionForm } from '../transactions/TransactionForm'
 
 const DAYS_NL = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
 
@@ -121,6 +122,7 @@ export function CalendarChart({ year, month }) {
 function DaySheet({ day, year, month, onClose }) {
   const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   const sheetRef = useSheetGestures(onClose)
+  const [editing, setEditing] = useState(null)
 
   const txs = useLiveQuery(
     () => db.transactions.where('date').equals(dateStr)
@@ -153,7 +155,7 @@ function DaySheet({ day, year, month, onClose }) {
         {sorted?.map(tx => {
           const cat = CATEGORY_MAP[tx.category]
           return (
-            <div key={tx.id} className="flex items-center gap-3 px-4 py-3 border-b border-border">
+            <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border text-left">
               <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💸'}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm truncate">{tx.note || cat?.label || tx.category}</div>
@@ -162,10 +164,11 @@ function DaySheet({ day, year, month, onClose }) {
               <span className={`text-sm font-semibold shrink-0 tabular-nums ${tx.type === 'credit' ? 'text-green' : 'text-red'}`}>
                 {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
               </span>
-            </div>
+            </button>
           )
         })}
       </div>
+      {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
     </>
   )
 }
