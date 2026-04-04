@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
+import { CategoryRow } from '../components/dashboard/CategoryRow'
 import { useBudgetStats } from '../hooks/useBudgetStats'
 import { euro, fmtDate } from '../utils/formatters'
 import { MONTHS_LONG, CAT_COLORS } from '../constants/categories'
@@ -12,7 +13,9 @@ import { db } from '../db/db'
 export function DashboardPage() {
   const { year, month, animDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
   const [selectedCat, setSelectedCat] = useState(null)
+  const [view, setView] = useState('cards') // 'cards' | 'list'
   const listRef = useRef(null)
+  const catTouchStart = useRef(null)
 
   const stats = useBudgetStats(year, month)
   const expenseStats = stats.filter(c => c.type === 'expense')
@@ -71,9 +74,9 @@ export function DashboardPage() {
 
   return (
     <PageWrapper>
-      {/* Sticky month header */}
-      <div className="sticky top-0 z-10 bg-bg px-4 py-2 safe-top border-b border-border">
-        <div className="flex items-center justify-between">
+      {/* Sticky header: month nav + view toggle */}
+      <div className="sticky top-0 z-10 bg-bg safe-top border-b border-border">
+        <div className="flex items-center justify-between px-4 py-2">
           <button onClick={() => goMonth('prev')} className="text-muted px-2 py-1 text-xl">‹</button>
           <div className="flex items-center gap-2">
             <span className="font-medium">{MONTHS_LONG[month - 1]} {year}</span>
@@ -82,6 +85,22 @@ export function DashboardPage() {
             )}
           </div>
           <button onClick={() => goMonth('next')} className="text-muted px-2 py-1 text-xl">›</button>
+        </div>
+        <div className="flex justify-center pb-2">
+          <div className="flex bg-surface-2 rounded-full p-0.5">
+            <button
+              onClick={() => setView('cards')}
+              className={`px-4 py-1 rounded-full text-xs font-medium transition-all ${view === 'cards' ? 'bg-green text-white' : 'text-muted'}`}
+            >
+              Kaarten
+            </button>
+            <button
+              onClick={() => setView('list')}
+              className={`px-4 py-1 rounded-full text-xs font-medium transition-all ${view === 'list' ? 'bg-green text-white' : 'text-muted'}`}
+            >
+              Lijst
+            </button>
+          </div>
         </div>
       </div>
 
@@ -94,9 +113,9 @@ export function DashboardPage() {
         </div>
       )}
 
-      <div ref={listRef} className={`touch-pan-y px-4 pb-6 ${slideClass}`}>
+      <div ref={listRef} className={`touch-pan-y ${slideClass}`}>
         {/* Budget summary */}
-        <div className="pt-5 pb-4 text-center">
+        <div className="pt-5 pb-4 text-center px-4">
           <div className="text-[11px] font-medium text-muted uppercase tracking-widest mb-2">
             {isOver ? 'Over budget' : 'Nog beschikbaar'}
           </div>
@@ -108,23 +127,68 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Expense category cards */}
-        <div className="mb-2">
-          <div className="text-[10px] text-muted uppercase tracking-widest mb-2 px-1">Uitgaven · {euro(totalSpent)}</div>
-          <div className="grid grid-cols-3 gap-2.5">
-            {expenseStats.map(cat => (
-              <CategoryCard key={cat.key} cat={cat} onClick={() => setSelectedCat(cat)} />
-            ))}
-          </div>
-        </div>
-
-        {/* Voorschot */}
-        {voorschotStat && voorschotStat.spent > 0 && (
-          <div className="mt-4">
-            <div className="text-[10px] text-muted uppercase tracking-widest mb-2 px-1">Voorschot</div>
-            <div className="grid grid-cols-3 gap-2.5">
-              <CategoryCard cat={voorschotStat} onClick={() => setSelectedCat(voorschotStat)} />
+        {view === 'cards' ? (
+          <div className="px-4 pb-6">
+            {/* Expense category cards */}
+            <div className="mb-2">
+              <div className="text-[10px] text-muted uppercase tracking-widest mb-2 px-1">Uitgaven · {euro(totalSpent)}</div>
+              <div className="grid grid-cols-3 gap-2.5">
+                {expenseStats.map(cat => (
+                  <CategoryCard key={cat.key} cat={cat} onClick={() => setSelectedCat(cat)} />
+                ))}
+              </div>
             </div>
+
+            {/* Voorschot */}
+            {voorschotStat && voorschotStat.spent > 0 && (
+              <div className="mt-4">
+                <div className="text-[10px] text-muted uppercase tracking-widest mb-2 px-1">Voorschot</div>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <CategoryCard cat={voorschotStat} onClick={() => setSelectedCat(voorschotStat)} />
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="pb-6">
+            <div className="divide-y divide-border">
+              {expenseStats.map(cat => (
+                <button
+                  key={cat.key}
+                  className="w-full text-left"
+                  onTouchStart={e => { catTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, scrollY: window.scrollY } }}
+                  onTouchEnd={e => {
+                    if (!catTouchStart.current) return
+                    const s = catTouchStart.current; catTouchStart.current = null
+                    if (Math.abs(e.changedTouches[0].clientX - s.x) < 8 && Math.abs(e.changedTouches[0].clientY - s.y) < 8 && Math.abs(window.scrollY - s.scrollY) < 3) setSelectedCat(cat)
+                  }}
+                  onTouchCancel={() => { catTouchStart.current = null }}
+                >
+                  <CategoryRow category={cat} />
+                </button>
+              ))}
+            </div>
+            {voorschotStat && (
+              <>
+                <div className="px-4 pt-4 pb-1">
+                  <span className="text-xs text-muted uppercase tracking-wider">Voorschot</span>
+                </div>
+                <div className="divide-y divide-border border-t border-border">
+                  <button
+                    className="w-full text-left"
+                    onTouchStart={e => { catTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, scrollY: window.scrollY } }}
+                    onTouchEnd={e => {
+                      if (!catTouchStart.current) return
+                      const s = catTouchStart.current; catTouchStart.current = null
+                      if (Math.abs(e.changedTouches[0].clientX - s.x) < 8 && Math.abs(e.changedTouches[0].clientY - s.y) < 8 && Math.abs(window.scrollY - s.scrollY) < 3) setSelectedCat(voorschotStat)
+                    }}
+                    onTouchCancel={() => { catTouchStart.current = null }}
+                  >
+                    <CategoryRow category={voorschotStat} />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
