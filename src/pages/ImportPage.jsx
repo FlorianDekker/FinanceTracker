@@ -87,12 +87,12 @@ export function ImportPage() {
   if (step === 'review') {
     return (
       <PageWrapper>
-        <div className="sticky top-0 z-10 px-4 py-3 safe-top flex justify-between items-center" style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
+        <div className="sticky top-0 z-10 px-4 py-3 safe-top flex justify-between items-center" style={{ background: 'var(--color-accent)' }}>
           <div>
-            <div className="font-semibold">{pending.length} nieuwe transacties</div>
-            <div className="text-xs text-muted">Tik een rij om categorie te wijzigen</div>
+            <div className="font-semibold text-white">{pending.length} nieuwe transacties</div>
+            <div className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Tik een rij om categorie te wijzigen</div>
           </div>
-          <button onClick={handleSave} className="btn-accent text-sm font-medium rounded-lg px-4 py-2">
+          <button onClick={handleSave} className="text-sm font-semibold rounded-lg px-4 py-2" style={{ background: '#fff', color: 'var(--color-accent)' }}>
             Opslaan
           </button>
         </div>
