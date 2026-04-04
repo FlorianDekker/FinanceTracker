@@ -70,7 +70,7 @@ export function CashflowChart() {
         if (totalHeight < 14) return
         const centerY = (totalTop + totalBottom) / 2
         ctx.save()
-        ctx.fillStyle = chartColors().text
+        ctx.fillStyle = '#ffffff'
         ctx.font = `bold ${Math.min(11, totalHeight * 0.18)}px -apple-system, sans-serif`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
@@ -197,23 +197,26 @@ function CashflowSheet({ monthData, mode, onClose }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl sheet-handle max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
         <div className="sticky top-0 z-10">
-          <div className="px-5 pt-4 pb-4 flex items-center justify-between" style={{ background: 'var(--color-accent)' }}>
-            <div>
-              <div className="text-base font-bold text-white">{MONTHS_LONG[month - 1]} — {isIncome ? 'Inkomen' : 'Uitgaven'}</div>
-              {txs && isIncome && (
-                <div className="text-xs text-white/70 mt-0.5">{euro(totalIn)} · {txs.length} transacties</div>
-              )}
-              {txs && !isIncome && (
-                <div className="text-xs text-white/70 mt-0.5 flex gap-2">
-                  <span>-{euro(totalOut)} ({debits.length})</span>
-                  {credits.length > 0 && <span>+{euro(totalIn)} ({credits.length})</span>}
-                  <span>= {euro(totalOut - totalIn)}</span>
-                </div>
-              )}
+          <div className="px-5 pt-2 pb-4 flex flex-col items-center justify-between" style={{ background: 'var(--color-accent)' }}>
+            <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
+            <div className="flex items-center justify-between w-full">
+              <div>
+                <div className="text-base font-bold text-white">{MONTHS_LONG[month - 1]} — {isIncome ? 'Inkomen' : 'Uitgaven'}</div>
+                {txs && isIncome && (
+                  <div className="text-xs text-white/70 mt-0.5">{euro(totalIn)} · {txs.length} transacties</div>
+                )}
+                {txs && !isIncome && (
+                  <div className="text-xs text-white/70 mt-0.5 flex gap-2">
+                    <span>-{euro(totalOut)} ({debits.length})</span>
+                    {credits.length > 0 && <span>+{euro(totalIn)} ({credits.length})</span>}
+                    <span>= {euro(totalOut - totalIn)}</span>
+                  </div>
+                )}
+              </div>
+              <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
             </div>
-            <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
           </div>
         </div>
 

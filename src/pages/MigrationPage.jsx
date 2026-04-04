@@ -49,7 +49,7 @@ export function MigrationPage({ onDone }) {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6 text-white">
+    <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6" style={{ color: 'var(--color-text)' }}>
       <div className="w-full max-w-sm">
         <div className="text-5xl mb-6 text-center">💰</div>
         <h1 className="text-2xl font-bold text-center mb-2">Budget Tracker</h1>

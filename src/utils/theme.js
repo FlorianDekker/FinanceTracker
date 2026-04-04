@@ -6,7 +6,7 @@ function getVar(name) {
 }
 
 export function isLightMode() {
-  return document.documentElement.classList.contains('light')
+  return !document.documentElement.classList.contains('dark')
 }
 
 /** Colors for use in Chart.js canvas plugins (ctx.fillStyle etc.) */

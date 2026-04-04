@@ -30,7 +30,7 @@ export function CategoryRow({ category }) {
             </span>
           ) : null}
         </div>
-        <BudgetBar ratio={ratio} bufferRatio={bufferRatio} overspent={overspent} color={color} />
+        <BudgetBar ratio={ratio} bufferRatio={bufferRatio} overspent={overspent} />
       </div>
     </div>
   )

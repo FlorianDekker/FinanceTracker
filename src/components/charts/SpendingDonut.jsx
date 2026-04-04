@@ -169,7 +169,7 @@ export function SpendingDonut({ year, month }) {
     <div>
       <div className="card p-4 mb-4">
         <div className="text-xs text-muted mb-1">Totaal uitgegeven</div>
-        <div className="text-2xl font-bold tabular-nums text-white">{euro(total)}</div>
+        <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(total)}</div>
         <div className="text-xs text-muted mt-1">
           {cats.length} categorieën · meeste in {cats[0]?.label}
           {earned.length > 0 && <span className="text-green"> · +{euro(Math.abs(earned.reduce((s, c) => s + c.spent, 0)))} terugontvangen</span>}
@@ -194,10 +194,14 @@ export function SpendingDonut({ year, month }) {
                 className="absolute inset-y-0 left-0 rounded-xl"
                 style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: color, opacity: 0.15 }}
               />
-              <div className="w-2.5 h-2.5 rounded-full shrink-0 relative" style={{ backgroundColor: color }} />
-              <span className="text-sm text-white/80 flex-1 truncate text-left relative">{c.icon} {c.label}</span>
-              <span className="text-xs text-muted tabular-nums relative">{Math.round(pct)}%</span>
-              <span className="text-sm font-semibold tabular-nums w-16 text-right relative">{euro(c.spent)}</span>
+              <div className="w-8 h-8 rounded-full shrink-0 relative flex items-center justify-center text-sm" style={{ backgroundColor: color + '20' }}>{c.icon}</div>
+              <div className="flex-1 min-w-0 text-left relative">
+                <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{c.label}</div>
+              </div>
+              <div className="text-right relative">
+                <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(c.spent)}</div>
+                <div className="text-[10px] tabular-nums" style={{ color: 'var(--color-muted)' }}>{Math.round(pct)}%</div>
+              </div>
             </button>
           )
         })}
@@ -214,7 +218,7 @@ export function SpendingDonut({ year, month }) {
                 className="w-full flex items-center gap-3"
               >
                 <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-blue" />
-                <span className="text-sm text-white/80 flex-1 truncate text-left">{c.icon} {c.label}</span>
+                <span className="text-sm flex-1 truncate text-left" style={{ color: 'var(--color-text)' }}>{c.icon} {c.label}</span>
                 <span className="text-sm font-semibold tabular-nums text-blue">+{euro(Math.abs(c.spent))}</span>
               </button>
             ))}
@@ -250,17 +254,20 @@ function CategoryTransactionSheet({ cat, year, month, color, onClose }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl sheet-handle max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
         <div className="sticky top-0 z-10">
-          <div className="px-5 pt-4 pb-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{cat.icon}</span>
-              <div>
-                <div className="text-base font-bold text-white">{cat.label}</div>
-                {sorted && <div className="text-xs text-white/70">{euro(Math.abs(totalSpent))} · {sorted.length} transacties</div>}
+          <div className="px-5 pt-2 pb-4 flex flex-col items-center justify-between" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
+            <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{cat.icon}</span>
+                <div>
+                  <div className="text-base font-bold text-white">{cat.label}</div>
+                  {sorted && <div className="text-xs text-white/70">{euro(Math.abs(totalSpent))} · {sorted.length} transacties</div>}
+                </div>
               </div>
+              <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
             </div>
-            <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-export function BudgetBar({ ratio, bufferRatio, overspent, color }) {
+export function BudgetBar({ ratio, bufferRatio, overspent }) {
   const greenPct = overspent ? 0 : Math.round(ratio * 100)
 
   return (
@@ -6,17 +6,14 @@ export function BudgetBar({ ratio, bufferRatio, overspent, color }) {
       {overspent ? (
         <div
           className="absolute inset-0 rounded-full"
-          style={{ background: 'linear-gradient(90deg, var(--color-red) 0%, #ff6b6b 100%)', opacity: 0.9 }}
+          style={{ background: 'var(--color-red)', opacity: 0.85 }}
         />
       ) : (
         <div
           className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
           style={{
             width: `${greenPct}%`,
-            background: color
-              ? `linear-gradient(90deg, ${color}99 0%, ${color} 100%)`
-              : 'linear-gradient(90deg, #25a244 0%, #30D158 100%)',
-            boxShadow: greenPct > 5 ? `0 0 8px ${color ?? '#30D158'}40` : 'none',
+            background: 'var(--color-green)',
           }}
         />
       )}

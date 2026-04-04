@@ -225,7 +225,6 @@ function CategoryCard({ cat, onClick }) {
     <button
       onClick={onClick}
       className="card p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-150 active:scale-[0.97] overflow-hidden"
-      style={{ borderLeft: `4px solid ${color}` }}
     >
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
@@ -272,18 +271,21 @@ function CategorySheet({ cat, year, month, onClose }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[75vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[75vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
         {/* Colored category header */}
         <div className="sticky top-0 z-10">
-          <div className="px-5 pt-4 pb-4 rounded-t-3xl flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${CAT_COLORS[cat.key] ?? '#8E8E93'}, ${CAT_COLORS[cat.key] ?? '#8E8E93'}CC)` }}>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{cat.icon}</span>
-              <div>
-                <div className="text-base font-bold text-white">{cat.label}</div>
-                {sorted && <div className="text-xs text-white/70">{sorted.length} transacties</div>}
+          <div className="px-5 pt-2 pb-4 rounded-t-3xl flex flex-col" style={{ background: `linear-gradient(135deg, ${CAT_COLORS[cat.key] ?? '#8E8E93'}, ${CAT_COLORS[cat.key] ?? '#8E8E93'}CC)` }}>
+            <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{cat.icon}</span>
+                <div>
+                  <div className="text-base font-bold text-white">{cat.label}</div>
+                  {sorted && <div className="text-xs text-white/70">{sorted.length} transacties</div>}
+                </div>
               </div>
+              <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
             </div>
-            <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
           </div>
         </div>
 
