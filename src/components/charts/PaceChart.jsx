@@ -67,6 +67,8 @@ export function PaceChart({ year, month }) {
     },
   }
 
+  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#1E3A5F'
+
   const chartData = {
     labels,
     datasets: [
@@ -74,33 +76,37 @@ export function PaceChart({ year, month }) {
         label: 'Ideaal',
         data: idealCum,
         borderColor: chartColors().axis,
-        borderDash: [5, 5],
+        borderDash: [6, 4],
         borderWidth: 1.5,
         pointRadius: 0,
-        tension: 0,
+        tension: 0.3,
         fill: false,
       },
       {
         label: 'Werkelijk',
         data: actualCum,
+        borderColor: isAhead ? GREEN : RED,
         borderWidth: 2.5,
         pointRadius: 0,
-        tension: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: isAhead ? GREEN : RED,
+        tension: 0.35,
         fill: 'origin',
         backgroundColor: ctx => {
           const chart = ctx.chart
           const { ctx: c, chartArea } = chart
           if (!chartArea) return 'transparent'
           const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-          gradient.addColorStop(0, isAhead ? 'rgba(48,209,88,0.18)' : 'rgba(255,69,58,0.18)')
-          gradient.addColorStop(1, 'rgba(0,0,0,0)')
+          if (isAhead) {
+            gradient.addColorStop(0, 'rgba(48, 209, 88, 0.25)')
+            gradient.addColorStop(0.6, 'rgba(48, 209, 88, 0.08)')
+            gradient.addColorStop(1, 'rgba(48, 209, 88, 0)')
+          } else {
+            gradient.addColorStop(0, 'rgba(255, 69, 58, 0.25)')
+            gradient.addColorStop(0.6, 'rgba(255, 69, 58, 0.08)')
+            gradient.addColorStop(1, 'rgba(255, 69, 58, 0)')
+          }
           return gradient
-        },
-        segment: {
-          borderColor: ctx => {
-            const i = ctx.p0DataIndex
-            return actualCum[i] <= idealCum[i] ? GREEN : RED
-          },
         },
       },
     ],
@@ -109,8 +115,12 @@ export function PaceChart({ year, month }) {
   const options = {
     responsive: true,
     maintainAspectRatio: true,
-    aspectRatio: 1.9,
+    aspectRatio: 1.8,
     animation: false,
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -125,7 +135,7 @@ export function PaceChart({ year, month }) {
       x: {
         ticks: {
           ...tickTheme(),
-          maxTicksLimit: 8,
+          maxTicksLimit: 7,
         },
         grid: { display: false },
         border: { display: false },
@@ -136,7 +146,10 @@ export function PaceChart({ year, month }) {
           callback: v => euroCompact(v),
           maxTicksLimit: 5,
         },
-        grid: gridTheme(),
+        grid: {
+          ...gridTheme(),
+          drawBorder: false,
+        },
         border: { display: false },
       },
     },
@@ -145,7 +158,7 @@ export function PaceChart({ year, month }) {
   return (
     <div>
       {/* Stats header */}
-      <div className="bg-surface rounded-2xl p-4 mb-4">
+      <div className="card p-4 mb-4">
         <div className="text-xs text-muted mb-1">
           {isAhead
             ? `Op dit tempo houd je ${euro(diff)} over`
@@ -164,11 +177,11 @@ export function PaceChart({ year, month }) {
 
       <div className="flex gap-4 mt-3 px-1">
         <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className="w-4 border-t-2 border-dashed border-white/30 inline-block" />
+          <span className="w-4 border-t-2 border-dashed inline-block" style={{ borderColor: 'var(--color-muted)' }} />
           Ideaal tempo
         </span>
         <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className="w-4 border-t-2 border-green inline-block" />
+          <span className="w-4 border-t-2 inline-block" style={{ borderColor: isAhead ? GREEN : RED }} />
           Werkelijk
         </span>
       </div>
