@@ -95,7 +95,7 @@ export function MigrationPage({ onDone }) {
 
         <button
           onClick={handleFinish}
-          className="w-full bg-green text-white font-semibold rounded-xl py-3 mb-3"
+          className="w-full btn-accent py-3 mb-3"
         >
           Begin met Budget Tracker
         </button>
