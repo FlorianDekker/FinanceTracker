@@ -99,12 +99,11 @@ export function SpendingDonut({ year, month }) {
 
         // Clamp so icon + tail stay within canvas
         const canvasW = chart.width
-        const iconMargin = 20 // space for the emoji
         if (isRight) {
-          const maxX = canvasW - iconMargin
+          const maxX = canvasW - 22
           if (tailX > maxX) { tailX = maxX; endX = Math.min(endX, tailX - 16) }
         } else {
-          const minX = iconMargin
+          const minX = 30 // emojis are wider on the left (right-aligned text)
           if (tailX < minX) { tailX = minX; endX = Math.max(endX, tailX + 16) }
         }
 
