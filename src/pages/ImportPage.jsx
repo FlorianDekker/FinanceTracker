@@ -148,7 +148,7 @@ export function ImportPage() {
     <PageWrapper title="Importeer">
       <div className="p-4">
         <p className="text-sm text-muted mb-4">
-          Exporteer het <strong className="text-white">Excel-bestand (.txt)</strong> vanuit ABN AMRO internetbankieren en selecteer het hier.
+          Exporteer het <strong className="text-white">Excel-bestand (.xls)</strong> vanuit ABN AMRO internetbankieren en selecteer het hier.
         </p>
 
         {error && (

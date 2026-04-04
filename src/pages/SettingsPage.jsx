@@ -179,16 +179,6 @@ return (
             <div>Gegevens opgeslagen op dit apparaat</div>
             <div className="text-white font-medium pt-1">{totalTxCount ?? '…'} transacties in de app</div>
           </div>
-          <button
-            onClick={() => { caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => window.location.reload()) }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left text-orange"
-          >
-            <span className="text-xl">🔄</span>
-            <div>
-              <div className="text-sm">App forceren herladen</div>
-              <div className="text-xs text-muted">Verwijdert cache en laadt nieuwste versie</div>
-            </div>
-          </button>
         </div>
       </section>
       {editingCat && <BudgetEditSheet cat={editingCat} inputVal={inputVal} setInputVal={setInputVal} onSave={saveEdit} onAdjust={adjust} onClose={() => setEditingCat(null)} />}
