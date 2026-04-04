@@ -15,10 +15,16 @@ export function SettingsPage() {
   const [importStatus, setImportStatus] = useState(null)
   const totalTxCount = useLiveQuery(() => db.transactions.count(), [])
   const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? true), [])
+  const theme = useLiveQuery(() => db.settings.get('theme').then(r => r?.value ?? 'dark'), [])
 
   async function toggleConfidence() {
     const current = showConfidence ?? true
     await db.settings.put({ key: 'showConfidence', value: !current })
+  }
+
+  async function setTheme(value) {
+    await db.settings.put({ key: 'theme', value })
+    document.documentElement.classList.toggle('light', value === 'light')
   }
 
   function startEdit(cat) {
@@ -180,6 +186,31 @@ return (
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Admin</h2>
         <div className="bg-surface rounded-xl divide-y divide-border overflow-hidden">
+          {/* Theme toggle */}
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-xl">🎨</span>
+              <div className="flex-1">
+                <div className="text-sm">Thema</div>
+              </div>
+            </div>
+            <div className="flex bg-surface-2 rounded-full p-0.5">
+              <button
+                onClick={() => setTheme('dark')}
+                className={`flex-1 py-1.5 rounded-full text-xs font-medium transition-all ${theme === 'dark' ? 'bg-green text-white' : 'text-muted'}`}
+              >
+                Donker
+              </button>
+              <button
+                onClick={() => setTheme('light')}
+                className={`flex-1 py-1.5 rounded-full text-xs font-medium transition-all ${theme === 'light' ? 'bg-green text-white' : 'text-muted'}`}
+              >
+                Licht
+              </button>
+            </div>
+          </div>
+
+          {/* Confidence toggle */}
           <button onClick={toggleConfidence} className="w-full flex items-center gap-3 px-4 py-3 text-left">
             <span className="text-xl">🧠</span>
             <div className="flex-1">

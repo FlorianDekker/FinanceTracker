@@ -17,6 +17,11 @@ export default function App() {
     db.settings.get('migrationDone').then(row => {
       setMigrationDone(row?.value === true)
     })
+    // Load theme preference
+    db.settings.get('theme').then(row => {
+      const theme = row?.value ?? 'dark'
+      document.documentElement.classList.toggle('light', theme === 'light')
+    })
   }, [])
 
   // Block iOS back-swipe gesture: prevent touchstart on the left-edge zone
