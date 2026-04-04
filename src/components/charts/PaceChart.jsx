@@ -171,10 +171,10 @@ export function PaceChart({ year, month }) {
           {(() => {
             const p = euroParts(Math.abs(diff))
             return (
-              <div className={`tabular-nums tracking-tight inline-flex items-baseline justify-center ${isAhead ? 'text-green' : 'text-red'}`}>
-                <span className="text-lg font-bold">€</span>
+              <div className={`tabular-nums tracking-tight leading-none ${isAhead ? 'text-green' : 'text-red'}`}>
+                <span className="text-lg font-bold align-top">€</span>
                 <span className="text-4xl font-extrabold">{p.whole}</span>
-                <span className="text-base font-semibold" style={{ opacity: 0.4 }}>{p.dec}</span>
+                <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{p.dec}</span>
               </div>
             )
           })()}
