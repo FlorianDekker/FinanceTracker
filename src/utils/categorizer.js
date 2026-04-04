@@ -9,7 +9,7 @@ export function categorize(merchant, amount, type, remi = '') {
 
   // Salaris: credit + amount >= 2000
   if (type === 'credit' && amount >= 2000) {
-    return { cat: 'salaris', sub: '', confidence: 'high', possiblySterre: false }
+    return { cat: 'salaris', sub: '', confidence: 'high', possiblySterre: false, matched: true }
   }
 
   // Other credits: still run rules first (e.g. Spotify shared payment via SEPA)
@@ -21,13 +21,14 @@ export function categorize(merchant, amount, type, remi = '') {
         confidence: 'high',
         possiblySterre: rule.possiblySterre && amount < 150 ? true : false,
         needsManual: rule.needsManual ?? false,
+        matched: true,
       }
     }
   }
 
   // Credits with no rule match → bankoverschrijving
   if (type === 'credit') {
-    return { cat: 'bankoverschrijving', sub: '', confidence: 'low', possiblySterre: false, needsManual: false }
+    return { cat: 'bankoverschrijving', sub: '', confidence: 'low', possiblySterre: false, needsManual: false, matched: false }
   }
 
   for (const rule of RULES) {
@@ -38,11 +39,12 @@ export function categorize(merchant, amount, type, remi = '') {
         confidence: 'high',
         possiblySterre: rule.possiblySterre && amount < 150 ? true : false,
         needsManual: rule.needsManual ?? false,
+        matched: true,
       }
     }
   }
 
-  return { cat: 'overige_kosten', sub: '', confidence: 'low', possiblySterre: false, needsManual: false }
+  return { cat: 'overige_kosten', sub: '', confidence: 'low', possiblySterre: false, needsManual: false, matched: false }
 }
 
 /**
@@ -82,5 +84,13 @@ export async function categorizeWithLearning(merchant, amount, type, remi = '') 
   }
 
   // Fall back to hardcoded rules
-  return { ...categorize(merchant, amount, type, remi), source: 'rules', confidencePct: null, eventCount: 0, isRecurring: false }
+  const ruleResult = categorize(merchant, amount, type, remi)
+  const { matched, ...rest } = ruleResult
+  return {
+    ...rest,
+    source: matched ? 'rules' : 'unknown',
+    confidencePct: matched ? 100 : 0,
+    eventCount: 0,
+    isRecurring: false,
+  }
 }
