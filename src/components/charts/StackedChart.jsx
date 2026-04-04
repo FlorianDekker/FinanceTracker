@@ -151,7 +151,7 @@ export function StackedChart({ year }) {
                 style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: color, opacity: 0.15 }}
               />
               <div className="w-2.5 h-2.5 rounded-full shrink-0 relative" style={{ backgroundColor: color }} />
-              <span className="text-sm text-white/80 flex-1 truncate relative">{cat.icon} {cat.label}</span>
+              <span className="text-sm flex-1 truncate relative" style={{ color: 'var(--color-text)' }}>{cat.icon} {cat.label}</span>
               <span className="text-xs text-muted tabular-nums relative">{Math.round(pct)}%</span>
               <span className="text-sm font-semibold tabular-nums w-16 text-right relative">{euro(cat.total)}</span>
             </div>

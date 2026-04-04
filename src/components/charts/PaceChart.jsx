@@ -181,7 +181,7 @@ export function PaceChart({ year, month }) {
         >
           <div>
             <div className="text-xs text-muted text-left">Categorieën meegenomen in budgettempo</div>
-            <div className="text-xs text-white/60 mt-0.5 text-left">{expenseCats.filter(c => !paceExcluded.has(c.key)).length} van {expenseCats.length} categorieën</div>
+            <div className="text-xs text-muted mt-0.5 text-left">{expenseCats.filter(c => !paceExcluded.has(c.key)).length} van {expenseCats.length} categorieën</div>
           </div>
           <span className={`text-muted text-sm transition-transform ${showCats ? 'rotate-180' : ''}`}>▼</span>
         </button>
@@ -197,7 +197,7 @@ export function PaceChart({ year, month }) {
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
                 >
                   <span className="text-base w-6 text-center">{cat.icon}</span>
-                  <span className={`flex-1 text-xs ${included ? 'text-white' : 'text-muted'}`}>{cat.label}</span>
+                  <span className={`flex-1 text-xs ${included ? '' : 'text-muted'}`} style={included ? { color: 'var(--color-text)' } : {}}>{cat.label}</span>
                   <span className={`w-5 h-5 rounded border flex items-center justify-center text-xs ${included ? 'bg-green border-green text-white' : 'border-border'}`}>
                     {included ? '✓' : ''}
                   </span>
