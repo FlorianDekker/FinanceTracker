@@ -1,4 +1,5 @@
 import { RULES } from '../constants/rules'
+import { predictCategory } from './merchantLearning'
 
 // Auto-categorize a transaction based on merchant name, amount, and type.
 // Ported verbatim from ImportTransactions.js categorize() function.
@@ -42,4 +43,41 @@ export function categorize(merchant, amount, type, remi = '') {
   }
 
   return { cat: 'overige_kosten', sub: '', confidence: 'low', possiblySterre: false, needsManual: false }
+}
+
+/**
+ * Async wrapper: checks learned merchant history first, then falls back to rules.
+ */
+export async function categorizeWithLearning(merchant, amount, type, remi = '') {
+  const prediction = await predictCategory(merchant, amount, type, remi)
+
+  if (prediction) {
+    if (prediction.source === 'recurring' || prediction.confidence >= 0.7) {
+      return {
+        cat: prediction.cat,
+        sub: prediction.sub,
+        confidence: 'high',
+        possiblySterre: false,
+        needsManual: false,
+        source: prediction.source,
+        eventCount: prediction.eventCount,
+        isRecurring: prediction.isRecurring,
+      }
+    }
+    if (prediction.confidence >= 0.5) {
+      return {
+        cat: prediction.cat,
+        sub: prediction.sub,
+        confidence: 'low',
+        possiblySterre: false,
+        needsManual: true,
+        source: prediction.source,
+        eventCount: prediction.eventCount,
+        isRecurring: false,
+      }
+    }
+  }
+
+  // Fall back to hardcoded rules
+  return { ...categorize(merchant, amount, type, remi), source: 'rules', eventCount: 0, isRecurring: false }
 }

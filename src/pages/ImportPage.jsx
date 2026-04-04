@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { parseABNExport, parseABNExcel } from '../utils/parsers'
-import { categorize } from '../utils/categorizer'
+import { categorizeWithLearning } from '../utils/categorizer'
 import { getExistingKeys, dedupKey } from '../utils/importHelpers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
+import { recordEvent, bulkRecordEvents } from '../utils/merchantLearning'
 import { euro, fmtDate } from '../utils/formatters'
 import { CATEGORY_MAP, CATEGORIES } from '../constants/categories'
 import { PageWrapper } from '../components/layout/PageWrapper'
@@ -33,10 +34,10 @@ export function ImportPage() {
         setError('Alle transacties staan al in je app.')
         return
       }
-      const withCats = newOnes.map(tx => {
-        const { cat, sub, confidence, possiblySterre, needsManual } = categorize(tx.merchant, tx.amount, tx.type, tx.remi)
-        return { ...tx, category: cat, subcategory: sub, confidence, possiblySterre, needsManual, note: tx.merchant }
-      })
+      const withCats = await Promise.all(newOnes.map(async tx => {
+        const { cat, sub, confidence, possiblySterre, needsManual, source, eventCount, isRecurring } = await categorizeWithLearning(tx.merchant, tx.amount, tx.type, tx.remi)
+        return { ...tx, category: cat, subcategory: sub, confidence, possiblySterre, needsManual, source, eventCount, isRecurring, _originalCategory: cat, note: tx.merchant }
+      }))
       setPending(withCats)
       setStep('review')
     } catch (err) {
@@ -45,17 +46,25 @@ export function ImportPage() {
   }
 
   async function handleSave() {
-    const txs = pending.map(({ merchant, confidence, possiblySterre, needsManual, remi, ...tx }) => tx)
+    const txs = pending.map(({ merchant, confidence, possiblySterre, needsManual, remi, source, eventCount, isRecurring, _originalCategory, ...tx }) => tx)
     await bulkAddTransactions(txs)
+    // Learn from all reviewed transactions
+    await bulkRecordEvents(pending)
     setSaved(txs.length)
     setStep('done')
   }
 
   function handleCategoryChange(idx, category, subcategory) {
-    setPending(p => p.map((tx, i) => i === idx
-      ? { ...tx, category, subcategory, confidence: 'high', possiblySterre: false }
-      : tx
+    const tx = pending[idx]
+    const wasCorrection = tx._originalCategory !== category
+    setPending(p => p.map((t, i) => i === idx
+      ? { ...t, category, subcategory, confidence: 'high', possiblySterre: false, _originalCategory: tx._originalCategory, source: 'learned', eventCount: (tx.eventCount ?? 0) + 1 }
+      : t
     ))
+    // Learn immediately
+    recordEvent(tx.merchant, category, subcategory, tx.amount, tx.type, tx.remi,
+      wasCorrection ? { was: true, from: tx._originalCategory } : null
+    )
     setEditIdx(null)
   }
 
@@ -124,6 +133,15 @@ export function ImportPage() {
                     <div className="text-[10px] text-muted">
                       {cat?.subs?.find(s => s.key === tx.subcategory)?.label}
                     </div>
+                  )}
+                  {tx.source === 'recurring' && (
+                    <div className="text-[9px] text-green mt-0.5">🔄 Terugkerend</div>
+                  )}
+                  {tx.source === 'learned' && tx.eventCount > 0 && (
+                    <div className="text-[9px] text-blue mt-0.5">🧠 Geleerd ({tx.eventCount}x)</div>
+                  )}
+                  {tx.source === 'similar' && (
+                    <div className="text-[9px] text-orange mt-0.5">🧠 Vergelijkbaar</div>
                   )}
                 </div>
               </button>
