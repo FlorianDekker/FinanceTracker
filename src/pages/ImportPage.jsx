@@ -144,7 +144,10 @@ export function ImportPage() {
                     <div className="text-[9px] text-orange mt-0.5">🧠 Vergelijkbaar · {tx.confidencePct}%</div>
                   )}
                   {tx.source === 'rules' && (
-                    <div className="text-[9px] text-muted mt-0.5">Regel</div>
+                    <div className="text-[9px] text-muted mt-0.5">📋 Regel · {tx.confidencePct}%</div>
+                  )}
+                  {tx.source === 'unknown' && (
+                    <div className="text-[9px] text-orange mt-0.5">❓ Onbekend</div>
                   )}
                 </div>
               </button>
