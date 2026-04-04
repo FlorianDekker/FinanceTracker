@@ -90,12 +90,23 @@ export function SpendingDonut({ year, month }) {
 
         // End point for the line (outside the chart)
         const lineLen = outerRadius + 18
-        const endX = x + Math.cos(midAngle) * lineLen
+        let endX = x + Math.cos(midAngle) * lineLen
         const endY = y + Math.sin(midAngle) * lineLen
 
         // Horizontal tail
         const isRight = endX > x
-        const tailX = endX + (isRight ? 16 : -16)
+        let tailX = endX + (isRight ? 16 : -16)
+
+        // Clamp so icon + tail stay within canvas
+        const canvasW = chart.width
+        const iconMargin = 20 // space for the emoji
+        if (isRight) {
+          const maxX = canvasW - iconMargin
+          if (tailX > maxX) { tailX = maxX; endX = Math.min(endX, tailX - 16) }
+        } else {
+          const minX = iconMargin
+          if (tailX < minX) { tailX = minX; endX = Math.max(endX, tailX + 16) }
+        }
 
         const color = CAT_COLORS[cat.key] ?? '#8E8E93'
 
