@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { CategoryRow } from '../components/dashboard/CategoryRow'
 import { useBudgetStats } from '../hooks/useBudgetStats'
-import { euro, fmtDate } from '../utils/formatters'
+import { euro, euroParts, fmtDate } from '../utils/formatters'
 import { MONTHS_LONG, CAT_COLORS } from '../constants/categories'
 import { TransactionForm } from '../components/transactions/TransactionForm'
 import { useMonth } from '../hooks/useMonth'
@@ -116,24 +116,33 @@ export function DashboardPage() {
         {/* Summary card */}
         <div className="px-4 pt-5 pb-2">
           <div className="card px-5 py-6 text-center">
-            <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--color-muted)' }}>
+            <div className="text-[10px] font-bold uppercase tracking-[0.15em] mb-3" style={{ color: 'var(--color-muted)' }}>
               {isOver ? 'Over budget' : 'Nog beschikbaar'}
             </div>
-            <div
-              className={`text-5xl font-extrabold tracking-tight leading-none tabular-nums ${isOver ? 'text-red' : 'text-green'}`}
-            >
-              {isOver ? `-${euro(Math.abs(totalRemaining))}` : euro(totalRemaining)}
-            </div>
-            <div className="flex justify-center gap-4 mt-4">
-              <div className="text-center">
-                <div className="text-lg font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(totalSpent)}</div>
-                <div className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Uitgegeven</div>
-              </div>
-              <div className="w-px" style={{ background: 'var(--color-border)' }} />
-              <div className="text-center">
-                <div className="text-lg font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(totalBudget)}</div>
-                <div className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Budget</div>
-              </div>
+            {(() => {
+              const p = euroParts(Math.abs(totalRemaining))
+              return (
+                <div className={`leading-none tabular-nums ${isOver ? 'text-red' : 'text-green'}`}>
+                  <span className="text-2xl font-bold align-top">{isOver ? '-' : ''}€</span>
+                  <span className="text-5xl font-extrabold tracking-tight">{p.whole}</span>
+                  <span className="text-xl font-semibold align-top" style={{ opacity: 0.5 }}>{p.dec}</span>
+                </div>
+              )
+            })()}
+            <div className="flex justify-center gap-5 mt-5">
+              {[{ val: totalSpent, label: 'Uitgegeven' }, { val: totalBudget, label: 'Budget' }].map((item, i) => {
+                const ip = euroParts(item.val)
+                return (
+                  <div key={i} className="text-center">
+                    {i > 0 && <div className="absolute -ml-3 h-8 w-px" style={{ background: 'var(--color-border)' }} />}
+                    <div className="tabular-nums" style={{ color: 'var(--color-text)' }}>
+                      <span className="text-base font-bold">{ip.sign}{ip.whole}</span>
+                      <span className="text-xs font-medium" style={{ opacity: 0.4 }}>{ip.dec}</span>
+                    </div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--color-muted)' }}>{item.label}</div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -215,24 +224,26 @@ function CategoryCard({ cat, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="card p-3.5 flex flex-col items-center gap-2 text-center transition-all duration-150 active:scale-[0.96]"
-      style={{ borderLeft: `3px solid ${color}` }}
+      className="card p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-150 active:scale-[0.97] overflow-hidden"
+      style={{ borderLeft: `4px solid ${color}` }}
     >
       <div
-        className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl"
-        style={{ backgroundColor: color + '15' }}
+        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+        style={{ backgroundColor: color + '12' }}
       >
         {cat.icon}
       </div>
 
-      <div className="text-[10px] font-semibold truncate w-full" style={{ color: 'var(--color-muted)' }}>{cat.label}</div>
+      <div className="text-[10px] font-bold truncate w-full" style={{ color: 'var(--color-muted)' }}>{cat.label}</div>
 
-      <div className={`text-sm font-bold tabular-nums ${overspent ? 'text-red' : ''}`} style={!overspent ? { color: 'var(--color-text)' } : {}}>
-        {euro(spent)}
+      <div className="tabular-nums">
+        <span className={`text-sm font-bold ${overspent ? 'text-red' : ''}`} style={!overspent ? { color: 'var(--color-text)' } : {}}>
+          {euro(spent)}
+        </span>
       </div>
 
       {budget > 0 && (
-        <div className="w-full h-[4px] rounded-full" style={{ backgroundColor: color + '15' }}>
+        <div className="w-full h-[3px] rounded-full" style={{ backgroundColor: color + '15' }}>
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
@@ -261,10 +272,19 @@ function CategorySheet({ cat, year, month, onClose }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
-          <span className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{cat.icon} {cat.label}</span>
-          <button onClick={onClose} className="text-muted text-lg">✕</button>
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[75vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+        {/* Colored category header */}
+        <div className="sticky top-0 z-10">
+          <div className="px-5 pt-4 pb-4 rounded-t-3xl flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${CAT_COLORS[cat.key] ?? '#8E8E93'}, ${CAT_COLORS[cat.key] ?? '#8E8E93'}CC)` }}>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{cat.icon}</span>
+              <div>
+                <div className="text-base font-bold text-white">{cat.label}</div>
+                {sorted && <div className="text-xs text-white/70">{sorted.length} transacties</div>}
+              </div>
+            </div>
+            <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
+          </div>
         </div>
 
         {sorted === null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
