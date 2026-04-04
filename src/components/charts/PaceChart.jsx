@@ -164,19 +164,15 @@ export function PaceChart({ year, month }) {
     <div>
       {/* Stats card */}
       <div className="card p-5 mb-4">
-        <div className="flex items-start justify-between mb-1">
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-              {isAhead ? 'Onder budget' : 'Over budget'}
-            </div>
-            <div className={`text-3xl font-extrabold tabular-nums tracking-tight ${isAhead ? 'text-green' : 'text-red'}`}>
-              {isAhead ? `+${euro(diff)}` : `-${euro(-diff)}`}
-            </div>
+        <div className="text-center mb-1">
+          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+            {isAhead ? 'Onder budget' : 'Over budget'}
           </div>
-          <div className="text-right">
-            <div className={`text-2xl font-bold tabular-nums ${isAhead ? 'text-green' : 'text-red'}`} style={{ opacity: 0.2 }}>
-              {pctUsed}%
-            </div>
+          <div className={`text-3xl font-extrabold tabular-nums tracking-tight ${isAhead ? 'text-green' : 'text-red'}`}>
+            {isAhead ? `+${euro(diff)}` : `-${euro(-diff)}`}
+          </div>
+          <div className={`text-sm font-bold tabular-nums mt-0.5 ${isAhead ? 'text-green' : 'text-red'}`} style={{ opacity: 0.3 }}>
+            {pctUsed}%
           </div>
         </div>
         <div className="flex items-center gap-3 mt-3">
