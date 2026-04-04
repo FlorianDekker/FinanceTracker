@@ -8,6 +8,7 @@ import { euro, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { TransactionForm } from '../transactions/TransactionForm'
 import { db } from '../../db/db'
+import { chartColors, tooltipTheme } from '../../utils/theme'
 
 ChartJS.register(ArcElement, Tooltip)
 
@@ -54,10 +55,11 @@ export function SpendingDonut({ year, month }) {
       ctx.save()
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillStyle = 'rgba(255,255,255,0.45)'
+      const cc = chartColors()
+      ctx.fillStyle = cc.textDim
       ctx.font = '11px -apple-system, sans-serif'
       ctx.fillText('Totaal', cx, cy - 10)
-      ctx.fillStyle = '#ffffff'
+      ctx.fillStyle = cc.text
       ctx.font = 'bold 17px -apple-system, sans-serif'
       ctx.fillText(euro(total), cx, cy + 8)
       ctx.restore()
@@ -152,11 +154,7 @@ export function SpendingDonut({ year, month }) {
       legend: { display: false },
       tooltip: {
         backgroundColor: 'rgba(28,28,30,0.95)',
-        titleColor: 'rgba(255,255,255,0.5)',
-        bodyColor: '#ffffff',
-        borderColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        padding: 10,
+        ...tooltipTheme(),
         callbacks: {
           label: ctx => {
             const pct = Math.round((ctx.parsed / total) * 100)

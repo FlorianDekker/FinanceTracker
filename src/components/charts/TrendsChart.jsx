@@ -12,6 +12,7 @@ import {
 } from 'chart.js'
 import { useYearGrid } from '../../hooks/useYearGrid'
 import { euro, euroCompact } from '../../utils/formatters'
+import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { EXPENSE_CATEGORIES, MONTHS, CAT_COLORS } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 
@@ -82,12 +83,7 @@ export function TrendsChart({ year }) {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: 'rgba(28,28,30,0.95)',
-        titleColor: 'rgba(255,255,255,0.5)',
-        bodyColor: '#ffffff',
-        borderColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        padding: 10,
+        ...tooltipTheme(),
         callbacks: {
           label: ctx => `${ctx.dataset.label}: ${euro(ctx.parsed.y)}`,
         },
@@ -95,18 +91,17 @@ export function TrendsChart({ year }) {
     },
     scales: {
       x: {
-        ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } },
+        ticks: tickTheme(),
         grid: { display: false },
         border: { display: false },
       },
       y: {
         ticks: {
-          color: 'rgba(255,255,255,0.35)',
-          font: { size: 10 },
+          ...tickTheme(),
           callback: v => euroCompact(v),
           maxTicksLimit: 5,
         },
-        grid: { color: 'rgba(255,255,255,0.04)' },
+        grid: gridTheme(),
         border: { display: false },
       },
     },

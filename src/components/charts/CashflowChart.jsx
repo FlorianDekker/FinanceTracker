@@ -11,6 +11,7 @@ import { TransactionForm } from '../transactions/TransactionForm'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCashflowData } from '../../hooks/useCashflowData'
 import { euro, euroCompact, fmtDate } from '../../utils/formatters'
+import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { MONTHS, MONTHS_LONG, CATEGORY_MAP } from '../../constants/categories'
 import { db } from '../../db/db'
@@ -69,7 +70,7 @@ export function CashflowChart() {
         if (totalHeight < 14) return
         const centerY = (totalTop + totalBottom) / 2
         ctx.save()
-        ctx.fillStyle = 'rgba(255,255,255,0.9)'
+        ctx.fillStyle = chartColors().text
         ctx.font = `bold ${Math.min(11, totalHeight * 0.18)}px -apple-system, sans-serif`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
@@ -94,12 +95,7 @@ export function CashflowChart() {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: 'rgba(28,28,30,0.95)',
-        titleColor: 'rgba(255,255,255,0.5)',
-        bodyColor: '#ffffff',
-        borderColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        padding: 10,
+        ...tooltipTheme(),
         callbacks: {
           title: items => {
             const d = data[items[0].dataIndex]
@@ -112,19 +108,18 @@ export function CashflowChart() {
     scales: {
       x: {
         stacked: true,
-        ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } },
+        ticks: tickTheme(),
         grid: { display: false },
         border: { display: false },
       },
       y: {
         stacked: true,
         ticks: {
-          color: 'rgba(255,255,255,0.35)',
-          font: { size: 10 },
+          ...tickTheme(),
           callback: v => euroCompact(v),
           maxTicksLimit: 5,
         },
-        grid: { color: 'rgba(255,255,255,0.04)' },
+        grid: gridTheme(),
         border: { display: false },
       },
     },

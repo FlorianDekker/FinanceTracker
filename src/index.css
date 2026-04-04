@@ -13,12 +13,19 @@
   --color-muted: #8e8e93;
   --color-text: #ffffff;
   --color-text-secondary: rgba(255, 255, 255, 0.6);
+  --color-text-tertiary: rgba(255, 255, 255, 0.7);
+  --color-text-dim: rgba(255, 255, 255, 0.3);
   --color-green: #30D158;
   --color-green-dim: #0d2e1a;
   --color-red: #FF453A;
   --color-red-dim: #2e0d0d;
   --color-orange: #FF9F0A;
   --color-blue: #0A84FF;
+  /* Chart canvas colors */
+  --chart-text: #ffffff;
+  --chart-text-dim: rgba(255, 255, 255, 0.35);
+  --chart-grid: rgba(255, 255, 255, 0.04);
+  --chart-axis: rgba(255, 255, 255, 0.10);
   color-scheme: dark;
 }
 
@@ -30,12 +37,18 @@ html.light {
   --color-muted: #86868b;
   --color-text: #1d1d1f;
   --color-text-secondary: rgba(0, 0, 0, 0.55);
+  --color-text-tertiary: rgba(0, 0, 0, 0.65);
+  --color-text-dim: rgba(0, 0, 0, 0.25);
   --color-green: #28a745;
   --color-green-dim: #d4edda;
   --color-red: #dc3545;
   --color-red-dim: #f8d7da;
   --color-orange: #e67e00;
   --color-blue: #007aff;
+  --chart-text: #1d1d1f;
+  --chart-text-dim: rgba(0, 0, 0, 0.4);
+  --chart-grid: rgba(0, 0, 0, 0.06);
+  --chart-axis: rgba(0, 0, 0, 0.15);
   color-scheme: light;
 }
 
@@ -77,16 +90,25 @@ button:active, a:active, label:active {
   transform: scale(0.97);
 }
 
-/* Light mode text-white override */
-html.light .text-white {
-  color: var(--color-text);
-}
-html.light .text-white\/60 {
-  color: var(--color-text-secondary);
-}
-html.light .text-white\/70 {
-  color: var(--color-text-secondary);
-}
-html.light .text-white\/80 {
-  color: var(--color-text);
+/* ─── Light mode: remap white text to dark text ───── */
+
+html.light {
+  /* Catch-all: any element with color set to white/near-white */
+  .text-white { color: var(--color-text) !important; }
+  .text-white\/30 { color: var(--color-text-dim) !important; }
+  .text-white\/35 { color: var(--color-text-dim) !important; }
+  .text-white\/60 { color: var(--color-text-secondary) !important; }
+  .text-white\/70 { color: var(--color-text-tertiary) !important; }
+  .text-white\/80 { color: var(--color-text) !important; }
+  .text-white\/95 { color: var(--color-text) !important; }
+  .bg-black\/60 { background-color: rgba(0, 0, 0, 0.3) !important; }
+  .placeholder-muted::placeholder { color: var(--color-muted); }
+
+  /* Buttons on colored backgrounds should stay white text */
+  .bg-green.text-white,
+  .bg-red.text-white,
+  .bg-orange.text-white,
+  .bg-blue.text-white {
+    color: #ffffff !important;
+  }
 }

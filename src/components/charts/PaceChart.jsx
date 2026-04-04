@@ -11,6 +11,7 @@ import {
 import { useState } from 'react'
 import { usePaceData, setPaceExcluded, DEFAULT_PACE_EXCLUDED } from '../../hooks/usePaceData'
 import { euroCompact, euro } from '../../utils/formatters'
+import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
@@ -49,7 +50,8 @@ export function PaceChart({ year, month }) {
       if (todayDay < 1 || todayDay > daysInMonth) return
       const x = scales.x.getPixelForValue(todayDay - 1)
       ctx.save()
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)'
+      const cc = chartColors()
+      ctx.strokeStyle = cc.axis
       ctx.lineWidth = 1
       ctx.setLineDash([4, 4])
       ctx.beginPath()
@@ -57,7 +59,7 @@ export function PaceChart({ year, month }) {
       ctx.lineTo(x, chartArea.bottom)
       ctx.stroke()
       // "Vandaag" label
-      ctx.fillStyle = 'rgba(255,255,255,0.25)'
+      ctx.fillStyle = cc.textDim
       ctx.font = '9px -apple-system, sans-serif'
       ctx.textAlign = 'center'
       ctx.fillText('vandaag', x, chartArea.top - 4)
@@ -71,7 +73,7 @@ export function PaceChart({ year, month }) {
       {
         label: 'Ideaal',
         data: idealCum,
-        borderColor: 'rgba(255,255,255,0.2)',
+        borderColor: chartColors().axis,
         borderDash: [5, 5],
         borderWidth: 1.5,
         pointRadius: 0,
@@ -112,12 +114,7 @@ export function PaceChart({ year, month }) {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: 'rgba(28,28,30,0.95)',
-        titleColor: 'rgba(255,255,255,0.5)',
-        bodyColor: '#ffffff',
-        borderColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        padding: 10,
+        ...tooltipTheme(),
         callbacks: {
           title: items => `Dag ${items[0].label}`,
           label: ctx => `${ctx.dataset.label}: ${euro(ctx.parsed.y)}`,
@@ -127,21 +124,19 @@ export function PaceChart({ year, month }) {
     scales: {
       x: {
         ticks: {
-          color: 'rgba(255,255,255,0.3)',
+          ...tickTheme(),
           maxTicksLimit: 8,
-          font: { size: 10 },
         },
         grid: { display: false },
         border: { display: false },
       },
       y: {
         ticks: {
-          color: 'rgba(255,255,255,0.3)',
-          font: { size: 10 },
+          ...tickTheme(),
           callback: v => euroCompact(v),
           maxTicksLimit: 5,
         },
-        grid: { color: 'rgba(255,255,255,0.04)' },
+        grid: gridTheme(),
         border: { display: false },
       },
     },
