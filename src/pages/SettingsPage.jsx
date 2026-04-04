@@ -7,6 +7,7 @@ import { euro } from '../utils/formatters'
 import { db } from '../db/db'
 import { parseTransactionsCsv } from '../utils/parsers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
+import { applyAccentColor } from '../utils/theme'
 
 export function SettingsPage() {
   const categories = useCategories()
@@ -16,6 +17,22 @@ export function SettingsPage() {
   const totalTxCount = useLiveQuery(() => db.transactions.count(), [])
   const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? false), [])
   const theme = useLiveQuery(() => db.settings.get('theme').then(r => r?.value ?? 'light'), [])
+  const accentColor = useLiveQuery(() => db.settings.get('accentColor').then(r => r?.value ?? '#1E3A5F'), [])
+
+  const ACCENT_OPTIONS = [
+    { color: '#1E3A5F', label: 'Navy' },
+    { color: '#0F172A', label: 'Charcoal' },
+    { color: '#1E40AF', label: 'Blauw' },
+    { color: '#4F46E5', label: 'Indigo' },
+    { color: '#7C3AED', label: 'Paars' },
+    { color: '#0D9488', label: 'Teal' },
+    { color: '#059669', label: 'Smaragd' },
+    { color: '#15803D', label: 'Groen' },
+    { color: '#B45309', label: 'Amber' },
+    { color: '#DC2626', label: 'Rood' },
+    { color: '#BE185D', label: 'Roze' },
+    { color: '#64748B', label: 'Slate' },
+  ]
 
   async function toggleConfidence() {
     const current = showConfidence ?? false
@@ -26,6 +43,11 @@ export function SettingsPage() {
     await db.settings.put({ key: 'theme', value })
     document.documentElement.classList.remove('dark', 'light')
     if (value === 'dark') document.documentElement.classList.add('dark')
+  }
+
+  async function setAccent(color) {
+    await db.settings.put({ key: 'accentColor', value: color })
+    applyAccentColor(color)
   }
 
   function startEdit(cat) {
@@ -208,6 +230,35 @@ return (
               >
                 Licht
               </button>
+            </div>
+          </div>
+
+          {/* Accent color picker */}
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-xl">🎨</span>
+              <div className="flex-1">
+                <div className="text-sm" style={{ color: 'var(--color-text)' }}>Accentkleur</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-6 gap-2">
+              {ACCENT_OPTIONS.map(opt => (
+                <button
+                  key={opt.color}
+                  onClick={() => setAccent(opt.color)}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <div
+                    className="w-9 h-9 rounded-full transition-all duration-150"
+                    style={{
+                      backgroundColor: opt.color,
+                      boxShadow: accentColor === opt.color ? `0 0 0 3px var(--color-bg), 0 0 0 5px ${opt.color}` : 'none',
+                      transform: accentColor === opt.color ? 'scale(1.1)' : 'scale(1)',
+                    }}
+                  />
+                  <span className="text-[9px]" style={{ color: accentColor === opt.color ? 'var(--color-text)' : 'var(--color-muted)' }}>{opt.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 

@@ -9,6 +9,7 @@ import { ChartsPage } from './pages/ChartsPage'
 import { ImportPage } from './pages/ImportPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { MonthProvider } from './hooks/useMonth'
+import { applyAccentColor } from './utils/theme'
 
 export default function App() {
   const [migrationDone, setMigrationDone] = useState(null)
@@ -21,6 +22,10 @@ export default function App() {
     db.settings.get('theme').then(row => {
       const theme = row?.value ?? 'light'
       document.documentElement.classList.toggle('dark', theme === 'dark')
+    })
+    // Load accent color
+    db.settings.get('accentColor').then(row => {
+      if (row?.value) applyAccentColor(row.value)
     })
   }, [])
 
