@@ -82,7 +82,7 @@ export function TransactionsPage() {
   return (
     <PageWrapper>
       {/* Month selector */}
-      <div className="sticky top-0 z-10 bg-bg px-4 py-2 safe-top border-b border-border">
+      <div className="sticky top-0 z-10 glass px-4 py-2 safe-top" style={{ borderBottom: '1px solid var(--color-border)' }}>
         <div className="flex items-center justify-between mb-2">
           <button onClick={() => goMonth('prev')} className="text-muted px-2 py-1 text-xl">‹</button>
           <div className="flex items-center gap-2">
@@ -121,7 +121,7 @@ export function TransactionsPage() {
       {/* Floating month pill */}
       {showPill && (
         <div className="fixed inset-x-0 top-1/3 -translate-y-1/2 flex justify-center z-30 pointer-events-none">
-          <div className="bg-surface/95 border border-border rounded-2xl px-8 py-4 text-lg font-semibold animate-scale-in shadow-lg">
+          <div className="glass rounded-2xl px-8 py-4 text-lg font-semibold animate-scale-in" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
             {MONTHS_LONG[month - 1]} {year}
           </div>
         </div>
@@ -166,7 +166,7 @@ export function TransactionsPage() {
       <button
         onClick={() => setShowAdd(true)}
         className="fixed right-4 w-14 h-14 rounded-full bg-green text-white text-2xl flex items-center justify-center shadow-lg z-40 animate-scale-in"
-        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px) + 1rem)', boxShadow: '0 4px 20px rgba(76,175,80,0.4)' }}
+        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px) + 1rem)', boxShadow: '0 4px 20px rgba(48, 209, 88, 0.35)' }}
       >
         +
       </button>

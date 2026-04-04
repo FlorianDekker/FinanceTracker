@@ -51,10 +51,10 @@ export function TransactionForm({ onClose, existing }) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/60 z-50 animate-fade-in" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/50 z-50 animate-fade-in" onClick={onClose} style={{ backdropFilter: 'blur(4px)' }} />
 
       {/* Sheet */}
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl p-4 pb-24 max-h-[90vh] overflow-y-auto animate-slide-up">
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 glass-heavy rounded-t-3xl p-4 pb-24 max-h-[90vh] overflow-y-auto animate-slide-up sheet-handle">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-base font-semibold">{existing ? 'Bewerken' : 'Transactie toevoegen'}</h2>
           <button onClick={onClose} className="text-muted text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>
@@ -153,14 +153,14 @@ export function TransactionForm({ onClose, existing }) {
           <button
             onClick={handleSave}
             disabled={saving || !date || !amount || !category}
-            className="w-full bg-green text-white font-semibold rounded-xl py-3 disabled:opacity-40"
+            className="w-full btn-gradient-green rounded-2xl py-3.5 text-base disabled:opacity-40"
           >
             {saving ? 'Opslaan…' : 'Opslaan'}
           </button>
           {existing && (
             <button
               onClick={handleDelete}
-              className="w-full text-red text-sm py-2"
+              className="w-full text-red text-sm bg-red-dim rounded-xl py-2.5"
             >
               Verwijderen
             </button>

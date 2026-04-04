@@ -5,50 +5,54 @@
 /* ─── Theme variables ─────────────────────────────── */
 
 :root {
-  /* Dark theme (default) */
-  --color-bg: #0a0a0a;
-  --color-surface: #1c1c1e;
-  --color-surface-2: #2c2c2e;
-  --color-border: #2a2a2a;
+  --color-bg: #050505;
+  --color-surface: rgba(255, 255, 255, 0.05);
+  --color-surface-solid: #141414;
+  --color-surface-2: rgba(255, 255, 255, 0.08);
+  --color-border: rgba(255, 255, 255, 0.08);
   --color-muted: #8e8e93;
   --color-text: #ffffff;
-  --color-text-secondary: rgba(255, 255, 255, 0.6);
+  --color-text-secondary: rgba(255, 255, 255, 0.55);
   --color-text-tertiary: rgba(255, 255, 255, 0.7);
-  --color-text-dim: rgba(255, 255, 255, 0.3);
+  --color-text-dim: rgba(255, 255, 255, 0.25);
   --color-green: #30D158;
-  --color-green-dim: #0d2e1a;
+  --color-green-dim: rgba(48, 209, 88, 0.12);
   --color-red: #FF453A;
-  --color-red-dim: #2e0d0d;
+  --color-red-dim: rgba(255, 69, 58, 0.12);
   --color-orange: #FF9F0A;
   --color-blue: #0A84FF;
-  /* Chart canvas colors */
   --chart-text: #ffffff;
   --chart-text-dim: rgba(255, 255, 255, 0.35);
   --chart-grid: rgba(255, 255, 255, 0.04);
   --chart-axis: rgba(255, 255, 255, 0.10);
+  --glow-green: 0 0 30px rgba(48, 209, 88, 0.3);
+  --glow-red: 0 0 30px rgba(255, 69, 58, 0.3);
   color-scheme: dark;
 }
 
 html.light {
-  --color-bg: #f5f5f7;
-  --color-surface: #ffffff;
-  --color-surface-2: #e8e8ed;
-  --color-border: #d2d2d7;
+  --color-bg: #f2f2f7;
+  --color-surface: rgba(255, 255, 255, 0.75);
+  --color-surface-solid: #ffffff;
+  --color-surface-2: rgba(0, 0, 0, 0.04);
+  --color-border: rgba(0, 0, 0, 0.06);
   --color-muted: #86868b;
   --color-text: #1d1d1f;
-  --color-text-secondary: rgba(0, 0, 0, 0.55);
-  --color-text-tertiary: rgba(0, 0, 0, 0.65);
-  --color-text-dim: rgba(0, 0, 0, 0.25);
+  --color-text-secondary: rgba(0, 0, 0, 0.5);
+  --color-text-tertiary: rgba(0, 0, 0, 0.6);
+  --color-text-dim: rgba(0, 0, 0, 0.2);
   --color-green: #28a745;
-  --color-green-dim: #d4edda;
+  --color-green-dim: rgba(40, 167, 69, 0.1);
   --color-red: #dc3545;
-  --color-red-dim: #f8d7da;
+  --color-red-dim: rgba(220, 53, 69, 0.1);
   --color-orange: #e67e00;
   --color-blue: #007aff;
   --chart-text: #1d1d1f;
   --chart-text-dim: rgba(0, 0, 0, 0.4);
-  --chart-grid: rgba(0, 0, 0, 0.06);
-  --chart-axis: rgba(0, 0, 0, 0.15);
+  --chart-grid: rgba(0, 0, 0, 0.05);
+  --chart-axis: rgba(0, 0, 0, 0.12);
+  --glow-green: 0 0 20px rgba(40, 167, 69, 0.2);
+  --glow-red: 0 0 20px rgba(220, 53, 69, 0.2);
   color-scheme: light;
 }
 
@@ -63,7 +67,7 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', sans-serif;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
 }
@@ -74,41 +78,89 @@ body {
   flex-direction: column;
 }
 
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-.safe-top {
-  padding-top: env(safe-area-inset-top);
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-top { padding-top: env(safe-area-inset-top); }
+
+/* ─── Glass utility ───────────────────────────────── */
+
+.glass {
+  background: var(--color-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--color-border);
 }
 
-/* Press feedback on all interactive elements */
+.glass-heavy {
+  background: var(--color-surface-solid);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid var(--color-border);
+}
+
+/* ─── Sheet handle bar ────────────────────────────── */
+
+.sheet-handle::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-text-dim);
+  margin: 8px auto 4px;
+}
+
+/* ─── Glow effects ────────────────────────────────── */
+
+.glow-green { text-shadow: var(--glow-green); }
+.glow-red { text-shadow: var(--glow-red); }
+
+/* ─── Press feedback ──────────────────────────────── */
+
 button, a, label[for], label:has(input) {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.12s ease, transform 0.12s ease;
 }
 button:active, a:active, label:active {
-  opacity: 0.65;
-  transform: scale(0.97);
+  opacity: 0.7;
+  transform: scale(0.98);
 }
 
-/* ─── Light mode: remap white text to dark text ───── */
+/* ─── Scrollbar hide ──────────────────────────────── */
+
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Light mode: remap white text ────────────────── */
 
 html.light {
-  /* Catch-all: any element with color set to white/near-white */
   .text-white { color: var(--color-text) !important; }
   .text-white\/30 { color: var(--color-text-dim) !important; }
   .text-white\/35 { color: var(--color-text-dim) !important; }
+  .text-white\/55 { color: var(--color-text-secondary) !important; }
   .text-white\/60 { color: var(--color-text-secondary) !important; }
   .text-white\/70 { color: var(--color-text-tertiary) !important; }
   .text-white\/80 { color: var(--color-text) !important; }
   .text-white\/95 { color: var(--color-text) !important; }
-  .bg-black\/60 { background-color: rgba(0, 0, 0, 0.3) !important; }
+  .bg-black\/60 { background-color: rgba(0, 0, 0, 0.25) !important; }
   .placeholder-muted::placeholder { color: var(--color-muted); }
 
-  /* Buttons on colored backgrounds should stay white text */
   .bg-green.text-white,
   .bg-red.text-white,
   .bg-orange.text-white,
   .bg-blue.text-white {
     color: #ffffff !important;
   }
+}
+
+/* ─── Gradient button ─────────────────────────────── */
+
+.btn-gradient-green {
+  background: linear-gradient(135deg, #25a244 0%, #30D158 50%, #34d860 100%);
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 4px 16px rgba(48, 209, 88, 0.3);
+}
+html.light .btn-gradient-green {
+  background: linear-gradient(135deg, #1e8e3a 0%, #28a745 50%, #2ebd4e 100%);
+  box-shadow: 0 4px 16px rgba(40, 167, 69, 0.25);
 }

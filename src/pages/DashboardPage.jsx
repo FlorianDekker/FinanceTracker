@@ -75,28 +75,28 @@ export function DashboardPage() {
   return (
     <PageWrapper>
       {/* Sticky header: month nav + view toggle */}
-      <div className="sticky top-0 z-10 bg-bg safe-top border-b border-border">
-        <div className="flex items-center justify-between px-4 py-2">
-          <button onClick={() => goMonth('prev')} className="text-muted px-2 py-1 text-xl">‹</button>
+      <div className="sticky top-0 z-10 glass safe-top" style={{ borderBottom: '1px solid var(--color-border)' }}>
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <button onClick={() => goMonth('prev')} className="text-muted px-3 py-1 text-2xl font-light">‹</button>
           <div className="flex items-center gap-2">
-            <span className="font-medium">{MONTHS_LONG[month - 1]} {year}</span>
+            <span className="font-semibold tracking-tight">{MONTHS_LONG[month - 1]} {year}</span>
             {!isCurrentMonth && (
-              <button onClick={goToNow} className="text-xs text-green border border-green/40 rounded-full px-2 py-0.5">Nu</button>
+              <button onClick={goToNow} className="text-[10px] text-green border border-green/30 rounded-full px-2.5 py-0.5 font-semibold">Nu</button>
             )}
           </div>
-          <button onClick={() => goMonth('next')} className="text-muted px-2 py-1 text-xl">›</button>
+          <button onClick={() => goMonth('next')} className="text-muted px-3 py-1 text-2xl font-light">›</button>
         </div>
-        <div className="flex justify-center pb-2">
-          <div className="flex bg-surface-2 rounded-full p-0.5">
+        <div className="flex justify-center pb-2.5">
+          <div className="flex rounded-full p-0.5" style={{ backgroundColor: 'var(--color-surface-2)' }}>
             <button
               onClick={() => setView('cards')}
-              className={`px-4 py-1 rounded-full text-xs font-medium transition-all ${view === 'cards' ? 'bg-green text-white' : 'text-muted'}`}
+              className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${view === 'cards' ? 'btn-gradient-green' : 'text-muted'}`}
             >
               Kaarten
             </button>
             <button
               onClick={() => setView('list')}
-              className={`px-4 py-1 rounded-full text-xs font-medium transition-all ${view === 'list' ? 'bg-green text-white' : 'text-muted'}`}
+              className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${view === 'list' ? 'btn-gradient-green' : 'text-muted'}`}
             >
               Lijst
             </button>
@@ -107,7 +107,7 @@ export function DashboardPage() {
       {/* Floating month pill */}
       {showPill && (
         <div className="fixed inset-x-0 top-1/3 -translate-y-1/2 flex justify-center z-30 pointer-events-none">
-          <div className="bg-surface/95 border border-border rounded-2xl px-8 py-4 text-lg font-semibold animate-scale-in shadow-lg">
+          <div className="glass rounded-2xl px-8 py-4 text-lg font-semibold animate-scale-in" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
             {MONTHS_LONG[month - 1]} {year}
           </div>
         </div>
@@ -115,15 +115,17 @@ export function DashboardPage() {
 
       <div ref={listRef} className={`touch-pan-y ${slideClass}`}>
         {/* Budget summary */}
-        <div className="pt-5 pb-4 text-center px-4">
-          <div className="text-[11px] font-medium text-muted uppercase tracking-widest mb-2">
+        <div className="pt-6 pb-5 text-center px-4">
+          <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.15em] mb-2">
             {isOver ? 'Over budget' : 'Nog beschikbaar'}
           </div>
-          <div className={`text-[52px] font-bold tracking-tight leading-none tabular-nums ${isOver ? 'text-red' : 'text-green'}`}>
+          <div
+            className={`text-[52px] font-bold tracking-tight leading-none tabular-nums ${isOver ? 'text-red glow-red' : 'text-green glow-green'}`}
+          >
             {isOver ? `-${euro(Math.abs(totalRemaining))}` : euro(totalRemaining)}
           </div>
-          <div className="text-xs text-muted mt-2">
-            <span className="text-white/60">{euro(totalSpent)}</span> uitgegeven · <span className="text-white/60">{euro(totalBudget)}</span> budget
+          <div className="text-xs text-muted mt-3">
+            <span className="text-white/55 font-medium">{euro(totalSpent)}</span> uitgegeven · <span className="text-white/55 font-medium">{euro(totalBudget)}</span> budget
           </div>
         </div>
 
@@ -215,33 +217,43 @@ function CategoryCard({ cat, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="relative rounded-2xl p-3 flex flex-col items-center gap-1.5 text-center overflow-hidden"
-      style={{ backgroundColor: color + '15' }}
+      className="relative rounded-3xl p-3.5 flex flex-col items-center gap-2 text-center overflow-hidden transition-transform duration-150 active:scale-[0.96]"
+      style={{
+        backgroundColor: color + '10',
+        border: `1px solid ${color}15`,
+        boxShadow: `inset 0 1px 0 ${color}10`,
+      }}
     >
       {/* Category name */}
-      <div className="text-[10px] text-white/70 truncate w-full leading-tight">{cat.label}</div>
+      <div className="text-[10px] font-medium truncate w-full leading-tight" style={{ color: 'var(--color-text-tertiary)' }}>{cat.label}</div>
 
       {/* Icon */}
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-        style={{ backgroundColor: color + '25' }}
+        className="w-11 h-11 rounded-full flex items-center justify-center text-xl"
+        style={{
+          background: `linear-gradient(135deg, ${color}20 0%, ${color}35 100%)`,
+          boxShadow: `0 2px 8px ${color}15`,
+        }}
       >
         {cat.icon}
       </div>
 
       {/* Amount */}
-      <div className={`text-xs font-bold tabular-nums ${overspent ? 'text-red' : 'text-white'}`}>
+      <div className={`text-[13px] font-bold tabular-nums ${overspent ? 'text-red' : ''}`} style={!overspent ? { color: 'var(--color-text)' } : {}}>
         {euro(spent)}
       </div>
 
       {/* Progress bar */}
       {budget > 0 && (
-        <div className="w-full h-[3px] rounded-full mt-0.5" style={{ backgroundColor: color + '20' }}>
+        <div className="w-full h-[4px] rounded-full" style={{ backgroundColor: color + '15' }}>
           <div
-            className="h-full rounded-full transition-all"
+            className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${Math.round(ratio * 100)}%`,
-              backgroundColor: overspent ? '#D32F2F' : color,
+              background: overspent
+                ? 'linear-gradient(90deg, var(--color-red), #ff6b6b)'
+                : `linear-gradient(90deg, ${color}99, ${color})`,
+              boxShadow: ratio > 0.05 ? `0 0 6px ${overspent ? 'var(--color-red)' : color}30` : 'none',
             }}
           />
         </div>
@@ -265,11 +277,11 @@ function CategorySheet({ cat, year, month, onClose }) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 bg-surface rounded-t-2xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up">
-        <div className="sticky top-0 bg-surface border-b border-border px-4 py-3 flex justify-between items-center">
+      <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" style={{ backdropFilter: 'blur(4px)' }} onClick={onClose} />
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 glass-heavy rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up sheet-handle">
+        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface-solid)', borderBottom: '1px solid var(--color-border)' }}>
           <span className="font-semibold text-sm">{cat.icon} {cat.label}</span>
-          <button onClick={onClose} className="text-muted">✕</button>
+          <button onClick={onClose} className="text-muted text-lg">✕</button>
         </div>
 
         {sorted === null && (

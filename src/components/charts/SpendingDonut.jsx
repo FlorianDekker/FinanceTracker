@@ -249,9 +249,9 @@ function CategoryTransactionSheet({ cat, year, month, color, onClose }) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 bg-surface rounded-t-2xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up">
-        <div className="sticky top-0 bg-surface border-b border-border px-4 py-3 flex justify-between items-center">
+      <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" style={{ backdropFilter: 'blur(4px)' }} onClick={onClose} />
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 glass-heavy rounded-t-3xl sheet-handle max-h-[70vh] overflow-y-auto pb-24 animate-slide-up">
+        <div className="sticky top-0 px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-surface-solid)', borderBottom: '1px solid var(--color-border)' }}>
           <div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
@@ -269,7 +269,7 @@ function CategoryTransactionSheet({ cat, year, month, color, onClose }) {
         {sorted === null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
         {sorted?.length === 0 && <div className="text-center text-muted py-8 text-sm">Geen transacties deze maand</div>}
         {sorted?.map(tx => (
-          <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 border-b border-border text-left">
+          <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 text-left" style={{ borderBottom: '1px solid var(--color-border)' }}>
             <div className="flex-1 min-w-0">
               <div className="text-sm truncate">{tx.note || cat.label}</div>
               <div className="text-xs text-muted">{fmtDate(tx.date)}</div>
