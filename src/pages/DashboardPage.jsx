@@ -218,10 +218,7 @@ function CategoryCard({ cat, onClick }) {
       className="p-3 flex flex-col items-center gap-1.5 text-center transition-all duration-150 active:scale-[0.97] overflow-hidden"
       style={{ background: color + '18', borderRadius: 20, boxShadow: 'var(--shadow-card)' }}
     >
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
-        style={{ backgroundColor: color + '18' }}
-      >
+      <div className="w-10 h-10 flex items-center justify-center text-lg">
         {cat.icon}
       </div>
 
