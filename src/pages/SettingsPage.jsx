@@ -133,7 +133,7 @@ return (
       {/* Budget per category */}
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Maandbudget</h2>
-        <div className="bg-surface rounded-xl divide-y divide-border overflow-hidden">
+        <div className="glass rounded-2xl divide-y divide-border overflow-hidden">
           {expenseCats.map(cat => (
             <button key={cat.key} onClick={() => startEdit(cat)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
               <span className="text-xl w-7 text-center">{cat.icon}</span>
@@ -147,7 +147,7 @@ return (
       {/* Data import / export */}
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Data</h2>
-        <div className="bg-surface rounded-xl divide-y divide-border overflow-hidden">
+        <div className="glass rounded-2xl divide-y divide-border overflow-hidden">
           {/* Import transactions CSV */}
           <label className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer">
             <span className="text-xl">📄</span>
@@ -185,7 +185,7 @@ return (
       {/* Admin */}
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Admin</h2>
-        <div className="bg-surface rounded-xl divide-y divide-border overflow-hidden">
+        <div className="glass rounded-2xl divide-y divide-border overflow-hidden">
           {/* Theme toggle */}
           <div className="px-4 py-3">
             <div className="flex items-center gap-3 mb-2">
@@ -227,7 +227,7 @@ return (
       {/* App info */}
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Over</h2>
-        <div className="bg-surface rounded-xl divide-y divide-border overflow-hidden">
+        <div className="glass rounded-2xl divide-y divide-border overflow-hidden">
           <div className="px-4 py-3 text-sm text-muted space-y-1">
             <div>Versie 1.0.1</div>
             <div>Gegevens opgeslagen op dit apparaat</div>
@@ -259,8 +259,8 @@ function BudgetEditSheet({ cat, inputVal, setInputVal, onSave, onAdjust, onClose
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-40 animate-fade-in" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl pb-10 animate-slide-up">
+      <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" onClick={onClose} style={{ backdropFilter: 'blur(4px)' }} />
+      <div className="fixed bottom-0 left-0 right-0 z-50 glass-heavy rounded-t-3xl pb-10 animate-slide-up sheet-handle">
         <div className="px-4 py-4 border-b border-border flex items-center gap-3">
           <span className="text-2xl">{cat.icon}</span>
           <span className="font-semibold">{cat.label}</span>
@@ -297,7 +297,7 @@ function BudgetEditSheet({ cat, inputVal, setInputVal, onSave, onAdjust, onClose
         </div>
 
         <div className="px-6">
-          <button onClick={onSave} className="w-full py-3.5 rounded-2xl bg-green text-white font-semibold text-base">
+          <button onClick={onSave} className="w-full py-3.5 btn-gradient-green rounded-2xl font-semibold text-base">
             Opslaan
           </button>
         </div>
