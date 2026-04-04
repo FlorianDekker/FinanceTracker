@@ -85,12 +85,12 @@ export function TransactionsPage() {
       <div className="safe-top px-4 pt-4 pb-2" style={{ background: 'var(--color-bg)' }}>
         <div className="flex items-center justify-between mb-2.5">
           <button onClick={() => goMonth('prev')} className="text-muted text-xl px-1">‹</button>
-          <div className="flex items-center gap-2">
+          <button onClick={!isCurrentMonth ? goToNow : undefined} className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>{MONTHS_LONG[month - 1]} {year}</h1>
             {!isCurrentMonth && (
-              <button onClick={goToNow} className="text-[10px] font-bold rounded-full px-2 py-0.5 btn-accent">Nu</button>
+              <span className="text-[10px] font-bold rounded-full px-2 py-0.5 btn-accent">Nu</span>
             )}
-          </div>
+          </button>
           <button onClick={() => goMonth('next')} className="text-muted text-xl px-1">›</button>
         </div>
         <div className="flex items-center gap-2">

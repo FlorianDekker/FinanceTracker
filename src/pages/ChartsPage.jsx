@@ -129,12 +129,12 @@ export function ChartsPage() {
           {showMonthNav && (
             <div className="flex items-center justify-between px-4 pb-2">
               <button onClick={() => goMonth('prev')} className="text-muted text-xl px-1">‹</button>
-              <div className="flex items-center gap-2">
+              <button onClick={!isCurrentMonth ? goToNow : undefined} className="flex items-center gap-2">
                 <span className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{MONTHS_LONG[month - 1]} {year}</span>
                 {!isCurrentMonth && (
-                  <button onClick={goToNow} className="text-[10px] font-bold rounded-full px-2 py-0.5 btn-accent">Nu</button>
+                  <span className="text-[10px] font-bold rounded-full px-2 py-0.5 btn-accent">Nu</span>
                 )}
-              </div>
+              </button>
               <button onClick={() => goMonth('next')} className="text-muted text-xl px-1">›</button>
             </div>
           )}
