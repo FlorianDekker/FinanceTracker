@@ -8,6 +8,7 @@ import {
 } from 'chart.js'
 import { useYearGrid } from '../../hooks/useYearGrid'
 import { euro, euroCompact } from '../../utils/formatters'
+import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { EXPENSE_CATEGORIES, MONTHS, CAT_COLORS } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 
@@ -61,14 +62,15 @@ export function StackedChart({ year }) {
       const { ctx, chartArea, scales } = chart
       const y = scales.y.getPixelForValue(avg)
       ctx.save()
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)'
+      const cc = chartColors()
+      ctx.strokeStyle = cc.axis
       ctx.lineWidth = 1
       ctx.setLineDash([4, 4])
       ctx.beginPath()
       ctx.moveTo(chartArea.left, y)
       ctx.lineTo(chartArea.right, y)
       ctx.stroke()
-      ctx.fillStyle = 'rgba(255,255,255,0.35)'
+      ctx.fillStyle = cc.textDim
       ctx.font = '9px -apple-system, sans-serif'
       ctx.textAlign = 'right'
       ctx.fillText(`gem. ${euroCompact(avg)}`, chartArea.right, y - 4)
@@ -84,12 +86,7 @@ export function StackedChart({ year }) {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: 'rgba(28,28,30,0.95)',
-        titleColor: 'rgba(255,255,255,0.5)',
-        bodyColor: '#ffffff',
-        borderColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        padding: 10,
+        ...tooltipTheme(),
         filter: item => item.parsed.y > 0,
         callbacks: {
           label: ctx => `${ctx.dataset.label}: ${euro(ctx.parsed.y)}`,
@@ -103,19 +100,18 @@ export function StackedChart({ year }) {
     scales: {
       x: {
         stacked: true,
-        ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } },
+        ticks: tickTheme(),
         grid: { display: false },
         border: { display: false },
       },
       y: {
         stacked: true,
         ticks: {
-          color: 'rgba(255,255,255,0.35)',
-          font: { size: 10 },
+          ...tickTheme(),
           callback: v => euroCompact(v),
           maxTicksLimit: 5,
         },
-        grid: { color: 'rgba(255,255,255,0.04)' },
+        grid: gridTheme(),
         border: { display: false },
       },
     },
