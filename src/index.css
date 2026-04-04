@@ -2,9 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Theme variables ─────────────────────────────── */
+
 :root {
+  /* Dark theme (default) */
+  --color-bg: #0a0a0a;
+  --color-surface: #1c1c1e;
+  --color-surface-2: #2c2c2e;
+  --color-border: #2a2a2a;
+  --color-muted: #8e8e93;
+  --color-text: #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.6);
+  --color-green: #30D158;
+  --color-green-dim: #0d2e1a;
+  --color-red: #FF453A;
+  --color-red-dim: #2e0d0d;
+  --color-orange: #FF9F0A;
+  --color-blue: #0A84FF;
   color-scheme: dark;
 }
+
+html.light {
+  --color-bg: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-surface-2: #e8e8ed;
+  --color-border: #d2d2d7;
+  --color-muted: #86868b;
+  --color-text: #1d1d1f;
+  --color-text-secondary: rgba(0, 0, 0, 0.55);
+  --color-green: #28a745;
+  --color-green-dim: #d4edda;
+  --color-red: #dc3545;
+  --color-red-dim: #f8d7da;
+  --color-orange: #e67e00;
+  --color-blue: #007aff;
+  color-scheme: light;
+}
+
+/* ─── Base styles ─────────────────────────────────── */
 
 * {
   -webkit-tap-highlight-color: transparent;
@@ -13,8 +48,8 @@
 
 body {
   margin: 0;
-  background: #0a0a0a;
-  color: #ffffff;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
@@ -40,4 +75,18 @@ button, a, label[for], label:has(input) {
 button:active, a:active, label:active {
   opacity: 0.65;
   transform: scale(0.97);
+}
+
+/* Light mode text-white override */
+html.light .text-white {
+  color: var(--color-text);
+}
+html.light .text-white\/60 {
+  color: var(--color-text-secondary);
+}
+html.light .text-white\/70 {
+  color: var(--color-text-secondary);
+}
+html.light .text-white\/80 {
+  color: var(--color-text);
 }

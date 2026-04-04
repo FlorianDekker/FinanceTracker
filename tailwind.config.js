@@ -4,17 +4,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#0a0a0a',
-        surface: '#1c1c1e',
-        'surface-2': '#2c2c2e',
-        border: '#2a2a2a',
-        green: '#30D158',
-        'green-dim': '#0d2e1a',
-        red: '#FF453A',
-        'red-dim': '#2e0d0d',
-        muted: '#8e8e93',
-        orange: '#FF9F0A',
-        blue: '#0A84FF',
+        bg: 'var(--color-bg)',
+        surface: 'var(--color-surface)',
+        'surface-2': 'var(--color-surface-2)',
+        border: 'var(--color-border)',
+        green: 'var(--color-green)',
+        'green-dim': 'var(--color-green-dim)',
+        red: 'var(--color-red)',
+        'red-dim': 'var(--color-red-dim)',
+        muted: 'var(--color-muted)',
+        orange: 'var(--color-orange)',
+        blue: 'var(--color-blue)',
       },
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'Segoe UI', 'sans-serif'],
