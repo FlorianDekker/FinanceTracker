@@ -122,7 +122,7 @@ export function TransactionsPage() {
       {/* List */}
       <div
         ref={listRef}
-        className={`min-h-[40vh] divide-y divide-border touch-pan-y ${slideClass}`}
+        className={`flex-1 min-h-[60vh] divide-y divide-border touch-pan-y ${slideClass}`}
       >
         {filtered.length === 0 && (
           <div className="text-center text-muted py-12 text-sm">Geen transacties</div>
