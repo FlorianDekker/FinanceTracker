@@ -8,14 +8,17 @@ import { DailyChart } from '../components/charts/DailyChart'
 import { CalendarChart } from '../components/charts/CalendarChart'
 import { TrendsChart } from '../components/charts/TrendsChart'
 import { StackedChart } from '../components/charts/StackedChart'
+import { TopSpendingChart } from '../components/charts/TopSpendingChart'
+import { WeekdayChart } from '../components/charts/WeekdayChart'
+import { CompareChart } from '../components/charts/CompareChart'
 import { MONTHS_LONG } from '../constants/categories'
 import { useMonth } from '../hooks/useMonth'
 
 const now = new Date()
-const tabs = ['Budgettempo', 'Spaarpercentage', 'Verdeling', 'Dagelijks', 'Kalender', 'Jaar', 'Trends', 'Stapel']
+const tabs = ['Budgettempo', 'Spaarpercentage', 'Verdeling', 'Dagelijks', 'Kalender', 'Top', 'Weekdag', 'Vergelijk', 'Jaar', 'Trends', 'Stapel']
 
 // Tabs that use month navigation
-const MONTH_TABS = new Set([0, 2, 3, 4])
+const MONTH_TABS = new Set([0, 2, 3, 4, 5, 6, 7])
 
 export function ChartsPage() {
   const { year, month, animDir: monthAnimDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
@@ -147,9 +150,12 @@ export function ChartsPage() {
           {active === 2 && <SpendingDonut year={year} month={month} />}
           {active === 3 && <DailyChart year={year} month={month} />}
           {active === 4 && <CalendarChart year={year} month={month} />}
-          {active === 5 && <YearGrid year={year} />}
-          {active === 6 && <TrendsChart year={year} />}
-          {active === 7 && <StackedChart year={year} />}
+          {active === 5 && <TopSpendingChart year={year} month={month} />}
+          {active === 6 && <WeekdayChart year={year} month={month} />}
+          {active === 7 && <CompareChart year={year} month={month} />}
+          {active === 8 && <YearGrid year={year} />}
+          {active === 9 && <TrendsChart year={year} />}
+          {active === 10 && <StackedChart year={year} />}
         </div>
       </PageWrapper>
     </div>
