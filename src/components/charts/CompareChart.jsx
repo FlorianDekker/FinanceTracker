@@ -35,7 +35,7 @@ export function CompareChart({ year, month }) {
   return (
     <div>
       {/* Summary */}
-      <div className="card p-5 mb-4">
+      <div data-chart-area className="card p-5 mb-4">
         <div className="text-center mb-1">
           <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
             {MONTHS_LONG[month - 1]} vs {MONTHS_LONG[prevMonth - 1]}

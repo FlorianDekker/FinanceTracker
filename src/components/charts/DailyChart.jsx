@@ -157,7 +157,7 @@ export function DailyChart({ year, month }) {
         </div>
       </div>
 
-      <div className="card p-4 mb-4">
+      <div data-chart-area className="card p-4 mb-4">
         <Bar data={chartData} options={options} plugins={[avgLinePlugin]} />
         <div className="flex gap-4 mt-3 justify-center">
           <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-muted)' }}>

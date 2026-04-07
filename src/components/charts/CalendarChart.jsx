@@ -78,7 +78,7 @@ export function CalendarChart({ year, month }) {
       </div>
 
       {/* Day headers */}
-      <div className="card p-4 mb-4 overflow-hidden">
+      <div data-chart-area className="card p-4 mb-4 overflow-hidden">
         <div className="grid grid-cols-7">
           {DAYS_NL.map(d => (
             <div key={d} className="text-center text-[11px] text-muted font-semibold py-2 border-b border-border">{d}</div>
