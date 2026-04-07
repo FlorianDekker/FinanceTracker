@@ -88,7 +88,7 @@ export function TransactionForm({ onClose, existing }) {
               />
             </label>
             <div>
-              <span className="text-xs text-muted block mb-1">Richting</span>
+              <span className="text-xs text-muted block">Richting</span>
               <div className="flex rounded-lg overflow-hidden mt-1">
                 <button
                   onClick={() => setType('debit')}
