@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { PaceChart } from '../components/charts/PaceChart'
 import { CashflowChart } from '../components/charts/CashflowChart'
@@ -12,18 +13,31 @@ import { CompareChart } from '../components/charts/CompareChart'
 import { AverageChart } from '../components/charts/AverageChart'
 import { ForecastChart } from '../components/charts/ForecastChart'
 import { RecordsChart } from '../components/charts/RecordsChart'
-import { RatioChart } from '../components/charts/RatioChart'
 import { MONTHS_LONG } from '../constants/categories'
 import { useMonth } from '../hooks/useMonth'
+import { db } from '../db/db'
 
-const now = new Date()
-const tabs = ['Budgettempo', 'Spaarpercentage', 'Verdeling', 'Dagelijks', 'Top', 'Weekdag', 'Vergelijk', 'Forecast', 'Ratio', 'Gemiddeld', 'Records', 'Jaar', 'Trends']
+// All available charts
+export const ALL_CHARTS = [
+  { id: 'budgettempo',    label: 'Budgettempo',    usesMonth: true,  Component: PaceChart },
+  { id: 'spaarpercentage', label: 'Spaarpercentage', usesMonth: false, Component: CashflowChart },
+  { id: 'verdeling',      label: 'Verdeling',      usesMonth: true,  Component: SpendingDonut },
+  { id: 'dagelijks',      label: 'Dagelijks',      usesMonth: true,  Component: DailyChart },
+  { id: 'top',            label: 'Top',            usesMonth: true,  Component: TopSpendingChart },
+  { id: 'weekdag',        label: 'Weekdag',        usesMonth: true,  Component: WeekdayChart },
+  { id: 'vergelijk',      label: 'Vergelijk',      usesMonth: true,  Component: CompareChart },
+  { id: 'forecast',       label: 'Forecast',       usesMonth: true,  Component: ForecastChart },
+  { id: 'gemiddeld',      label: 'Gemiddeld',      usesMonth: false, Component: AverageChart },
+  { id: 'records',        label: 'Records',        usesMonth: false, Component: RecordsChart },
+  { id: 'jaar',           label: 'Jaar',           usesMonth: false, Component: YearGrid },
+  { id: 'trends',         label: 'Trends',         usesMonth: false, Component: TrendsChart },
+]
 
-// Tabs that use month navigation
-const MONTH_TABS = new Set([0, 2, 3, 4, 5, 6, 7, 8])
+const DEFAULT_ORDER = ALL_CHARTS.map(c => c.id)
+const CHART_MAP = Object.fromEntries(ALL_CHARTS.map(c => [c.id, c]))
 
 export function ChartsPage() {
-  const { year, month, animDir: monthAnimDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
+  const { year, month, animDir: monthAnimDir, isCurrentMonth, goMonth, goToNow } = useMonth()
   const [active, setActive] = useState(0)
   const [tabAnimDir, setTabAnimDir] = useState(null)
   const tabAnimating = useRef(false)
@@ -31,6 +45,14 @@ export function ChartsPage() {
   const pageRef = useRef(null)
   const tabsRef = useRef(null)
   const tabRefs = useRef([])
+
+  // Load chart config from settings
+  const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
+  const enabledIds = chartConfig?.enabled ?? DEFAULT_ORDER
+  const orderIds = chartConfig?.order ?? DEFAULT_ORDER
+
+  // Build visible tabs in order
+  const visibleCharts = orderIds.filter(id => enabledIds.includes(id) && CHART_MAP[id]).map(id => CHART_MAP[id])
 
   function goTo(next) {
     if (next === activeRef.current || tabAnimating.current) return
@@ -61,7 +83,7 @@ export function ChartsPage() {
     if (!el) return
     let startX = null, startY = null, horizontal = null, startTarget = null, startedFromEdge = false
     const screenW = window.innerWidth
-    const EDGE_ZONE = 40 // pixels from left/right edge
+    const EDGE_ZONE = 40
 
     const onStart = e => {
       const x = e.touches[0].clientX
@@ -88,24 +110,21 @@ export function ChartsPage() {
       startTarget = null
       if (!horizontal || Math.abs(dx) < 50 || dy > Math.abs(dx)) return
 
-      // Edge swipe always switches tabs
       if (startedFromEdge) {
         const cur = activeRef.current
-        if (dx < 0 && cur < tabs.length - 1) goTo(cur + 1)
+        if (dx < 0 && cur < visibleCharts.length - 1) goTo(cur + 1)
         else if (dx > 0 && cur > 0) goTo(cur - 1)
         return
       }
 
-      // Check if swipe started inside a chart card area
       const inChartArea = target?.closest?.('[data-chart-area]')
+      const currentChart = visibleCharts[activeRef.current]
 
-      if (inChartArea && MONTH_TABS.has(activeRef.current)) {
-        // Swipe on chart card → change month
+      if (inChartArea && currentChart?.usesMonth) {
         goMonth(dx < 0 ? 'next' : 'prev')
       } else {
-        // Swipe anywhere else → change tab
         const cur = activeRef.current
-        if (dx < 0 && cur < tabs.length - 1) goTo(cur + 1)
+        if (dx < 0 && cur < visibleCharts.length - 1) goTo(cur + 1)
         else if (dx > 0 && cur > 0) goTo(cur - 1)
       }
     }
@@ -118,7 +137,7 @@ export function ChartsPage() {
       el.removeEventListener('touchmove', onMove)
       el.removeEventListener('touchend', onEnd)
     }
-  }, [])
+  }, [visibleCharts.length])
 
   const slideClass = tabAnimDir === 'left'
     ? 'animate-slide-in-left'
@@ -126,18 +145,30 @@ export function ChartsPage() {
     ? 'animate-slide-in-right'
     : ''
 
-  const showMonthNav = MONTH_TABS.has(active)
+  const currentChart = visibleCharts[active]
+  const showMonthNav = currentChart?.usesMonth ?? false
+
+  if (visibleCharts.length === 0) {
+    return (
+      <div ref={pageRef} className="flex flex-col flex-1">
+        <PageWrapper>
+          <div className="text-center text-muted py-20 text-sm">
+            Geen grafieken ingeschakeld. Ga naar Instellingen om grafieken aan te zetten.
+          </div>
+        </PageWrapper>
+      </div>
+    )
+  }
 
   return (
     <div ref={pageRef} className="flex flex-col flex-1">
       <PageWrapper>
-        {/* Tab pills + optional month row */}
         <div className="safe-top" style={{ background: 'var(--color-bg)' }}>
           <div ref={tabsRef} className="flex gap-2 py-3 overflow-x-auto scrollbar-none">
             <div className="w-3 shrink-0" />
-            {tabs.map((t, i) => (
+            {visibleCharts.map((chart, i) => (
               <button
-                key={t}
+                key={chart.id}
                 ref={el => tabRefs.current[i] = el}
                 onClick={() => goTo(i)}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
@@ -145,7 +176,7 @@ export function ChartsPage() {
                 }`}
                 style={active !== i ? { background: 'var(--color-surface-2)' } : {}}
               >
-                {t}
+                {chart.label}
               </button>
             ))}
             <div className="w-3 shrink-0" />
@@ -165,21 +196,14 @@ export function ChartsPage() {
           )}
         </div>
 
-
         <div className={`p-4 overflow-hidden touch-pan-y ${slideClass}`}>
-          {active === 0 && <PaceChart year={year} month={month} />}
-          {active === 1 && <CashflowChart />}
-          {active === 2 && <SpendingDonut year={year} month={month} />}
-          {active === 3 && <DailyChart year={year} month={month} />}
-          {active === 4 && <TopSpendingChart year={year} month={month} />}
-          {active === 5 && <WeekdayChart year={year} month={month} />}
-          {active === 6 && <CompareChart year={year} month={month} />}
-          {active === 7 && <ForecastChart year={year} month={month} />}
-          {active === 8 && <RatioChart year={year} month={month} />}
-          {active === 9 && <AverageChart />}
-          {active === 10 && <RecordsChart />}
-          {active === 11 && <YearGrid year={year} />}
-          {active === 12 && <TrendsChart year={year} />}
+          {visibleCharts.map((chart, i) => {
+            if (i !== active) return null
+            const { Component } = chart
+            if (chart.usesMonth) return <Component key={chart.id} year={year} month={month} />
+            if (chart.id === 'jaar' || chart.id === 'trends') return <Component key={chart.id} year={year} />
+            return <Component key={chart.id} />
+          })}
         </div>
       </PageWrapper>
     </div>
