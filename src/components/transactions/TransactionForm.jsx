@@ -156,7 +156,7 @@ export function TransactionForm({ onClose, existing }) {
           </label>
         </div>
 
-        <div className="mt-5 space-y-2">
+        <div className="mt-5 space-y-2 pb-4">
           <button
             onClick={handleSave}
             disabled={saving || !date || !amount || !category}
