@@ -11,14 +11,14 @@ import { db } from '../../db/db'
 const now = new Date()
 
 function heatColor(net, budget) {
-  if (net < 0) return { bg: 'rgba(10,132,255,0.25)', text: '#0A84FF' } // net profit
+  if (net < 0) return { bg: '#EFF6FF', text: '#3B82F6' } // net profit
   if (net === 0 || !budget) return null
   const r = net / budget
-  if (r <= 0.5)  return { bg: 'rgba(48,209,88,0.15)',  text: '#30D158' }
-  if (r <= 0.85) return { bg: 'rgba(48,209,88,0.30)',  text: '#30D158' }
-  if (r <= 1.0)  return { bg: 'rgba(48,209,88,0.50)',  text: '#30D158' }
-  if (r <= 1.2)  return { bg: 'rgba(255,159,10,0.35)', text: '#FF9F0A' }
-  return               { bg: 'rgba(255,69,58,0.50)',  text: '#FF453A' }
+  if (r <= 0.5)  return { bg: '#ECFDF5', text: '#059669' }
+  if (r <= 0.85) return { bg: '#D1FAE5', text: '#059669' }
+  if (r <= 1.0)  return { bg: '#A7F3D0', text: '#047857' }
+  if (r <= 1.2)  return { bg: '#FEF3C7', text: '#D97706' }
+  return               { bg: '#FEE2E2', text: '#DC2626' }
 }
 
 export function YearGrid({ year }) {
@@ -33,99 +33,100 @@ export function YearGrid({ year }) {
   const budgetMap = Object.fromEntries(categories.map(c => [c.key, c.budget]))
   const visibleMonths = MONTHS.slice(0, currentMonth + 1)
 
+  const yearTotal = monthTotals.slice(0, currentMonth + 1).reduce((s, v) => s + v, 0)
+
   return (
     <div>
-      <div className="card p-3 mb-4 overflow-x-auto">
-        <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
-          <colgroup>
-            <col />
-            {visibleMonths.map((_, i) => <col key={i} style={{ width: 46 }} />)}
-          </colgroup>
-          <thead>
-            <tr>
-              <th className="text-left pb-2 pr-1 sticky left-0 bg-bg" />
-              {visibleMonths.map((m, i) => (
-                <th
-                  key={m}
-                  className={`text-center pb-2 px-0.5 text-[10px] ${
-                    i === currentMonth ? 'text-white font-semibold' : 'text-muted font-normal'
-                  }`}
-                >
-                  {m}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {EXPENSE_CATEGORIES.map(cat => {
-              const row = matrix[cat.key] ?? Array(12).fill(0)
-              const budget = budgetMap[cat.key] ?? 0
-              return (
-                <tr key={cat.key}>
-                  <td className="py-0.5 pr-1 sticky left-0 bg-bg">
-                    <span className="text-xs text-muted whitespace-nowrap">{cat.icon} {cat.label}</span>
-                  </td>
-                  {row.slice(0, currentMonth + 1).map((net, m) => {
-                    const heat = heatColor(net, budget)
-                    const isEmpty = net === 0
-                    return (
-                      <td key={m} className="py-0.5 px-0.5 text-center">
-                        <button
-                          onClick={() => !isEmpty && setSelected({ cat, month: m })}
-                          className="rounded-lg w-full py-1.5 tabular-nums transition-opacity active:opacity-60"
-                          style={{
-                            backgroundColor: heat?.bg ?? 'rgba(255,255,255,0.04)',
-                            color: isEmpty ? 'rgba(255,255,255,0.1)' : (heat?.text ?? 'rgba(255,255,255,0.4)'),
-                            fontSize: 9,
-                            minWidth: 30,
-                          }}
-                        >
-                          {isEmpty ? '·' : euroCompact(Math.abs(net))}
-                        </button>
-                      </td>
-                    )
-                  })}
-                </tr>
-              )
-            })}
+      {/* Category cards */}
+      <div className="space-y-2 mb-4">
+        {EXPENSE_CATEGORIES.map(cat => {
+          const row = matrix[cat.key] ?? Array(12).fill(0)
+          const budget = budgetMap[cat.key] ?? 0
+          const catTotal = row.slice(0, currentMonth + 1).reduce((s, v) => s + v, 0)
+          const color = CAT_COLORS[cat.key] ?? '#8E8E93'
 
-            {/* Totals row */}
-            <tr>
-              <td className="pt-3 pr-1 sticky left-0 bg-bg">
-                <span className="text-xs text-white/60 font-medium">Totaal</span>
-              </td>
-              {monthTotals.slice(0, currentMonth + 1).map((total, m) => (
-                <td key={m} className="pt-3 px-0.5 text-center">
-                  <div
-                    className="rounded-lg w-full py-1.5 tabular-nums font-semibold"
-                    style={{
-                      backgroundColor: total !== 0 ? 'rgba(255,255,255,0.06)' : 'transparent',
-                      color: total === 0 ? 'transparent' : total < 0 ? '#0A84FF' : 'rgba(255,255,255,0.7)',
-                      fontSize: 9,
-                    }}
-                  >
-                    {total !== 0 ? euroCompact(Math.abs(total)) : '·'}
+          return (
+            <div key={cat.key} className="card px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{cat.icon}</span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{cat.label}</span>
+                </div>
+                <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>
+                  {euroCompact(Math.abs(catTotal))}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {row.slice(0, currentMonth + 1).map((net, m) => {
+                  const heat = heatColor(net, budget)
+                  const isEmpty = net === 0
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => !isEmpty && setSelected({ cat, month: m })}
+                      className="flex-1 rounded-lg py-1.5 tabular-nums text-center transition-all active:scale-95"
+                      style={{
+                        backgroundColor: heat?.bg ?? 'var(--color-surface-2)',
+                        color: isEmpty ? 'var(--color-text-dim)' : (heat?.text ?? 'var(--color-muted)'),
+                        fontSize: 9,
+                        fontWeight: isEmpty ? 400 : 600,
+                      }}
+                    >
+                      {isEmpty ? '·' : euroCompact(Math.abs(net))}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex gap-1 mt-1">
+                {visibleMonths.map((m, i) => (
+                  <div key={i} className="flex-1 text-center text-[8px]" style={{ color: i === currentMonth ? 'var(--color-accent)' : 'var(--color-muted)', fontWeight: i === currentMonth ? 700 : 400 }}>
+                    {m}
                   </div>
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Totals card */}
+      <div className="card px-4 py-3 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Totaal</span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>
+            {euroCompact(yearTotal)}
+          </span>
+        </div>
+        <div className="flex gap-1">
+          {monthTotals.slice(0, currentMonth + 1).map((total, m) => (
+            <div
+              key={m}
+              className="flex-1 rounded-lg py-1.5 tabular-nums text-center font-semibold"
+              style={{
+                backgroundColor: total !== 0 ? 'var(--color-surface-2)' : 'transparent',
+                color: total === 0 ? 'var(--color-text-dim)' : 'var(--color-text)',
+                fontSize: 9,
+              }}
+            >
+              {total !== 0 ? euroCompact(Math.abs(total)) : '·'}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Legend */}
-      <div className="card p-3 flex gap-3 flex-wrap">
+      <div className="card p-3 flex gap-3 flex-wrap justify-center">
         {[
-          { label: 'Winst', bg: 'rgba(10,132,255,0.25)', text: '#0A84FF' },
-          { label: '≤ 50%', bg: 'rgba(48,209,88,0.15)', text: '#30D158' },
-          { label: '≤ 85%', bg: 'rgba(48,209,88,0.30)', text: '#30D158' },
-          { label: '≤ 100%', bg: 'rgba(48,209,88,0.50)', text: '#30D158' },
-          { label: '> 100%', bg: 'rgba(255,159,10,0.35)', text: '#FF9F0A' },
-          { label: '> 120%', bg: 'rgba(255,69,58,0.50)', text: '#FF453A' },
+          { label: 'Winst', bg: '#EFF6FF', text: '#3B82F6' },
+          { label: '≤ 50%', bg: '#ECFDF5', text: '#059669' },
+          { label: '≤ 85%', bg: '#D1FAE5', text: '#059669' },
+          { label: '≤ 100%', bg: '#A7F3D0', text: '#047857' },
+          { label: '> 100%', bg: '#FEF3C7', text: '#D97706' },
+          { label: '> 120%', bg: '#FEE2E2', text: '#DC2626' },
         ].map(l => (
-          <span key={l.label} className="flex items-center gap-1 text-[10px] text-muted">
-            <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: l.bg }} />
-            <span style={{ color: l.text }}>{l.label}</span>
+          <span key={l.label} className="flex items-center gap-1.5 text-[10px]">
+            <span className="w-4 h-4 rounded-md inline-block" style={{ backgroundColor: l.bg }} />
+            <span style={{ color: l.text, fontWeight: 600 }}>{l.label}</span>
           </span>
         ))}
       </div>
