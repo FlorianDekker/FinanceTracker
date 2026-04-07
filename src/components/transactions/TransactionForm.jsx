@@ -74,7 +74,7 @@ export function TransactionForm({ onClose, existing }) {
           </label>
 
           {/* Amount + Direction */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-end">
             <label className="flex-1">
               <span className="text-xs text-muted">Bedrag</span>
               <input
@@ -83,23 +83,23 @@ export function TransactionForm({ onClose, existing }) {
                 placeholder="0,00"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                className="w-full rounded-lg px-3 py-2 mt-1 text-sm"
-                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+                className="w-full rounded-lg px-3 mt-1 text-sm"
+                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)', height: 40 }}
               />
             </label>
             <div>
               <span className="text-xs text-muted block">Richting</span>
-              <div className="flex rounded-lg overflow-hidden mt-1">
+              <div className="flex rounded-lg overflow-hidden mt-1" style={{ height: 40 }}>
                 <button
                   onClick={() => setType('debit')}
-                  className={`px-4 py-2 text-sm font-medium ${type === 'debit' ? 'bg-red text-white' : ''}`}
+                  className={`px-4 text-sm font-medium ${type === 'debit' ? 'bg-red text-white' : ''}`}
                   style={type !== 'debit' ? { background: 'var(--color-surface-2)', color: 'var(--color-muted)' } : undefined}
                 >
                   Af
                 </button>
                 <button
                   onClick={() => setType('credit')}
-                  className={`px-4 py-2 text-sm font-medium ${type === 'credit' ? 'bg-green text-white' : ''}`}
+                  className={`px-4 text-sm font-medium ${type === 'credit' ? 'bg-green text-white' : ''}`}
                   style={type !== 'credit' ? { background: 'var(--color-surface-2)', color: 'var(--color-muted)' } : undefined}
                 >
                   Bij
