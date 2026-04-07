@@ -10,7 +10,7 @@ import { useState, useRef, useEffect } from 'react'
 import { TransactionForm } from '../transactions/TransactionForm'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCashflowData } from '../../hooks/useCashflowData'
-import { euro, euroCompact, fmtDate } from '../../utils/formatters'
+import { euro, euroParts, euroCompact, fmtDate } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { MONTHS, MONTHS_LONG, CATEGORY_MAP } from '../../constants/categories'
@@ -125,27 +125,58 @@ export function CashflowChart() {
     },
   }
 
+  const currentSaved = current?.saved ?? 0
+  const sp = euroParts(Math.abs(currentSaved))
+
   return (
     <div>
-      <div className="card p-4 mb-4">
-        <div className="text-xs text-muted mb-1">Gemiddeld spaarpercentage {now.getFullYear()}</div>
-        <div className="text-2xl font-bold text-green tabular-nums">{avgSavingsRate}%</div>
-        {current && (
-          <div className="text-xs text-muted mt-1">
-            Deze maand: {euro(current.income)} inkomen · {euro(current.expenses)} uitgaven · <span className="text-green">{euro(current.saved)} gespaard</span>
+      {/* Stats card */}
+      <div className="card p-5 mb-4">
+        <div className="text-center mb-1">
+          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+            Gespaard deze maand
           </div>
-        )}
+          <div className={`tabular-nums tracking-tight leading-none ${currentSaved >= 0 ? 'text-green' : 'text-red'}`}>
+            <span className="text-lg font-bold align-top">€</span>
+            <span className="text-4xl font-extrabold">{sp.whole}</span>
+            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{sp.dec}</span>
+          </div>
+          <div className={`text-sm font-bold tabular-nums mt-0.5 ${currentSaved >= 0 ? 'text-green' : 'text-red'}`} style={{ opacity: 0.3 }}>
+            {avgSavingsRate}%
+          </div>
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <div className="flex-1 h-[6px] rounded-full" style={{ background: 'var(--color-surface-2)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${Math.min(Math.max(avgSavingsRate, 0), 100)}%`,
+                background: avgSavingsRate > 0 ? 'var(--color-green)' : 'var(--color-red)',
+              }}
+            />
+          </div>
+        </div>
+        <div className="flex justify-between mt-2">
+          <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+            {euro(current?.expenses ?? 0)} uitgaven
+          </span>
+          <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+            {euro(current?.income ?? 0)} inkomen
+          </span>
+        </div>
       </div>
 
-      <Bar data={chartData} options={options} plugins={[savingsRateLabelPlugin]} />
-
-      <div className="flex gap-5 mt-3 px-1">
-        <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className="w-2.5 h-2.5 rounded-sm bg-red inline-block" /> Uitgaven
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className="w-2.5 h-2.5 rounded-sm bg-green inline-block" /> Gespaard
-        </span>
+      {/* Chart */}
+      <div className="card p-4 mb-4">
+        <Bar data={chartData} options={options} plugins={[savingsRateLabelPlugin]} />
+        <div className="flex gap-4 mt-3 justify-center">
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            <span className="w-2.5 h-2.5 rounded-sm bg-red inline-block" /> Uitgaven
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            <span className="w-2.5 h-2.5 rounded-sm bg-green inline-block" /> Gespaard
+          </span>
+        </div>
       </div>
 
       {selected && (
