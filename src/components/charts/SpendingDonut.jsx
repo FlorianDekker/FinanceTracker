@@ -169,24 +169,10 @@ export function SpendingDonut({ year, month }) {
 
   return (
     <div>
-      <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            Totaal uitgegeven
-          </div>
-          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{tp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
-          </div>
-          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
-            {cats.length} categorieën
-          </div>
+      <div className="card p-4 mb-4">
+        <div className="mx-auto" style={{ maxWidth: 320 }}>
+          <Doughnut ref={chartRef} data={chartData} options={options} plugins={[centerTextPlugin, labelLinesPlugin]} />
         </div>
-      </div>
-
-      <div className="mx-auto mb-5" style={{ maxWidth: 320 }}>
-        <Doughnut ref={chartRef} data={chartData} options={options} plugins={[centerTextPlugin, labelLinesPlugin]} />
       </div>
 
       <div className="space-y-2">
