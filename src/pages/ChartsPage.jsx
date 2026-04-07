@@ -13,15 +13,17 @@ import { WeekdayChart } from '../components/charts/WeekdayChart'
 import { CompareChart } from '../components/charts/CompareChart'
 import { AverageChart } from '../components/charts/AverageChart'
 import { StreaksChart } from '../components/charts/StreaksChart'
-import { IncomeChart } from '../components/charts/IncomeChart'
+import { ForecastChart } from '../components/charts/ForecastChart'
+import { RecordsChart } from '../components/charts/RecordsChart'
+import { RatioChart } from '../components/charts/RatioChart'
 import { MONTHS_LONG } from '../constants/categories'
 import { useMonth } from '../hooks/useMonth'
 
 const now = new Date()
-const tabs = ['Budgettempo', 'Spaarpercentage', 'Verdeling', 'Dagelijks', 'Kalender', 'Top', 'Weekdag', 'Vergelijk', 'Streaks', 'Inkomen', 'Gemiddeld', 'Jaar', 'Trends', 'Stapel']
+const tabs = ['Budgettempo', 'Spaarpercentage', 'Verdeling', 'Dagelijks', 'Kalender', 'Top', 'Weekdag', 'Vergelijk', 'Streaks', 'Forecast', 'Ratio', 'Gemiddeld', 'Records', 'Jaar', 'Trends', 'Stapel']
 
 // Tabs that use month navigation
-const MONTH_TABS = new Set([0, 2, 3, 4, 5, 6, 7, 8, 9])
+const MONTH_TABS = new Set([0, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
 export function ChartsPage() {
   const { year, month, animDir: monthAnimDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
@@ -177,11 +179,13 @@ export function ChartsPage() {
           {active === 6 && <WeekdayChart year={year} month={month} />}
           {active === 7 && <CompareChart year={year} month={month} />}
           {active === 8 && <StreaksChart year={year} month={month} />}
-          {active === 9 && <IncomeChart year={year} month={month} />}
-          {active === 10 && <AverageChart />}
-          {active === 11 && <YearGrid year={year} />}
-          {active === 12 && <TrendsChart year={year} />}
-          {active === 13 && <StackedChart year={year} />}
+          {active === 9 && <ForecastChart year={year} month={month} />}
+          {active === 10 && <RatioChart year={year} month={month} />}
+          {active === 11 && <AverageChart />}
+          {active === 12 && <RecordsChart />}
+          {active === 13 && <YearGrid year={year} />}
+          {active === 14 && <TrendsChart year={year} />}
+          {active === 15 && <StackedChart year={year} />}
         </div>
       </PageWrapper>
     </div>
