@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { CATEGORY_MAP } from '../../constants/categories'
-import { euro, fmtDate } from '../../utils/formatters'
+import { euro, euroParts, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { TransactionForm } from '../transactions/TransactionForm'
 
@@ -55,18 +55,30 @@ export function CalendarChart({ year, month }) {
   const totalSpent = spent.reduce((s, v) => s + v, 0)
   const totalEarned = earned.reduce((s, v) => s + v, 0)
 
+  const tp = euroParts(totalSpent)
+
   return (
     <div>
-      <div className="card p-4 mb-4">
-        <div className="text-xs text-muted mb-1">Kalender overzicht</div>
-        <div className="flex items-baseline gap-3">
-          <div className="text-2xl font-bold tabular-nums text-red">{euro(totalSpent)}</div>
-          {totalEarned > 0 && <div className="text-sm font-semibold tabular-nums text-green">+{euro(totalEarned)}</div>}
+      <div className="card p-5 mb-4">
+        <div className="text-center mb-1">
+          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+            Totaal uitgegeven
+          </div>
+          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
+            <span className="text-lg font-bold align-top">€</span>
+            <span className="text-4xl font-extrabold">{tp.whole}</span>
+            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
+          </div>
+          {totalEarned > 0 && (
+            <div className="text-sm font-bold tabular-nums mt-0.5 text-green" style={{ opacity: 0.5 }}>
+              +{euro(totalEarned)} terugontvangen
+            </div>
+          )}
         </div>
       </div>
 
       {/* Day headers */}
-      <div className="bg-surface rounded-2xl overflow-hidden border border-border">
+      <div className="card p-4 mb-4 overflow-hidden">
         <div className="grid grid-cols-7">
           {DAYS_NL.map(d => (
             <div key={d} className="text-center text-[11px] text-muted font-semibold py-2 border-b border-border">{d}</div>

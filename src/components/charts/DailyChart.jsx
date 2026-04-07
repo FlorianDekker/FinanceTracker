@@ -10,7 +10,7 @@ import { useState, useRef, useEffect } from 'react'
 import { TransactionForm } from '../transactions/TransactionForm'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDailySpending, setDailyIncludeVoorschot } from '../../hooks/useDailySpending'
-import { euro, euroCompact, fmtDate } from '../../utils/formatters'
+import { euro, euroParts, euroCompact, fmtDate } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { CATEGORY_MAP } from '../../constants/categories'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
@@ -117,31 +117,62 @@ export function DailyChart({ year, month }) {
     },
   }
 
+  const tp = euroParts(total)
+  const progressPct = Math.min(100, (todayDay / daysInMonth) * 100)
+
   return (
     <div>
-      <div className="card p-4 mb-4">
-        <div className="text-xs text-muted mb-1">Dagelijkse uitgaven</div>
-        <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(total)}</div>
-        <div className="text-xs text-muted mt-1">
-          Gem. {euro(average)} / dag · Piekdag: dag {highDay} ({euro(maxSpend)})
+      <div className="card p-5 mb-4">
+        <div className="text-center mb-1">
+          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+            Totaal uitgegeven
+          </div>
+          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
+            <span className="text-lg font-bold align-top">€</span>
+            <span className="text-4xl font-extrabold">{tp.whole}</span>
+            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
+          </div>
+          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
+            Gem. {euro(average)} / dag
+          </div>
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <div className="flex-1 h-[6px] rounded-full" style={{ background: 'var(--color-surface-2)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${progressPct}%`,
+                background: 'var(--color-accent)',
+              }}
+            />
+          </div>
+        </div>
+        <div className="flex justify-between mt-2">
+          <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+            Dag {todayDay}/{daysInMonth}
+          </span>
+          <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+            Piekdag: {highDay}
+          </span>
         </div>
       </div>
 
-      <Bar data={chartData} options={options} plugins={[avgLinePlugin]} />
-
-      <div className="flex gap-4 mt-3 px-1">
-        <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className="w-2.5 h-2.5 rounded-sm bg-green inline-block" /> Onder gemiddelde
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className="w-2.5 h-2.5 rounded-sm bg-orange inline-block" /> Boven gemiddeld
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-muted">
-          <span className="w-2.5 h-2.5 rounded-sm bg-red inline-block" /> Hoog
-        </span>
+      <div className="card p-4 mb-4">
+        <Bar data={chartData} options={options} plugins={[avgLinePlugin]} />
+        <div className="flex gap-4 mt-3 justify-center">
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            <span className="w-2.5 h-2.5 rounded-sm bg-green inline-block" /> Onder gemiddelde
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            <span className="w-2.5 h-2.5 rounded-sm bg-orange inline-block" /> Boven gemiddeld
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            <span className="w-2.5 h-2.5 rounded-sm bg-red inline-block" /> Hoog
+          </span>
+        </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between px-1">
+      <div className="card p-4 mb-4 flex items-center justify-between">
         <span className="text-xs text-muted">Voorschot meenemen</span>
         <button
           onClick={() => setDailyIncludeVoorschot(!includeVoorschot)}

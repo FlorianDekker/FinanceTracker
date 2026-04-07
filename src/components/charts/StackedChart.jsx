@@ -7,7 +7,7 @@ import {
   Tooltip,
 } from 'chart.js'
 import { useYearGrid } from '../../hooks/useYearGrid'
-import { euro, euroCompact } from '../../utils/formatters'
+import { euro, euroParts, euroCompact } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { EXPENSE_CATEGORIES, MONTHS, CAT_COLORS } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
@@ -127,17 +127,37 @@ export function StackedChart({ year }) {
   // Category breakdown for legend (sorted by total desc)
   const legendCats = [...ranked].reverse()
 
+  const ytp = euroParts(yearTotal)
+
   return (
     <div>
-      <div className="bg-surface rounded-2xl p-4 mb-4">
-        <div className="text-xs text-muted mb-1">Totale uitgaven in {year}</div>
-        <div className="text-2xl font-bold tabular-nums">{euro(yearTotal)}</div>
-        <div className="text-xs text-muted mt-1">
-          Gem. {euro(avgMonthly)}/mnd · Duurste: {MONTHS[maxMonth]} · Goedkoopste: {MONTHS[minMonth]}
+      <div className="card p-5 mb-4">
+        <div className="text-center mb-1">
+          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+            Totale uitgaven in {year}
+          </div>
+          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
+            <span className="text-lg font-bold align-top">€</span>
+            <span className="text-4xl font-extrabold">{ytp.whole}</span>
+            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{ytp.dec}</span>
+          </div>
+          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
+            Gem. {euro(avgMonthly)} / maand
+          </div>
+        </div>
+        <div className="flex justify-between mt-3">
+          <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+            Duurste: {MONTHS[maxMonth]}
+          </span>
+          <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+            Goedkoopste: {MONTHS[minMonth]}
+          </span>
         </div>
       </div>
 
-      <Bar data={chartData} options={options} plugins={[avgPlugin]} />
+      <div className="card p-4 mb-4">
+        <Bar data={chartData} options={options} plugins={[avgPlugin]} />
+      </div>
 
       {/* Category legend sorted by total */}
       <div className="mt-4 space-y-2">
