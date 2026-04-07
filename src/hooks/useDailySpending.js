@@ -34,7 +34,8 @@ export function useDailySpending(year, month) {
     const spentDays = daily.slice(1, todayDay + 1).filter(v => v > 0).length
     const total = daily.slice(1, todayDay + 1).reduce((s, v) => s + v, 0)
     const average = spentDays > 0 ? total / todayDay : 0
+    const totalTransactions = txs.filter(t => t.type === 'debit' && (CATEGORY_MAP[t.category]?.type === 'expense' || (includeVoorschot && t.category === 'voorschot'))).length
 
-    return { daily: daily.slice(1), daysInMonth, todayDay, average, total, includeVoorschot }
+    return { daily: daily.slice(1), daysInMonth, todayDay, average, total, includeVoorschot, totalTransactions }
   }, [year, month])
 }
