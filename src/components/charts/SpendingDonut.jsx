@@ -170,36 +170,36 @@ export function SpendingDonut({ year, month }) {
   return (
     <div>
       <div className="card p-4 mb-4">
-        <div className="mx-auto" style={{ maxWidth: 320 }}>
+        <div className="mx-auto mb-4" style={{ maxWidth: 320 }}>
           <Doughnut ref={chartRef} data={chartData} options={options} plugins={[centerTextPlugin, labelLinesPlugin]} />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        {cats.map(c => {
-          const pct = total > 0 ? (c.spent / total) * 100 : 0
-          const color = CAT_COLORS[c.key] ?? '#8E8E93'
-          return (
-            <button
-              key={c.key}
-              onClick={() => setSelectedCat(c)}
-              className="w-full relative overflow-hidden rounded-xl py-2.5 px-3 flex items-center gap-3"
-            >
-              <div
-                className="absolute inset-y-0 left-0 rounded-xl"
-                style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: color, opacity: 0.15 }}
-              />
-              <div className="w-3 h-3 rounded-full shrink-0 relative" style={{ backgroundColor: color }} />
-              <div className="flex-1 min-w-0 text-left relative">
-                <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{c.icon} {c.label}</div>
-              </div>
-              <div className="text-right relative">
-                <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(c.spent)}</div>
-                <div className="text-[10px] tabular-nums" style={{ color: 'var(--color-muted)' }}>{Math.round(pct)}%</div>
-              </div>
-            </button>
-          )
-        })}
+        <div className="space-y-1">
+          {cats.map(c => {
+            const pct = total > 0 ? (c.spent / total) * 100 : 0
+            const color = CAT_COLORS[c.key] ?? '#8E8E93'
+            return (
+              <button
+                key={c.key}
+                onClick={() => setSelectedCat(c)}
+                className="w-full relative overflow-hidden rounded-xl py-2.5 px-3 flex items-center gap-3"
+              >
+                <div
+                  className="absolute inset-y-0 left-0 rounded-xl"
+                  style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: color, opacity: 0.15 }}
+                />
+                <div className="w-3 h-3 rounded-full shrink-0 relative" style={{ backgroundColor: color }} />
+                <div className="flex-1 min-w-0 text-left relative">
+                  <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{c.icon} {c.label}</div>
+                </div>
+                <div className="text-right relative">
+                  <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(c.spent)}</div>
+                  <div className="text-[10px] tabular-nums" style={{ color: 'var(--color-muted)' }}>{Math.round(pct)}%</div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {earned.length > 0 && (
