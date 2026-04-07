@@ -114,7 +114,7 @@ export function WeekdayChart({ year, month }) {
         </div>
       </div>
 
-      <div className="card p-4 mb-4">
+      <div data-chart-area className="card p-4 mb-4">
         <Bar data={chartData} options={options} />
       </div>
 

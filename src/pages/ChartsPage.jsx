@@ -57,17 +57,15 @@ export function ChartsPage() {
   useEffect(() => {
     const el = pageRef.current
     if (!el) return
-    let startX = null, startY = null, horizontal = null
+    let startX = null, startY = null, horizontal = null, startTarget = null
 
     const onStart = e => {
       const x = e.touches[0].clientX
       const y = e.touches[0].clientY
       if (x < 24) { startX = null; return }
-      // Don't intercept touches on the sticky header (tabs + month nav)
-      const header = el.querySelector('.sticky')
-      if (header && y < header.getBoundingClientRect().bottom) { startX = null; return }
       startX = x
       startY = y
+      startTarget = e.target
       horizontal = null
     }
     const onMove = e => {
@@ -81,11 +79,23 @@ export function ChartsPage() {
       if (startX === null) return
       const dx = e.changedTouches[0].clientX - startX
       const dy = Math.abs(e.changedTouches[0].clientY - startY)
+      const target = startTarget
       startX = null
+      startTarget = null
       if (!horizontal || Math.abs(dx) < 50 || dy > Math.abs(dx)) return
-      const cur = activeRef.current
-      if (dx < 0 && cur < tabs.length - 1) goTo(cur + 1)
-      else if (dx > 0 && cur > 0) goTo(cur - 1)
+
+      // Check if swipe started inside a chart card area
+      const inChartArea = target?.closest?.('[data-chart-area]')
+
+      if (inChartArea && MONTH_TABS.has(activeRef.current)) {
+        // Swipe on chart card → change month
+        goMonth(dx < 0 ? 'next' : 'prev')
+      } else {
+        // Swipe anywhere else → change tab
+        const cur = activeRef.current
+        if (dx < 0 && cur < tabs.length - 1) goTo(cur + 1)
+        else if (dx > 0 && cur > 0) goTo(cur - 1)
+      }
     }
 
     el.addEventListener('touchstart', onStart, { passive: true })

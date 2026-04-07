@@ -169,7 +169,7 @@ export function SpendingDonut({ year, month }) {
 
   return (
     <div>
-      <div className="card pt-2 px-4 pb-4 mb-4">
+      <div data-chart-area className="card pt-2 px-4 pb-4 mb-4">
         <div className="mx-auto mb-3" style={{ maxWidth: 320 }}>
           <Doughnut ref={chartRef} data={chartData} options={options} plugins={[centerTextPlugin, labelLinesPlugin]} />
         </div>

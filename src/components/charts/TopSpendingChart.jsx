@@ -42,7 +42,7 @@ export function TopSpendingChart({ year, month }) {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
+      <div data-chart-area className="card overflow-hidden">
         {sorted.map((tx, i) => {
           const cat = CATEGORY_MAP[tx.category]
           const color = CAT_COLORS[tx.category] ?? '#8E8E93'
