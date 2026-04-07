@@ -57,15 +57,17 @@ export function ChartsPage() {
   useEffect(() => {
     const el = pageRef.current
     if (!el) return
-    let startX = null, startY = null, horizontal = null, startTarget = null
+    let startX = null, startY = null, horizontal = null, startTarget = null, startedFromEdge = false
+    const screenW = window.innerWidth
+    const EDGE_ZONE = 40 // pixels from left/right edge
 
     const onStart = e => {
       const x = e.touches[0].clientX
       const y = e.touches[0].clientY
-      if (x < 24) { startX = null; return }
       startX = x
       startY = y
       startTarget = e.target
+      startedFromEdge = x < EDGE_ZONE || x > screenW - EDGE_ZONE
       horizontal = null
     }
     const onMove = e => {
@@ -83,6 +85,14 @@ export function ChartsPage() {
       startX = null
       startTarget = null
       if (!horizontal || Math.abs(dx) < 50 || dy > Math.abs(dx)) return
+
+      // Edge swipe always switches tabs
+      if (startedFromEdge) {
+        const cur = activeRef.current
+        if (dx < 0 && cur < tabs.length - 1) goTo(cur + 1)
+        else if (dx > 0 && cur > 0) goTo(cur - 1)
+        return
+      }
 
       // Check if swipe started inside a chart card area
       const inChartArea = target?.closest?.('[data-chart-area]')
