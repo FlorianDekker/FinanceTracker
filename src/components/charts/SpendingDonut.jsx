@@ -4,7 +4,7 @@ import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { CAT_COLORS } from '../../constants/categories'
 import { useBudgetStats } from '../../hooks/useBudgetStats'
-import { euro, fmtDate } from '../../utils/formatters'
+import { euro, euroParts, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { TransactionForm } from '../transactions/TransactionForm'
 import { db } from '../../db/db'
@@ -165,14 +165,23 @@ export function SpendingDonut({ year, month }) {
     },
   }
 
+  const tp = euroParts(total)
+
   return (
     <div>
-      <div className="card p-4 mb-4">
-        <div className="text-xs text-muted mb-1">Totaal uitgegeven</div>
-        <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(total)}</div>
-        <div className="text-xs text-muted mt-1">
-          {cats.length} categorieën · meeste in {cats[0]?.label}
-          {earned.length > 0 && <span className="text-green"> · +{euro(Math.abs(earned.reduce((s, c) => s + c.spent, 0)))} terugontvangen</span>}
+      <div className="card p-5 mb-4">
+        <div className="text-center mb-1">
+          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+            Totaal uitgegeven
+          </div>
+          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
+            <span className="text-lg font-bold align-top">€</span>
+            <span className="text-4xl font-extrabold">{tp.whole}</span>
+            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
+          </div>
+          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
+            {cats.length} categorieën
+          </div>
         </div>
       </div>
 

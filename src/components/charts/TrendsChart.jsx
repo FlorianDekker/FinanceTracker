@@ -113,20 +113,26 @@ export function TrendsChart({ year }) {
 
   return (
     <div>
-      <div className="bg-surface rounded-2xl p-4 mb-4">
-        <div className="text-xs text-muted mb-1">Categorie trends {year}</div>
-        <div className="text-lg font-bold">
-          Meeste uitgaven: {topCat?.icon} {topCat?.label}
-        </div>
-        <div className="text-xs text-muted mt-1">
-          Gem. {euro(avgMonthly)}/maand · {euro(topCat?.total ?? 0)} totaal
+      <div className="card p-5 mb-4">
+        <div className="text-center mb-1">
+          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+            Meeste uitgaven
+          </div>
+          <div className="text-3xl font-extrabold leading-none" style={{ color: 'var(--color-text)' }}>
+            {topCat?.icon} {topCat?.label}
+          </div>
+          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
+            Gem. {euro(avgMonthly)} / maand
+          </div>
         </div>
       </div>
 
-      <Line data={chartData} options={options} />
+      <div className="card p-4 mb-4">
+        <Line data={chartData} options={options} />
+      </div>
 
       {/* Category toggles — 3-column grid */}
-      <div className="grid grid-cols-3 gap-1.5 mt-4">
+      <div className="card p-3 mb-4 grid grid-cols-3 gap-1.5">
         {ranked.map(cat => {
           const isHidden = hidden.has(cat.key)
           const color = CAT_COLORS[cat.key] ?? '#8E8E93'

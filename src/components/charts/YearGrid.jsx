@@ -35,7 +35,7 @@ export function YearGrid({ year }) {
 
   return (
     <div>
-      <div className="overflow-x-auto -mx-4 px-4">
+      <div className="card p-3 mb-4 overflow-x-auto">
         <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
           <colgroup>
             <col />
@@ -114,7 +114,7 @@ export function YearGrid({ year }) {
       </div>
 
       {/* Legend */}
-      <div className="flex gap-3 mt-4 flex-wrap px-1">
+      <div className="card p-3 flex gap-3 flex-wrap">
         {[
           { label: 'Winst', bg: 'rgba(10,132,255,0.25)', text: '#0A84FF' },
           { label: '≤ 50%', bg: 'rgba(48,209,88,0.15)', text: '#30D158' },
