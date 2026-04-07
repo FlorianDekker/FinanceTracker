@@ -5,14 +5,11 @@ import { CashflowChart } from '../components/charts/CashflowChart'
 import { YearGrid } from '../components/charts/YearGrid'
 import { SpendingDonut } from '../components/charts/SpendingDonut'
 import { DailyChart } from '../components/charts/DailyChart'
-import { CalendarChart } from '../components/charts/CalendarChart'
 import { TrendsChart } from '../components/charts/TrendsChart'
-import { StackedChart } from '../components/charts/StackedChart'
 import { TopSpendingChart } from '../components/charts/TopSpendingChart'
 import { WeekdayChart } from '../components/charts/WeekdayChart'
 import { CompareChart } from '../components/charts/CompareChart'
 import { AverageChart } from '../components/charts/AverageChart'
-import { StreaksChart } from '../components/charts/StreaksChart'
 import { ForecastChart } from '../components/charts/ForecastChart'
 import { RecordsChart } from '../components/charts/RecordsChart'
 import { RatioChart } from '../components/charts/RatioChart'
@@ -20,10 +17,10 @@ import { MONTHS_LONG } from '../constants/categories'
 import { useMonth } from '../hooks/useMonth'
 
 const now = new Date()
-const tabs = ['Budgettempo', 'Spaarpercentage', 'Verdeling', 'Dagelijks', 'Kalender', 'Top', 'Weekdag', 'Vergelijk', 'Streaks', 'Forecast', 'Ratio', 'Gemiddeld', 'Records', 'Jaar', 'Trends', 'Stapel']
+const tabs = ['Budgettempo', 'Spaarpercentage', 'Verdeling', 'Dagelijks', 'Top', 'Weekdag', 'Vergelijk', 'Forecast', 'Ratio', 'Gemiddeld', 'Records', 'Jaar', 'Trends']
 
 // Tabs that use month navigation
-const MONTH_TABS = new Set([0, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+const MONTH_TABS = new Set([0, 2, 3, 4, 5, 6, 7, 8])
 
 export function ChartsPage() {
   const { year, month, animDir: monthAnimDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
@@ -174,18 +171,15 @@ export function ChartsPage() {
           {active === 1 && <CashflowChart />}
           {active === 2 && <SpendingDonut year={year} month={month} />}
           {active === 3 && <DailyChart year={year} month={month} />}
-          {active === 4 && <CalendarChart year={year} month={month} />}
-          {active === 5 && <TopSpendingChart year={year} month={month} />}
-          {active === 6 && <WeekdayChart year={year} month={month} />}
-          {active === 7 && <CompareChart year={year} month={month} />}
-          {active === 8 && <StreaksChart year={year} month={month} />}
-          {active === 9 && <ForecastChart year={year} month={month} />}
-          {active === 10 && <RatioChart year={year} month={month} />}
-          {active === 11 && <AverageChart />}
-          {active === 12 && <RecordsChart />}
-          {active === 13 && <YearGrid year={year} />}
-          {active === 14 && <TrendsChart year={year} />}
-          {active === 15 && <StackedChart year={year} />}
+          {active === 4 && <TopSpendingChart year={year} month={month} />}
+          {active === 5 && <WeekdayChart year={year} month={month} />}
+          {active === 6 && <CompareChart year={year} month={month} />}
+          {active === 7 && <ForecastChart year={year} month={month} />}
+          {active === 8 && <RatioChart year={year} month={month} />}
+          {active === 9 && <AverageChart />}
+          {active === 10 && <RecordsChart />}
+          {active === 11 && <YearGrid year={year} />}
+          {active === 12 && <TrendsChart year={year} />}
         </div>
       </PageWrapper>
     </div>

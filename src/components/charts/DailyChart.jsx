@@ -172,14 +172,29 @@ export function DailyChart({ year, month }) {
         </div>
       </div>
 
-      <div className="card p-4 mb-4 flex items-center justify-between">
-        <span className="text-xs text-muted">Voorschot meenemen</span>
-        <button
-          onClick={() => setDailyIncludeVoorschot(!includeVoorschot)}
-          className={`w-11 h-6 rounded-full transition-colors relative ${includeVoorschot ? 'bg-green' : 'bg-surface-2'}`}
-        >
-          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${includeVoorschot ? 'left-[22px]' : 'left-0.5'}`} />
-        </button>
+      {/* Quick stats */}
+      <div className="card overflow-hidden mb-4">
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <span className="text-sm" style={{ color: 'var(--color-text)' }}>Gem. per uitgavendag</span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{euro(average)}</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <span className="text-sm" style={{ color: 'var(--color-text)' }}>Duurste dag</span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>Dag {highDay} · {euro(maxSpend)}</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <span className="text-sm" style={{ color: 'var(--color-text)' }}>Transacties</span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-text)' }}>{data.totalTransactions ?? '—'}</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-xs text-muted">Voorschot meenemen</span>
+          <button
+            onClick={() => setDailyIncludeVoorschot(!includeVoorschot)}
+            className={`w-11 h-6 rounded-full transition-colors relative ${includeVoorschot ? 'bg-green' : 'bg-surface-2'}`}
+          >
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${includeVoorschot ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </div>
       </div>
 
       {selectedDay !== null && (
