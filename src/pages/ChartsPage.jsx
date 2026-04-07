@@ -11,14 +11,17 @@ import { StackedChart } from '../components/charts/StackedChart'
 import { TopSpendingChart } from '../components/charts/TopSpendingChart'
 import { WeekdayChart } from '../components/charts/WeekdayChart'
 import { CompareChart } from '../components/charts/CompareChart'
+import { AverageChart } from '../components/charts/AverageChart'
+import { StreaksChart } from '../components/charts/StreaksChart'
+import { IncomeChart } from '../components/charts/IncomeChart'
 import { MONTHS_LONG } from '../constants/categories'
 import { useMonth } from '../hooks/useMonth'
 
 const now = new Date()
-const tabs = ['Budgettempo', 'Spaarpercentage', 'Verdeling', 'Dagelijks', 'Kalender', 'Top', 'Weekdag', 'Vergelijk', 'Jaar', 'Trends', 'Stapel']
+const tabs = ['Budgettempo', 'Spaarpercentage', 'Verdeling', 'Dagelijks', 'Kalender', 'Top', 'Weekdag', 'Vergelijk', 'Streaks', 'Inkomen', 'Gemiddeld', 'Jaar', 'Trends', 'Stapel']
 
 // Tabs that use month navigation
-const MONTH_TABS = new Set([0, 2, 3, 4, 5, 6, 7])
+const MONTH_TABS = new Set([0, 2, 3, 4, 5, 6, 7, 8, 9])
 
 export function ChartsPage() {
   const { year, month, animDir: monthAnimDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
@@ -173,9 +176,12 @@ export function ChartsPage() {
           {active === 5 && <TopSpendingChart year={year} month={month} />}
           {active === 6 && <WeekdayChart year={year} month={month} />}
           {active === 7 && <CompareChart year={year} month={month} />}
-          {active === 8 && <YearGrid year={year} />}
-          {active === 9 && <TrendsChart year={year} />}
-          {active === 10 && <StackedChart year={year} />}
+          {active === 8 && <StreaksChart year={year} month={month} />}
+          {active === 9 && <IncomeChart year={year} month={month} />}
+          {active === 10 && <AverageChart />}
+          {active === 11 && <YearGrid year={year} />}
+          {active === 12 && <TrendsChart year={year} />}
+          {active === 13 && <StackedChart year={year} />}
         </div>
       </PageWrapper>
     </div>
