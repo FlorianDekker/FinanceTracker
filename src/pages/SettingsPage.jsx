@@ -8,6 +8,7 @@ import { db } from '../db/db'
 import { parseTransactionsCsv } from '../utils/parsers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
 import { applyAccentColor } from '../utils/theme'
+import { ALL_CHARTS } from './ChartsPage'
 
 export function SettingsPage() {
   const categories = useCategories()
@@ -18,6 +19,28 @@ export function SettingsPage() {
   const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? false), [])
   const theme = useLiveQuery(() => db.settings.get('theme').then(r => r?.value ?? 'light'), [])
   const accentColor = useLiveQuery(() => db.settings.get('accentColor').then(r => r?.value ?? '#1E3A5F'), [])
+  const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
+
+  const defaultOrder = ALL_CHARTS.map(c => c.id)
+  const chartOrder = chartConfig?.order ?? defaultOrder
+  const chartEnabled = new Set(chartConfig?.enabled ?? defaultOrder)
+
+  async function toggleChart(id) {
+    const next = new Set(chartEnabled)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    await db.settings.put({ key: 'chartConfig', value: { order: chartOrder, enabled: [...next] } })
+  }
+
+  async function moveChart(id, dir) {
+    const order = [...chartOrder]
+    const idx = order.indexOf(id)
+    if (idx < 0) return
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= order.length) return
+    ;[order[idx], order[newIdx]] = [order[newIdx], order[idx]]
+    await db.settings.put({ key: 'chartConfig', value: { order, enabled: [...chartEnabled] } })
+  }
 
   const ACCENT_OPTIONS = [
     { color: '#1E3A5F', label: 'Navy' },
@@ -176,6 +199,51 @@ return (
               </button>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Chart configuration */}
+      <section className="px-4 pt-4 pb-2">
+        <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Grafieken</h2>
+        <div className="card overflow-hidden">
+          {chartOrder.map((id, i) => {
+            const chart = ALL_CHARTS.find(c => c.id === id)
+            if (!chart) return null
+            const enabled = chartEnabled.has(id)
+            return (
+              <div
+                key={id}
+                className="flex items-center gap-2 px-4 py-2.5"
+                style={i < chartOrder.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
+              >
+                {/* Reorder buttons */}
+                <div className="flex flex-col gap-0.5 shrink-0">
+                  <button
+                    onClick={() => moveChart(id, -1)}
+                    className="text-[10px] leading-none px-1"
+                    style={{ color: i === 0 ? 'var(--color-text-dim)' : 'var(--color-muted)' }}
+                  >▲</button>
+                  <button
+                    onClick={() => moveChart(id, 1)}
+                    className="text-[10px] leading-none px-1"
+                    style={{ color: i === chartOrder.length - 1 ? 'var(--color-text-dim)' : 'var(--color-muted)' }}
+                  >▼</button>
+                </div>
+
+                {/* Label */}
+                <span className="flex-1 text-sm" style={{ color: enabled ? 'var(--color-text)' : 'var(--color-muted)' }}>{chart.label}</span>
+
+                {/* Toggle */}
+                <button
+                  onClick={() => toggleChart(id)}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${enabled ? 'bg-green' : ''}`}
+                  style={!enabled ? { background: 'var(--color-surface-2)' } : {}}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${enabled ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+            )
+          })}
         </div>
       </section>
 
