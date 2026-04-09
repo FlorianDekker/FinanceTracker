@@ -181,7 +181,7 @@ export const MONTHS_LONG = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Jun
 export const CAT_COLORS = {
   woning:               '#FF9F0A',
   abonnementen:         '#5E5CE6',
-  boodschappen:         '#30D158',
+  boodschappen:         '#16A34A',
   reiskosten:           '#64D2FF',
   cadeaus_overig:       '#BF5AF2',
   sterre:               '#FF375F',

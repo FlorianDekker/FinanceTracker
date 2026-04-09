@@ -127,7 +127,7 @@ export function SubcategoryChart({ year, month }) {
       </div>
 
       {/* Category selector */}
-      <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none px-1">
+      <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none -mx-4 px-4">
         {EXPENSE_CATS_WITH_SUBS.map(c => (
           <button
             key={c.key}
