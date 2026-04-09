@@ -127,17 +127,17 @@ export function SubcategoryChart({ year, month }) {
       </div>
 
       {/* Category selector */}
-      <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none -mx-4 px-4">
-        {EXPENSE_CATS_WITH_SUBS.map(c => (
-          <button
-            key={c.key}
-            onClick={() => setSelectedCat(c.key)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${selectedCat === c.key ? 'btn-accent' : 'text-muted'}`}
-            style={selectedCat !== c.key ? { background: 'var(--color-surface-2)' } : {}}
-          >
-            {c.icon} {c.label}
-          </button>
-        ))}
+      <div className="card mb-4">
+        <select
+          value={selectedCat}
+          onChange={e => setSelectedCat(e.target.value)}
+          className="w-full px-4 py-3 rounded-2xl appearance-none font-semibold text-sm"
+          style={{ fontSize: '16px', background: 'var(--color-surface)', color: 'var(--color-text)', border: 'none' }}
+        >
+          {EXPENSE_CATS_WITH_SUBS.map(c => (
+            <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Donut + breakdown */}

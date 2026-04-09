@@ -20,21 +20,22 @@ ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, 
 const now = new Date()
 const EXPENSE_CATS_WITH_SUBS = CATEGORIES.filter(c => c.type === 'expense' && c.subs.length > 0)
 
-// Generate distinct sub-colors from a base
-function generateSubColors(base, count) {
-  // Parse hex
-  const r = parseInt(base.slice(1, 3), 16)
-  const g = parseInt(base.slice(3, 5), 16)
-  const b = parseInt(base.slice(5, 7), 16)
-  const colors = []
-  for (let i = 0; i < count; i++) {
-    const shift = i * 35
-    const nr = Math.min(255, Math.max(0, r + shift - (count > 3 ? i * 15 : 0)))
-    const ng = Math.min(255, Math.max(0, g - shift * 0.3))
-    const nb = Math.min(255, Math.max(0, b + shift * 0.5))
-    colors.push(`rgb(${nr}, ${ng}, ${nb})`)
-  }
-  return colors
+// Distinct colors that work well together regardless of parent category
+const DISTINCT_SUB_COLORS = [
+  '#2563EB', // blue
+  '#DC2626', // red
+  '#16A34A', // green
+  '#D97706', // amber
+  '#9333EA', // purple
+  '#0891B2', // cyan
+  '#E11D48', // rose
+  '#4F46E5', // indigo
+  '#059669', // emerald
+  '#EA580C', // orange
+]
+
+function getSubColors(count) {
+  return DISTINCT_SUB_COLORS.slice(0, count)
 }
 
 export function SubTrendsChart() {
@@ -74,7 +75,7 @@ export function SubTrendsChart() {
   const noneHasData = subMonthly['_none'].some(v => v > 0)
   if (noneHasData) activeSubs.push({ key: '_none', label: 'Overig' })
 
-  const subColors = generateSubColors(color, activeSubs.length)
+  const subColors = getSubColors(activeSubs.length)
 
   const chartData = {
     labels: visibleMonths,
@@ -149,17 +150,17 @@ export function SubTrendsChart() {
       </div>
 
       {/* Category selector */}
-      <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-none -mx-4 px-4">
-        {EXPENSE_CATS_WITH_SUBS.map(c => (
-          <button
-            key={c.key}
-            onClick={() => setSelectedCat(c.key)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${selectedCat === c.key ? 'btn-accent' : 'text-muted'}`}
-            style={selectedCat !== c.key ? { background: 'var(--color-surface-2)' } : {}}
-          >
-            {c.icon} {c.label}
-          </button>
-        ))}
+      <div className="card mb-4">
+        <select
+          value={selectedCat}
+          onChange={e => setSelectedCat(e.target.value)}
+          className="w-full px-4 py-3 rounded-2xl appearance-none font-semibold text-sm"
+          style={{ fontSize: '16px', background: 'var(--color-surface)', color: 'var(--color-text)', border: 'none' }}
+        >
+          {EXPENSE_CATS_WITH_SUBS.map(c => (
+            <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Chart */}
