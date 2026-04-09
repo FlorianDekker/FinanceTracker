@@ -68,8 +68,8 @@ export function TransactionForm({ onClose, existing }) {
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full rounded-lg px-3 py-2 mt-1 text-sm"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+              className="w-full rounded-lg px-3 py-2 mt-1"
+              style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
             />
           </label>
 
@@ -83,8 +83,8 @@ export function TransactionForm({ onClose, existing }) {
                 placeholder="0,00"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                className="w-full rounded-lg px-3 mt-1 text-sm"
-                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)', height: 40 }}
+                className="w-full rounded-lg px-3 mt-1"
+                style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)', height: 40 }}
               />
             </label>
             <div>
@@ -114,8 +114,8 @@ export function TransactionForm({ onClose, existing }) {
             <select
               value={category}
               onChange={e => { setCategory(e.target.value); setSubcategory('') }}
-              className="w-full rounded-lg px-3 py-2 mt-1 text-sm appearance-none"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+              className="w-full rounded-lg px-3 py-2 mt-1 appearance-none"
+              style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
             >
               <option value="">Kies categorie…</option>
               {CATEGORIES.map(c => (
@@ -131,8 +131,8 @@ export function TransactionForm({ onClose, existing }) {
               <select
                 value={subcategory}
                 onChange={e => setSubcategory(e.target.value)}
-                className="w-full rounded-lg px-3 py-2 mt-1 text-sm appearance-none"
-                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+                className="w-full rounded-lg px-3 py-2 mt-1 appearance-none"
+                style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
               >
                 <option value="">Geen subcategorie</option>
                 {selectedCat.subs.map(s => (
@@ -150,8 +150,8 @@ export function TransactionForm({ onClose, existing }) {
               placeholder="Bijv. Albert Heijn"
               value={note}
               onChange={e => setNote(e.target.value)}
-              className="w-full rounded-lg px-3 py-2 mt-1 text-sm"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+              className="w-full rounded-lg px-3 py-2 mt-1"
+              style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
             />
           </label>
         </div>
