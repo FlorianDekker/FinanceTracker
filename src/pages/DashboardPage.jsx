@@ -13,6 +13,7 @@ import { db } from '../db/db'
 export function DashboardPage() {
   const { year, month, animDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
   const [selectedCat, setSelectedCat] = useState(null)
+  const [showExpected, setShowExpected] = useState(false)
   const [view, setView] = useState('cards')
   const listRef = useRef(null)
   const catTouchStart = useRef(null)
@@ -27,9 +28,10 @@ export function DashboardPage() {
 
   // Calculate expected spending: actual + unpaid recurring fixed costs
   const RECURRING_CATS = new Set(['woning', 'abonnementen'])
-  const unpaidFixed = expenseStats
+  const unpaidItems = expenseStats
     .filter(c => RECURRING_CATS.has(c.key) && c.budget > 0 && c.spent < c.budget)
-    .reduce((s, c) => s + (c.budget - c.spent), 0)
+    .map(c => ({ ...c, unpaid: c.budget - c.spent }))
+  const unpaidFixed = unpaidItems.reduce((s, c) => s + c.unpaid, 0)
   const totalExpected = totalSpent + unpaidFixed
 
   useEffect(() => {
@@ -129,18 +131,26 @@ export function DashboardPage() {
             <div className="flex justify-center gap-4 mt-5">
               {[
                 { val: totalSpent, label: 'Uitgegeven' },
-                { val: totalExpected, label: 'Verwacht', color: totalExpected > totalBudget ? 'var(--color-red)' : null },
+                { val: totalExpected, label: 'Verwacht', color: totalExpected > totalBudget ? 'var(--color-red)' : null, tap: unpaidItems.length > 0 ? () => setShowExpected(true) : null },
                 { val: totalBudget, label: 'Budget' },
               ].map((item, i) => {
                 const ip = euroParts(item.val)
-                return (
-                  <div key={i} className="text-center">
+                const inner = (
+                  <>
                     <div className="tabular-nums" style={{ color: item.color ?? 'var(--color-text)' }}>
                       <span className="text-sm font-bold">{ip.sign}{ip.whole}</span>
                       <span className="text-[10px] font-medium" style={{ opacity: 0.4 }}>{ip.dec}</span>
                     </div>
                     <div className="text-[9px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--color-muted)' }}>{item.label}</div>
-                  </div>
+                  </>
+                )
+                return item.tap ? (
+                  <button key={i} onClick={item.tap} className="text-center">
+                    {inner}
+                    <div className="text-[8px] mt-0.5" style={{ color: 'var(--color-accent)' }}>details ›</div>
+                  </button>
+                ) : (
+                  <div key={i} className="text-center">{inner}</div>
                 )
               })}
             </div>
@@ -209,6 +219,10 @@ export function DashboardPage() {
 
       {selectedCat && (
         <CategorySheet cat={selectedCat} year={year} month={month} onClose={() => setSelectedCat(null)} />
+      )}
+
+      {showExpected && (
+        <ExpectedSheet items={unpaidItems} total={unpaidFixed} onClose={() => setShowExpected(false)} />
       )}
     </PageWrapper>
   )
@@ -316,6 +330,62 @@ function CategorySheet({ cat, year, month, onClose }) {
         })}
       </div>
       {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
+    </>
+  )
+}
+
+function ExpectedSheet({ items, total, onClose }) {
+  const sheetRef = useSheetGestures(onClose)
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[60vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+        <div className="px-5 pt-2 pb-4">
+          <div className="text-center mb-4">
+            <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+              Verwachte kosten
+            </div>
+            <div className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--color-text)' }}>
+              {euro(total)}
+            </div>
+            <div className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>
+              Vaste lasten die nog niet betaald zijn deze maand
+            </div>
+          </div>
+
+          <div className="card overflow-hidden">
+            {items.map((c, i) => {
+              const color = CAT_COLORS[c.key] ?? '#8E8E93'
+              return (
+                <div
+                  key={c.key}
+                  className="flex items-center gap-3 px-4 py-3"
+                  style={i < items.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
+                >
+                  <span className="text-lg">{c.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{c.label}</div>
+                    <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
+                      Budget {euro(c.budget)} · betaald {euro(c.spent)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-red)' }}>
+                      {euro(c.unpaid)}
+                    </div>
+                    <div className="text-[10px]" style={{ color: 'var(--color-muted)' }}>nog te betalen</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {items.length === 0 && (
+            <div className="text-center text-muted py-8 text-sm">Alle vaste lasten zijn betaald</div>
+          )}
+        </div>
+      </div>
     </>
   )
 }
