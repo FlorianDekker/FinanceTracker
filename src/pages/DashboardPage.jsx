@@ -4,7 +4,7 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { CategoryRow } from '../components/dashboard/CategoryRow'
 import { useBudgetStats } from '../hooks/useBudgetStats'
 import { euro, euroParts, fmtDate } from '../utils/formatters'
-import { MONTHS_LONG, CAT_COLORS, FIXED_CATEGORIES } from '../constants/categories'
+import { MONTHS_LONG, CAT_COLORS } from '../constants/categories'
 import { TransactionForm } from '../components/transactions/TransactionForm'
 import { useMonth } from '../hooks/useMonth'
 import { useSheetGestures } from '../hooks/useSheetGestures'
@@ -25,20 +25,12 @@ export function DashboardPage() {
   const totalRemaining = totalBudget - totalSpent
   const isOver = totalRemaining < 0
 
-  // Calculate expected spending
-  const now = new Date()
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const todayDay = (year === now.getFullYear() && month === now.getMonth() + 1) ? now.getDate() : daysInMonth
-  const dayRatio = todayDay / daysInMonth
-
-  const totalExpected = expenseStats.reduce((s, c) => {
-    if (FIXED_CATEGORIES.has(c.key)) {
-      // Fixed: use budget if not yet fully paid, otherwise actual
-      return s + Math.max(c.spent, c.budget)
-    }
-    // Variable: extrapolate from current pace
-    return s + (dayRatio > 0 ? Math.round(c.spent / dayRatio) : c.spent)
-  }, 0)
+  // Calculate expected spending: actual + unpaid recurring fixed costs
+  const RECURRING_CATS = new Set(['woning', 'abonnementen'])
+  const unpaidFixed = expenseStats
+    .filter(c => RECURRING_CATS.has(c.key) && c.budget > 0 && c.spent < c.budget)
+    .reduce((s, c) => s + (c.budget - c.spent), 0)
+  const totalExpected = totalSpent + unpaidFixed
 
   useEffect(() => {
     const el = listRef.current
