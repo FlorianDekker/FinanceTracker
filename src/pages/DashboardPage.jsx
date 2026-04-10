@@ -31,35 +31,48 @@ export function DashboardPage() {
   const currentPrefix = `${year}-${String(month).padStart(2, '0')}`
 
   const recurringData = useLiveQuery(async () => {
-    // Get last 3 months of transactions in recurring categories
     const allTxs = await db.transactions.toArray()
     const recurringTxs = allTxs.filter(t => t.type === 'debit' && RECURRING_CATS.has(t.category))
 
-    // Build merchant → months map (using note as merchant name)
-    const merchantMonths = new Map() // merchant → Set of "YYYY-MM"
-    const merchantAmounts = new Map() // merchant → latest amount
-    const merchantMeta = new Map() // merchant → { category, subcategory, note }
+    // Group by category + subcategory (each sub IS a recurring payment)
+    // Also group by category alone for items without subcategory
+    const groups = new Map() // "category|subcategory" → { months, amounts, latestNote }
 
     for (const tx of recurringTxs) {
-      const name = (tx.note || '').trim().toLowerCase()
-      if (!name) continue
+      const subKey = tx.subcategory || '_none'
+      const key = `${tx.category}|${subKey}`
       const ym = tx.date.slice(0, 7)
-      if (!merchantMonths.has(name)) merchantMonths.set(name, new Set())
-      merchantMonths.get(name).add(ym)
-      merchantAmounts.set(name, tx.amount)
-      merchantMeta.set(name, { category: tx.category, subcategory: tx.subcategory, note: tx.note })
+
+      if (!groups.has(key)) {
+        groups.set(key, { months: new Set(), amounts: [], latestNote: '', category: tx.category, subcategory: tx.subcategory || '' })
+      }
+      const g = groups.get(key)
+      g.months.add(ym)
+      g.amounts.push(tx.amount)
+      g.latestNote = tx.note || g.latestNote
     }
 
-    // Find recurring: appeared in 2+ different months
     const recurring = []
-    for (const [name, months] of merchantMonths) {
-      if (months.size < 2) continue
-      const paidThisMonth = months.has(currentPrefix)
+    for (const [key, g] of groups) {
+      if (g.months.size < 2) continue // appeared in 2+ months = recurring
+
+      const paidThisMonth = g.months.has(currentPrefix)
+      // Use median amount for stability
+      const sorted = [...g.amounts].sort((a, b) => a - b)
+      const median = sorted[Math.floor(sorted.length / 2)]
+
+      const cat = CATEGORY_MAP[g.category]
+      const sub = cat?.subs?.find(s => s.key === g.subcategory)
+
       recurring.push({
-        name,
-        amount: merchantAmounts.get(name),
+        category: g.category,
+        subcategory: g.subcategory,
+        label: sub?.label || g.latestNote || cat?.label || g.category,
+        icon: cat?.icon ?? '📄',
+        amount: median,
         paid: paidThisMonth,
-        ...merchantMeta.get(name),
+        note: g.latestNote,
+        monthCount: g.months.size,
       })
     }
 
@@ -398,25 +411,22 @@ function ExpectedSheet({ unpaid, paid, total, onClose }) {
                 Nog niet betaald ({unpaid.length})
               </div>
               <div className="card overflow-hidden mb-4">
-                {unpaid.map((r, i) => {
-                  const cat = CATEGORY_MAP[r.category]
-                  return (
-                    <div
-                      key={`${r.name}-${i}`}
-                      className="flex items-center gap-3 px-4 py-3"
-                      style={i < unpaid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
-                    >
-                      <span className="text-lg">{cat?.icon ?? '📄'}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{r.note}</div>
-                        <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{cat?.label}</div>
-                      </div>
-                      <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-red)' }}>
-                        {euro(r.amount)}
-                      </div>
+                {unpaid.map((r, i) => (
+                  <div
+                    key={`${r.category}-${r.subcategory}-${i}`}
+                    className="flex items-center gap-3 px-4 py-3"
+                    style={i < unpaid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
+                  >
+                    <span className="text-lg">{r.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{r.label}</div>
+                      <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{r.note && r.note !== r.label ? r.note : `${r.monthCount} maanden`}</div>
                     </div>
-                  )
-                })}
+                    <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-red)' }}>
+                      {euro(r.amount)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </>
           )}
@@ -428,26 +438,23 @@ function ExpectedSheet({ unpaid, paid, total, onClose }) {
                 Betaald ({paid.length})
               </div>
               <div className="card overflow-hidden">
-                {paid.map((r, i) => {
-                  const cat = CATEGORY_MAP[r.category]
-                  return (
-                    <div
-                      key={`${r.name}-${i}`}
-                      className="flex items-center gap-3 px-4 py-3"
-                      style={i < paid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
-                    >
-                      <span className="text-lg">{cat?.icon ?? '📄'}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate" style={{ color: 'var(--color-muted)' }}>{r.note}</div>
-                        <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{cat?.label}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm tabular-nums" style={{ color: 'var(--color-muted)' }}>{euro(r.amount)}</span>
-                        <span className="text-green text-xs">✓</span>
-                      </div>
+                {paid.map((r, i) => (
+                  <div
+                    key={`${r.category}-${r.subcategory}-${i}`}
+                    className="flex items-center gap-3 px-4 py-3"
+                    style={i < paid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
+                  >
+                    <span className="text-lg">{r.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate" style={{ color: 'var(--color-muted)' }}>{r.label}</div>
+                      <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{r.note && r.note !== r.label ? r.note : `${r.monthCount} maanden`}</div>
                     </div>
-                  )
-                })}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm tabular-nums" style={{ color: 'var(--color-muted)' }}>{euro(r.amount)}</span>
+                      <span className="text-green text-xs">✓</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </>
           )}
