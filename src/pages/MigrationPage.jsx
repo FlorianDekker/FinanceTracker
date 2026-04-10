@@ -44,6 +44,12 @@ export function MigrationPage({ onDone }) {
   }
 
   async function handleFinish() {
+    // Ensure categories exist even if no dictionary was imported
+    const existing = await db.categories.count()
+    if (existing === 0) {
+      const puts = CATEGORIES.map(c => ({ key: c.key, budget: 0 }))
+      await db.categories.bulkPut(puts)
+    }
     await db.settings.put({ key: 'migrationDone', value: true })
     onDone()
   }
