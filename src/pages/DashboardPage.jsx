@@ -168,7 +168,7 @@ export function DashboardPage() {
             <div className="flex justify-center gap-4 mt-5">
               {[
                 { val: totalSpent, label: 'Uitgegeven' },
-                { val: totalExpected, label: 'Verwacht', color: totalExpected > totalBudget ? 'var(--color-red)' : null, tap: unpaidItems.length > 0 ? () => setShowExpected(true) : null },
+                { val: totalExpected, label: 'Verwacht', color: totalExpected > totalBudget ? 'var(--color-red)' : null, tap: unpaidRecurring.length > 0 ? () => setShowExpected(true) : null },
                 { val: totalBudget, label: 'Budget' },
               ].map((item, i) => {
                 const ip = euroParts(item.val)
