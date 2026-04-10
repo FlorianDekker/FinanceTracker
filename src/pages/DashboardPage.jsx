@@ -4,7 +4,7 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { CategoryRow } from '../components/dashboard/CategoryRow'
 import { useBudgetStats } from '../hooks/useBudgetStats'
 import { euro, euroParts, fmtDate } from '../utils/formatters'
-import { MONTHS_LONG, CAT_COLORS } from '../constants/categories'
+import { MONTHS_LONG, CAT_COLORS, FIXED_CATEGORIES } from '../constants/categories'
 import { TransactionForm } from '../components/transactions/TransactionForm'
 import { useMonth } from '../hooks/useMonth'
 import { useSheetGestures } from '../hooks/useSheetGestures'
@@ -24,6 +24,21 @@ export function DashboardPage() {
   const totalSpent = expenseStats.reduce((s, c) => s + c.spent, 0)
   const totalRemaining = totalBudget - totalSpent
   const isOver = totalRemaining < 0
+
+  // Calculate expected spending
+  const now = new Date()
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const todayDay = (year === now.getFullYear() && month === now.getMonth() + 1) ? now.getDate() : daysInMonth
+  const dayRatio = todayDay / daysInMonth
+
+  const totalExpected = expenseStats.reduce((s, c) => {
+    if (FIXED_CATEGORIES.has(c.key)) {
+      // Fixed: use budget if not yet fully paid, otherwise actual
+      return s + Math.max(c.spent, c.budget)
+    }
+    // Variable: extrapolate from current pace
+    return s + (dayRatio > 0 ? Math.round(c.spent / dayRatio) : c.spent)
+  }, 0)
 
   useEffect(() => {
     const el = listRef.current
@@ -119,17 +134,20 @@ export function DashboardPage() {
                 </div>
               )
             })()}
-            <div className="flex justify-center gap-5 mt-5">
-              {[{ val: totalSpent, label: 'Uitgegeven' }, { val: totalBudget, label: 'Budget' }].map((item, i) => {
+            <div className="flex justify-center gap-4 mt-5">
+              {[
+                { val: totalSpent, label: 'Uitgegeven' },
+                { val: totalExpected, label: 'Verwacht', color: totalExpected > totalBudget ? 'var(--color-red)' : null },
+                { val: totalBudget, label: 'Budget' },
+              ].map((item, i) => {
                 const ip = euroParts(item.val)
                 return (
                   <div key={i} className="text-center">
-                    {i > 0 && <div className="absolute -ml-3 h-8 w-px" style={{ background: 'var(--color-border)' }} />}
-                    <div className="tabular-nums" style={{ color: 'var(--color-text)' }}>
-                      <span className="text-base font-bold">{ip.sign}{ip.whole}</span>
-                      <span className="text-xs font-medium" style={{ opacity: 0.4 }}>{ip.dec}</span>
+                    <div className="tabular-nums" style={{ color: item.color ?? 'var(--color-text)' }}>
+                      <span className="text-sm font-bold">{ip.sign}{ip.whole}</span>
+                      <span className="text-[10px] font-medium" style={{ opacity: 0.4 }}>{ip.dec}</span>
                     </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--color-muted)' }}>{item.label}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--color-muted)' }}>{item.label}</div>
                   </div>
                 )
               })}
