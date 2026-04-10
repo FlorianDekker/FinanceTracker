@@ -4,7 +4,7 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { CategoryRow } from '../components/dashboard/CategoryRow'
 import { useBudgetStats } from '../hooks/useBudgetStats'
 import { euro, euroParts, fmtDate } from '../utils/formatters'
-import { MONTHS_LONG, CAT_COLORS } from '../constants/categories'
+import { MONTHS_LONG, CAT_COLORS, CATEGORY_MAP } from '../constants/categories'
 import { TransactionForm } from '../components/transactions/TransactionForm'
 import { useMonth } from '../hooks/useMonth'
 import { useSheetGestures } from '../hooks/useSheetGestures'
@@ -26,12 +26,49 @@ export function DashboardPage() {
   const totalRemaining = totalBudget - totalSpent
   const isOver = totalRemaining < 0
 
-  // Calculate expected spending: actual + unpaid recurring fixed costs
+  // Calculate expected spending from recurring transactions
   const RECURRING_CATS = new Set(['woning', 'abonnementen'])
-  const unpaidItems = expenseStats
-    .filter(c => RECURRING_CATS.has(c.key) && c.budget > 0 && c.spent < c.budget)
-    .map(c => ({ ...c, unpaid: c.budget - c.spent }))
-  const unpaidFixed = unpaidItems.reduce((s, c) => s + c.unpaid, 0)
+  const currentPrefix = `${year}-${String(month).padStart(2, '0')}`
+
+  const recurringData = useLiveQuery(async () => {
+    // Get last 3 months of transactions in recurring categories
+    const allTxs = await db.transactions.toArray()
+    const recurringTxs = allTxs.filter(t => t.type === 'debit' && RECURRING_CATS.has(t.category))
+
+    // Build merchant → months map (using note as merchant name)
+    const merchantMonths = new Map() // merchant → Set of "YYYY-MM"
+    const merchantAmounts = new Map() // merchant → latest amount
+    const merchantMeta = new Map() // merchant → { category, subcategory, note }
+
+    for (const tx of recurringTxs) {
+      const name = (tx.note || '').trim().toLowerCase()
+      if (!name) continue
+      const ym = tx.date.slice(0, 7)
+      if (!merchantMonths.has(name)) merchantMonths.set(name, new Set())
+      merchantMonths.get(name).add(ym)
+      merchantAmounts.set(name, tx.amount)
+      merchantMeta.set(name, { category: tx.category, subcategory: tx.subcategory, note: tx.note })
+    }
+
+    // Find recurring: appeared in 2+ different months
+    const recurring = []
+    for (const [name, months] of merchantMonths) {
+      if (months.size < 2) continue
+      const paidThisMonth = months.has(currentPrefix)
+      recurring.push({
+        name,
+        amount: merchantAmounts.get(name),
+        paid: paidThisMonth,
+        ...merchantMeta.get(name),
+      })
+    }
+
+    return recurring.sort((a, b) => b.amount - a.amount)
+  }, [year, month])
+
+  const unpaidRecurring = (recurringData ?? []).filter(r => !r.paid)
+  const paidRecurring = (recurringData ?? []).filter(r => r.paid)
+  const unpaidFixed = unpaidRecurring.reduce((s, r) => s + r.amount, 0)
   const totalExpected = totalSpent + unpaidFixed
 
   useEffect(() => {
@@ -222,7 +259,7 @@ export function DashboardPage() {
       )}
 
       {showExpected && (
-        <ExpectedSheet items={unpaidItems} total={unpaidFixed} onClose={() => setShowExpected(false)} />
+        <ExpectedSheet unpaid={unpaidRecurring} paid={paidRecurring} total={unpaidFixed} onClose={() => setShowExpected(false)} />
       )}
     </PageWrapper>
   )
@@ -334,55 +371,92 @@ function CategorySheet({ cat, year, month, onClose }) {
   )
 }
 
-function ExpectedSheet({ items, total, onClose }) {
+function ExpectedSheet({ unpaid, paid, total, onClose }) {
   const sheetRef = useSheetGestures(onClose)
 
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[60vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
+      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
         <div className="px-5 pt-2 pb-4">
           <div className="text-center mb-4">
             <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-              Verwachte kosten
+              Verwachte vaste lasten
             </div>
             <div className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--color-text)' }}>
               {euro(total)}
             </div>
             <div className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>
-              Vaste lasten die nog niet betaald zijn deze maand
+              nog te verwachten deze maand
             </div>
           </div>
 
-          <div className="card overflow-hidden">
-            {items.map((c, i) => {
-              const color = CAT_COLORS[c.key] ?? '#8E8E93'
-              return (
-                <div
-                  key={c.key}
-                  className="flex items-center gap-3 px-4 py-3"
-                  style={i < items.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
-                >
-                  <span className="text-lg">{c.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{c.label}</div>
-                    <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                      Budget {euro(c.budget)} · betaald {euro(c.spent)}
+          {/* Unpaid recurring */}
+          {unpaid.length > 0 && (
+            <>
+              <div className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--color-red)' }}>
+                Nog niet betaald ({unpaid.length})
+              </div>
+              <div className="card overflow-hidden mb-4">
+                {unpaid.map((r, i) => {
+                  const cat = CATEGORY_MAP[r.category]
+                  return (
+                    <div
+                      key={`${r.name}-${i}`}
+                      className="flex items-center gap-3 px-4 py-3"
+                      style={i < unpaid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
+                    >
+                      <span className="text-lg">{cat?.icon ?? '📄'}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{r.note}</div>
+                        <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{cat?.label}</div>
+                      </div>
+                      <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-red)' }}>
+                        {euro(r.amount)}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-red)' }}>
-                      {euro(c.unpaid)}
-                    </div>
-                    <div className="text-[10px]" style={{ color: 'var(--color-muted)' }}>nog te betalen</div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
 
-          {items.length === 0 && (
-            <div className="text-center text-muted py-8 text-sm">Alle vaste lasten zijn betaald</div>
+          {/* Paid recurring */}
+          {paid.length > 0 && (
+            <>
+              <div className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--color-green)' }}>
+                Betaald ({paid.length})
+              </div>
+              <div className="card overflow-hidden">
+                {paid.map((r, i) => {
+                  const cat = CATEGORY_MAP[r.category]
+                  return (
+                    <div
+                      key={`${r.name}-${i}`}
+                      className="flex items-center gap-3 px-4 py-3"
+                      style={i < paid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
+                    >
+                      <span className="text-lg">{cat?.icon ?? '📄'}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate" style={{ color: 'var(--color-muted)' }}>{r.note}</div>
+                        <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{cat?.label}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm tabular-nums" style={{ color: 'var(--color-muted)' }}>{euro(r.amount)}</span>
+                        <span className="text-green text-xs">✓</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
+
+          {unpaid.length === 0 && paid.length === 0 && (
+            <div className="text-center text-muted py-8 text-sm">Geen terugkerende transacties gevonden</div>
+          )}
+          {unpaid.length === 0 && paid.length > 0 && (
+            <div className="text-center text-sm mt-3" style={{ color: 'var(--color-green)' }}>Alle vaste lasten zijn betaald deze maand</div>
           )}
         </div>
       </div>
