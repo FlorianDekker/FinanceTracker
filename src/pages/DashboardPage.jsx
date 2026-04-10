@@ -30,16 +30,16 @@ export function DashboardPage() {
   const RECURRING_CATS = new Set(['woning', 'abonnementen'])
   const currentPrefix = `${year}-${String(month).padStart(2, '0')}`
 
-  const recurringData = useLiveQuery(async () => {
-    const allTxs = await db.transactions.toArray()
+  const allTxs = useLiveQuery(() => db.transactions.toArray(), [])
+
+  const recurringData = (() => {
+    if (!allTxs) return []
     const recurringTxs = allTxs.filter(t => t.type === 'debit' && RECURRING_CATS.has(t.category))
 
     // Group by subcategory when available, or by amount when not.
-    // This catches rent (same amount every month, no subcategory).
     const groups = new Map()
 
     for (const tx of recurringTxs) {
-      // Key: use subcategory if set, otherwise category + rounded amount
       const hasSubcat = tx.subcategory && tx.subcategory !== ''
       const key = hasSubcat
         ? `${tx.category}|sub:${tx.subcategory}`
@@ -47,20 +47,18 @@ export function DashboardPage() {
       const ym = tx.date.slice(0, 7)
 
       if (!groups.has(key)) {
-        groups.set(key, { months: new Set(), amounts: [], notes: new Set(), latestNote: '', category: tx.category, subcategory: tx.subcategory || '' })
+        groups.set(key, { months: new Set(), amounts: [], latestNote: '', category: tx.category, subcategory: tx.subcategory || '' })
       }
       const g = groups.get(key)
       g.months.add(ym)
       g.amounts.push(tx.amount)
-      if (tx.note) g.notes.add(tx.note)
       g.latestNote = tx.note || g.latestNote
     }
 
     const recurring = []
     for (const [, g] of groups) {
-      if (g.months.size < 2) continue // appeared in 2+ months = recurring
+      if (g.months.size < 2) continue
 
-      // Check if paid this month
       const paidThisMonth = g.months.has(currentPrefix)
       const sorted = [...g.amounts].sort((a, b) => a - b)
       const median = sorted[Math.floor(sorted.length / 2)]
@@ -81,10 +79,10 @@ export function DashboardPage() {
     }
 
     return recurring.sort((a, b) => b.amount - a.amount)
-  }, [year, month])
+  })()
 
-  const unpaidRecurring = (recurringData ?? []).filter(r => !r.paid)
-  const paidRecurring = (recurringData ?? []).filter(r => r.paid)
+  const unpaidRecurring = recurringData.filter(r => !r.paid)
+  const paidRecurring = recurringData.filter(r => r.paid)
   const unpaidFixed = unpaidRecurring.reduce((s, r) => s + r.amount, 0)
   const totalExpected = totalSpent + unpaidFixed
 
