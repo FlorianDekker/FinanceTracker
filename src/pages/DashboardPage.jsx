@@ -40,10 +40,8 @@ export function DashboardPage() {
     const groups = new Map()
 
     for (const tx of recurringTxs) {
-      const hasSubcat = tx.subcategory && tx.subcategory !== ''
-      const key = hasSubcat
-        ? `${tx.category}|sub:${tx.subcategory}`
-        : `${tx.category}|amt:${Math.round(tx.amount * 100)}`
+      // Always include amount in key to separate e.g. "Huur €815" from "Huur €85"
+      const key = `${tx.category}|${tx.subcategory || '_none'}|${Math.round(tx.amount * 100)}`
       const ym = tx.date.slice(0, 7)
 
       if (!groups.has(key)) {
