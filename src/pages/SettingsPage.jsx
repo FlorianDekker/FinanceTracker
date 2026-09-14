@@ -366,7 +366,7 @@ return (
           <div className="px-4 py-3 text-sm text-muted space-y-1">
             <div>Versie {__APP_VERSION__}</div>
             <div>Gegevens opgeslagen op dit apparaat</div>
-            <div className="text-white font-medium pt-1">{totalTxCount ?? '…'} transacties in de app</div>
+            <div className="font-medium pt-1">{totalTxCount ?? '…'} transacties in de app</div>
           </div>
         </div>
       </section>

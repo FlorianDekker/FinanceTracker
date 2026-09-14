@@ -4,7 +4,7 @@ import { useCategories } from '../../hooks/useCategories'
 
 export function CategoryRow({ category }) {
   const { colors } = useCategories()
-  const { icon, label, key, budget, remaining, ratio, bufferRatio, overspent } = category
+  const { icon, label, key, budget, remaining, ratio, bufferRatio, overspent, archived } = category
   const color = colors[key] ?? '#8E8E93'
 
   return (
@@ -20,7 +20,10 @@ export function CategoryRow({ category }) {
       {/* Bar + label */}
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-baseline mb-1.5">
-          <span className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{label}</span>
+          <span className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>
+            {label}
+            {archived && <span className="text-xs text-muted font-normal"> · gearchiveerd</span>}
+          </span>
           {budget > 0 ? (
             <span className={`text-sm font-semibold ml-2 shrink-0 tabular-nums ${overspent ? 'text-red' : ''}`} style={!overspent ? { color: 'var(--color-text)' } : {}}>
               {overspent ? `-${euro(Math.abs(remaining))}` : euro(remaining)}

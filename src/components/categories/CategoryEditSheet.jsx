@@ -65,11 +65,16 @@ function EditBody({ cat, onClose }) {
 
   function pickRole(next) {
     if (next === role) return
-    const owner = allCategories.find(c => c.role === next && c.key !== cat?.key)
-    if (owner && !window.confirm(`${owner.label} verliest dan de rol "${ROLES.find(r => r.value === next).label}". Doorgaan?`)) return
+    // De restbak mag zijn rol niet zomaar loslaten; hij verhuist door een
+    // andere categorie tot restbak te maken.
     if (cat?.role === 'uncategorized') {
       window.alert('Er moet altijd één restbak zijn. Geef die rol eerst aan een andere categorie.')
       return
+    }
+    if (next) {
+      const owner = allCategories.find(c => c.role === next && c.key !== cat?.key)
+      const roleLabel = ROLES.find(r => r.value === next).label
+      if (owner && !window.confirm(`${owner.label} verliest dan de rol "${roleLabel}". Doorgaan?`)) return
     }
     setRole(next)
   }

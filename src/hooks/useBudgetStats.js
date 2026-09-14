@@ -3,7 +3,7 @@ import { db } from '../db/db'
 import { useCategories } from './useCategories'
 
 export function useBudgetStats(year, month) {
-  const { categories, catMap, getByRole } = useCategories()
+  const { allCategories, catMap, getByRole } = useCategories()
   const transferKey = getByRole('transfer')?.key
 
   const spentData = useLiveQuery(async () => {
@@ -37,11 +37,13 @@ export function useBudgetStats(year, month) {
     return { spent, spentBefore }
   }, [year, month, catMap, transferKey])
 
-  if (!spentData || !categories.length) return []
+  if (!spentData || !allCategories.length) return []
 
   const { spent = {}, spentBefore = {} } = spentData
 
-  return categories.map(cat => {
+  // Gearchiveerde categorieën blijven meedoen zolang ze in de getoonde maand
+  // nog uitgaven hebben — anders zou een oude maand ineens minder tonen.
+  return allCategories.map(cat => {
     const budget = cat.budget
     const s = spent[cat.key] ?? 0
     const sb = spentBefore[cat.key] ?? 0
@@ -63,5 +65,5 @@ export function useBudgetStats(year, month) {
       bufferRatio,
       overspent: remaining < 0,
     }
-  })
+  }).filter(cat => !cat.archived || cat.spent !== 0)
 }
