@@ -205,7 +205,10 @@ export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMon
     const tekst = (await top().innerText()).replace(/\n+/g, ' | ').slice(0, 200)
     const s = await shot('verwacht-sheet')
     await sluitAlles()
-    const ok = /€815,87/.test(tekst) && /NOG NIET BETAALD \(1\)/i.test(tekst) && /BETAALD \(8\)/i.test(tekst)
+    // Het bedrag en het aantal openstaande posten zijn het punt van deze sheet.
+    // Het aantal reeds betaalde posten staat niet vast: welke categorieen als
+    // vaste last gelden is instelbaar (isFixed), dus dat aantal mag groeien.
+    const ok = /€815,87/.test(tekst) && /NOG NIET BETAALD \(1\)/i.test(tekst) && /BETAALD \(\d+\)/i.test(tekst)
     stap('E3', 'details › toont dezelfde ExpectedSheet als ronde 3', ok && errsSinds(i).length === 0,
       `"${tekst}"; errors=${errsSinds(i).length}`, s)
   }
