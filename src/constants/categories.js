@@ -1,6 +1,6 @@
 // Master category + subcategory list, ported from ImportTransactions.js
 
-export const CATEGORIES = [
+export const DEFAULT_CATEGORIES = [
   {
     key: 'woning',
     label: 'Woning',
@@ -171,9 +171,13 @@ export const CATEGORIES = [
   },
 ]
 
+// @deprecated — tijdelijke re-export tijdens de migratie naar bewerkbare categorieen (Fase 1).
+// Gebruik `useCategories()` voor de actuele lijst uit de database.
+export const CATEGORIES = DEFAULT_CATEGORIES
+
 // Quick lookup maps
-export const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.key, c]))
-export const EXPENSE_CATEGORIES = CATEGORIES.filter(c => c.type === 'expense')
+export const CATEGORY_MAP = Object.fromEntries(DEFAULT_CATEGORIES.map(c => [c.key, c]))
+export const EXPENSE_CATEGORIES = DEFAULT_CATEGORIES.filter(c => c.type === 'expense')
 export const FIXED_CATEGORIES = new Set(['woning', 'abonnementen', 'vakantie', 'reiskosten'])
 export const MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
 export const MONTHS_LONG = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December']
@@ -195,4 +199,38 @@ export const CAT_COLORS = {
   voorschot:            '#AC8E68',
   salaris:              '#32D74B',
   bankoverschrijving:   '#636366',
+}
+
+export const DEFAULT_CATEGORY_COLOR = '#8E8E93'
+export const DEFAULT_CATEGORY_ICON = '📦'
+
+// Systeemrollen: code verwijst naar rollen i.p.v. hardgecodeerde slugs.
+// 'uncategorized' = restbak, 'transfer' = geen inkomen/uitgave, 'income' = inkomen.
+export const ROLE_BY_KEY = {
+  overige_kosten: 'uncategorized',
+  bankoverschrijving: 'transfer',
+  salaris: 'income',
+}
+
+// Bouwt een volledige categorie-rij (db-vorm) uit een (gedeeltelijke) definitie.
+export function makeCategoryRow(def, budget = 0) {
+  return {
+    key: def.key,
+    label: def.label ?? def.key,
+    icon: def.icon ?? DEFAULT_CATEGORY_ICON,
+    color: def.color ?? CAT_COLORS[def.key] ?? DEFAULT_CATEGORY_COLOR,
+    type: def.type ?? 'expense',
+    order: def.order ?? 0,
+    isFixed: def.isFixed ?? FIXED_CATEGORIES.has(def.key),
+    archived: def.archived ?? false,
+    role: def.role ?? ROLE_BY_KEY[def.key] ?? null,
+    subs: Array.isArray(def.subs) ? def.subs : [],
+    budget: Number(budget) || 0,
+  }
+}
+
+// Gedeelde seed-helper: gebruikt door de Dexie v3-upgrade en door de eerste-start-seed.
+// `existingBudgets` is een map key -> budget en blijft behouden.
+export function buildDefaultCategoryRows(existingBudgets = {}) {
+  return DEFAULT_CATEGORIES.map(d => makeCategoryRow(d, existingBudgets[d.key] ?? 0))
 }

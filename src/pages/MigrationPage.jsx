@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { seedCategories } from '../hooks/useCategories'
+import { seedCategories, ensureDefaultCategories } from '../hooks/useCategories'
 import { bulkAddTransactions } from '../hooks/useTransactions'
 import { parseTransactionsCsv } from '../utils/parsers'
 import { db } from '../db/db'
-import { CATEGORIES } from '../constants/categories'
 
 export function MigrationPage({ onDone }) {
   const [status, setStatus] = useState({ dict: null, csv: null })
@@ -37,19 +36,14 @@ export function MigrationPage({ onDone }) {
 
   async function handleSkip() {
     // Seed categories with zero budgets so the app can start
-    const puts = CATEGORIES.map(c => ({ key: c.key, budget: 0 }))
-    await db.categories.bulkPut(puts)
+    await ensureDefaultCategories()
     await db.settings.put({ key: 'migrationDone', value: true })
     onDone()
   }
 
   async function handleFinish() {
     // Ensure categories exist even if no dictionary was imported
-    const existing = await db.categories.count()
-    if (existing === 0) {
-      const puts = CATEGORIES.map(c => ({ key: c.key, budget: 0 }))
-      await db.categories.bulkPut(puts)
-    }
+    await ensureDefaultCategories()
     await db.settings.put({ key: 'migrationDone', value: true })
     onDone()
   }
