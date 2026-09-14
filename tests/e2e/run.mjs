@@ -527,7 +527,9 @@ async function main() {
     const voor = await settingsFlow(page, 'A-voor-wijziging', false)
     await page.locator('button', { hasText: /Boodschappen/ }).first().click()
     await sleep(500)
-    await page.locator('input[type=number]').fill('333')
+    // Scope naar de openstaande sheet: sinds de declaraties staat er ook een
+    // number-input ("Declareren kan tot") op de Instellingen-pagina zelf.
+    await page.locator('div.fixed.bottom-0.left-0.right-0').last().locator('input[type=number]').fill('333')
     await page.locator('button', { hasText: /^Opslaan$/ }).click()
     await sleep(800)
     console.log('Boodschappen:', voor.budgets?.find(b => b.includes('Boodschappen')), '-> 333')
