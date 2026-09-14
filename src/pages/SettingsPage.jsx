@@ -15,6 +15,7 @@ import { parseTransactionsCsv } from '../utils/parsers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
 import { applyAccentColor } from '../utils/theme'
 import { ALL_CHARTS, mergeChartConfig } from '../components/charts/registry'
+import { beschrijfStat } from '../utils/chartStats'
 
 export function SettingsPage() {
   const { categories } = useCategories()
@@ -30,6 +31,7 @@ export function SettingsPage() {
   const theme = useLiveQuery(() => db.settings.get('theme').then(r => r?.value ?? 'light'), [])
   const accentColor = useLiveQuery(() => db.settings.get('accentColor').then(r => r?.value ?? '#1E3A5F'), [])
   const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
+  const chartStats = useLiveQuery(() => db.settings.get('chartStats').then(r => r?.value ?? {}), [])
   const claimExpiryMonths = useClaimExpiryMonths()
   const claims = useOutstandingClaims()
   const voorschotCount = useVoorschotCount()
@@ -258,8 +260,13 @@ return (
                   >▼</button>
                 </div>
 
-                {/* Label */}
-                <span className="flex-1 text-sm" style={{ color: enabled ? 'var(--color-text)' : 'var(--color-muted)' }}>{chart.label}</span>
+                {/* Label + kijkteller */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm" style={{ color: enabled ? 'var(--color-text)' : 'var(--color-muted)' }}>{chart.label}</div>
+                  <div className="text-[10px] truncate" style={{ color: 'var(--color-muted)', opacity: 0.75 }}>
+                    {beschrijfStat(chartStats?.[id])}
+                  </div>
+                </div>
 
                 {/* Toggle */}
                 <button

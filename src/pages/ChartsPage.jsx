@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { CHART_MAP, mergeChartConfig } from '../components/charts/registry'
 import { MONTHS_LONG } from '../constants/categories'
 import { useMonth } from '../hooks/useMonth'
 import { useMonthSwipe } from '../hooks/useMonthSwipe'
+import { recordChartView, VIEW_DELAY_MS } from '../utils/chartStats'
 import { db } from '../db/db'
 
 export function ChartsPage() {
@@ -23,6 +24,15 @@ export function ChartsPage() {
 
   // Build visible tabs in order
   const visibleCharts = orderIds.filter(id => enabledIds.includes(id) && CHART_MAP[id]).map(id => CHART_MAP[id])
+
+  // Kijkteller: pas tellen als een tab ~2 s blijft staan, zodat langsswipen
+  // niet elke tussenliggende grafiek als "bekeken" registreert.
+  const activeId = visibleCharts[active]?.id
+  useEffect(() => {
+    if (!activeId) return
+    const t = setTimeout(() => { recordChartView(activeId) }, VIEW_DELAY_MS)
+    return () => clearTimeout(t)
+  }, [activeId])
 
   function goTo(next) {
     if (next === activeRef.current || tabAnimating.current) return
