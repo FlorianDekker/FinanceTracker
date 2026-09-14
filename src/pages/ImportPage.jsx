@@ -9,6 +9,7 @@ import { euro, fmtDate } from '../utils/formatters'
 import { useCategories } from '../hooks/useCategories'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { CategoryPicker } from '../components/categories/CategoryPicker'
+import { claimStatusOf } from '../utils/claims'
 import { db } from '../db/db'
 
 // Velden die alleen in het reviewscherm leven en niet in de database horen.
@@ -93,6 +94,14 @@ export function ImportPage() {
     setStep('done')
   }
 
+  // 💼 in de review: markeer de rij als declaratie voor werk. claimStatus staat
+  // niet in REVIEW_ONLY_FIELDS en gaat dus gewoon mee naar de database.
+  function toggleClaim(idx) {
+    setPending(p => p.map((t, i) => (
+      i === idx ? { ...t, claimStatus: claimStatusOf(t) === 'open' ? null : 'open', claimBatchId: null } : t
+    )))
+  }
+
   function handleCategoryChange(idx, category, subcategory) {
     const tx = pending[idx]
     const wasCorrection = tx._originalCategory !== category
@@ -126,7 +135,7 @@ export function ImportPage() {
         <div className="safe-top px-4 py-3 flex justify-between items-center" style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
           <div>
             <div className="font-bold" style={{ color: 'var(--color-text)' }}>{pending.length} nieuwe transacties</div>
-            <div className="text-xs text-muted">Tik een rij om categorie te wijzigen</div>
+            <div className="text-xs text-muted">Tik een rij voor de categorie · 💼 = declaratie</div>
           </div>
           <button onClick={handleSave} className="btn-accent text-sm rounded-lg px-4 py-2">
             Opslaan
@@ -137,59 +146,74 @@ export function ImportPage() {
           {pending.map((tx, idx) => {
             const cat = catMap[tx.category]
             const isLowConf = tx.confidence === 'low' || tx.possiblySterre
+            const isClaim = claimStatusOf(tx) === 'open'
             return (
-              <button
-                key={idx}
-                onClick={() => setEditIdx(idx)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left"
-              >
-                <div className="text-left w-20 shrink-0">
-                  <div className="text-xs text-muted">{fmtDate(tx.date)}</div>
-                  <div className={`text-sm font-semibold ${tx.type === 'credit' ? 'text-green' : ''}`} style={tx.type !== 'credit' ? { color: 'var(--color-text)' } : {}}>
-                    {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className={`text-sm ${editIdx === idx ? '' : 'truncate'}`}>{tx.merchant}</div>
-                  {tx.remi && (
-                    <div className={`text-xs text-muted ${editIdx === idx ? '' : 'truncate'}`}>{tx.remi}</div>
-                  )}
-                  {tx.possiblySterre && (
-                    <div className="text-xs text-red">❤️ Sterre?</div>
-                  )}
-                  {tx.needsManual && (
-                    <div className="text-xs text-orange">⚠️ Voeg handmatige transactie toe</div>
-                  )}
-                </div>
-                <div className="text-right shrink-0">
-                  <div className={`flex items-center justify-end gap-1 text-xs ${isLowConf ? 'text-orange' : 'text-green'}`}>
-                    {isLowConf && (
-                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-orange text-white text-[9px] font-bold leading-none">?</span>
-                    )}
-                    {cat?.icon} {cat?.label}
-                  </div>
-                  {tx.subcategory && (
-                    <div className="text-[10px] text-muted">
-                      {cat?.subs?.find(s => s.key === tx.subcategory)?.label}
+              <div key={idx} className="w-full flex items-center gap-2 px-4 py-3">
+                <button
+                  onClick={() => setEditIdx(idx)}
+                  className="flex-1 min-w-0 flex items-center gap-3 text-left"
+                >
+                  <div className="text-left w-20 shrink-0">
+                    <div className="text-xs text-muted">{fmtDate(tx.date)}</div>
+                    <div className={`text-sm font-semibold ${tx.type === 'credit' ? 'text-green' : ''}`} style={tx.type !== 'credit' ? { color: 'var(--color-text)' } : {}}>
+                      {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
                     </div>
-                  )}
-                  {showConfidence && tx.source === 'recurring' && (
-                    <div className="text-[9px] text-green mt-0.5">🔄 Terugkerend · {tx.confidencePct}%</div>
-                  )}
-                  {showConfidence && tx.source === 'learned' && tx.eventCount > 0 && (
-                    <div className={`text-[9px] mt-0.5 ${tx.confidencePct >= 70 ? 'text-blue' : 'text-orange'}`}>🧠 Geleerd ({tx.eventCount}x) · {tx.confidencePct}%</div>
-                  )}
-                  {showConfidence && tx.source === 'similar' && (
-                    <div className="text-[9px] text-orange mt-0.5">🧠 Vergelijkbaar · {tx.confidencePct}%</div>
-                  )}
-                  {showConfidence && tx.source === 'rules' && (
-                    <div className="text-[9px] text-muted mt-0.5">📋 Regel · {tx.confidencePct}%</div>
-                  )}
-                  {showConfidence && tx.source === 'unknown' && (
-                    <div className="text-[9px] text-orange mt-0.5">❓ Onbekend</div>
-                  )}
-                </div>
-              </button>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm ${editIdx === idx ? '' : 'truncate'}`}>{tx.merchant}</div>
+                    {tx.remi && (
+                      <div className={`text-xs text-muted ${editIdx === idx ? '' : 'truncate'}`}>{tx.remi}</div>
+                    )}
+                    {tx.possiblySterre && (
+                      <div className="text-xs text-red">❤️ Sterre?</div>
+                    )}
+                    {tx.needsManual && (
+                      <div className="text-xs text-orange">⚠️ Voeg handmatige transactie toe</div>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className={`flex items-center justify-end gap-1 text-xs ${isLowConf ? 'text-orange' : 'text-green'}`}>
+                      {isLowConf && (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-orange text-white text-[9px] font-bold leading-none">?</span>
+                      )}
+                      {cat?.icon} {cat?.label}
+                    </div>
+                    {tx.subcategory && (
+                      <div className="text-[10px] text-muted">
+                        {cat?.subs?.find(s => s.key === tx.subcategory)?.label}
+                      </div>
+                    )}
+                    {showConfidence && tx.source === 'recurring' && (
+                      <div className="text-[9px] text-green mt-0.5">🔄 Terugkerend · {tx.confidencePct}%</div>
+                    )}
+                    {showConfidence && tx.source === 'learned' && tx.eventCount > 0 && (
+                      <div className={`text-[9px] mt-0.5 ${tx.confidencePct >= 70 ? 'text-blue' : 'text-orange'}`}>🧠 Geleerd ({tx.eventCount}x) · {tx.confidencePct}%</div>
+                    )}
+                    {showConfidence && tx.source === 'similar' && (
+                      <div className="text-[9px] text-orange mt-0.5">🧠 Vergelijkbaar · {tx.confidencePct}%</div>
+                    )}
+                    {showConfidence && tx.source === 'rules' && (
+                      <div className="text-[9px] text-muted mt-0.5">📋 Regel · {tx.confidencePct}%</div>
+                    )}
+                    {showConfidence && tx.source === 'unknown' && (
+                      <div className="text-[9px] text-orange mt-0.5">❓ Onbekend</div>
+                    )}
+                  </div>
+                </button>
+                {tx.type === 'debit' && (
+                  <button
+                    onClick={() => toggleClaim(idx)}
+                    aria-pressed={isClaim}
+                    title="Declaratie voor werk"
+                    className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
+                    style={isClaim
+                      ? { background: 'var(--color-accent)' }
+                      : { background: 'var(--color-surface-2)', opacity: 0.45 }}
+                  >
+                    💼
+                  </button>
+                )}
+              </div>
             )
           })}
         </div>

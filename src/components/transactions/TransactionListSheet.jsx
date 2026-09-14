@@ -3,6 +3,8 @@ import { Sheet } from '../ui/Sheet'
 import { TransactionForm } from './TransactionForm'
 import { useCategories } from '../../hooks/useCategories'
 import { euro, fmtDate } from '../../utils/formatters'
+import { ClaimBadge } from './ClaimBadge'
+import { isOpenClaim } from '../../utils/claims'
 
 /**
  * Eén sheet voor "hier zijn de transacties achter dit ding": een dag, een
@@ -66,9 +68,12 @@ export function TransactionListSheet({
               {showIcon && <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💸'}</span>}
               <div className="flex-1 min-w-0">
                 <div className="text-sm truncate">{label(tx, cat)}</div>
-                <div className="text-xs text-muted">{meta(tx, cat)}</div>
+                <div className="text-xs text-muted flex items-center gap-1.5">
+                  <span className="truncate">{meta(tx, cat)}</span>
+                  <ClaimBadge tx={tx} />
+                </div>
               </div>
-              <span className={`text-sm font-semibold shrink-0 tabular-nums ${tone(tx)}`}>
+              <span className={`text-sm font-semibold shrink-0 tabular-nums ${isOpenClaim(tx) ? 'text-muted' : tone(tx)}`}>
                 {sign(tx)}{euro(tx.amount)}
               </span>
             </button>

@@ -6,6 +6,7 @@ import { CategoryManagerSheet } from '../components/categories/CategoryManagerSh
 import { BackupCard } from '../components/settings/BackupCard'
 import { RulesSheet } from '../components/settings/RulesSheet'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'
+import { useClaimExpiryMonths, setClaimExpiryMonths, useOutstandingClaims } from '../hooks/useClaims'
 import { exportToCsv } from '../utils/importHelpers'
 import { euro } from '../utils/formatters'
 import { db } from '../db/db'
@@ -28,6 +29,8 @@ export function SettingsPage() {
   const theme = useLiveQuery(() => db.settings.get('theme').then(r => r?.value ?? 'light'), [])
   const accentColor = useLiveQuery(() => db.settings.get('accentColor').then(r => r?.value ?? '#1E3A5F'), [])
   const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
+  const claimExpiryMonths = useClaimExpiryMonths()
+  const claims = useOutstandingClaims()
 
   const defaultOrder = ALL_CHARTS.map(c => c.id)
   const chartOrder = chartConfig?.order ?? defaultOrder
@@ -276,6 +279,43 @@ return (
             </div>
             <span className="text-sm text-muted">{rulesCount ?? '…'} ›</span>
           </button>
+        </div>
+      </section>
+
+      {/* Declaraties */}
+      <section className="px-4 pt-4 pb-2">
+        <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Declaraties</h2>
+        <div className="card overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <span className="text-xl">💼</span>
+            <div className="flex-1">
+              <div className="text-sm">Openstaand bij werk</div>
+              <div className="text-xs text-muted">Open en ingediende declaraties tellen niet mee in je budget</div>
+            </div>
+            <span className="text-sm text-muted">{euro(claims.total)} ({claims.count})</span>
+          </div>
+          <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+            <span className="text-xl">⏳</span>
+            <div className="flex-1">
+              <div className="text-sm">Declareren kan tot</div>
+              <div className="text-xs text-muted">Waarschuwing zodra een open declaratie bijna te oud is</div>
+            </div>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                min="1"
+                max="60"
+                inputMode="numeric"
+                key={claimExpiryMonths}
+                defaultValue={claimExpiryMonths}
+                onBlur={e => setClaimExpiryMonths(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()}
+                className="w-14 rounded-lg px-2 py-1 text-sm text-right"
+                style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+              />
+              <span className="text-sm text-muted">mnd</span>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import { today } from '../../utils/formatters'
 import { Sheet } from '../ui/Sheet'
 import { recordEvent } from '../../utils/merchantLearning'
 import { CategoryPicker, CategoryIcon } from '../categories/CategoryPicker'
+import { CLAIM_STATUS_LABELS, claimStatusOf } from '../../utils/claims'
 
 export function TransactionForm({ onClose, existing }) {
   const { catMap } = useCategories()
@@ -14,9 +15,13 @@ export function TransactionForm({ onClose, existing }) {
   const [category, setCategory] = useState(existing?.category ?? '')
   const [subcategory, setSubcategory] = useState(existing?.subcategory ?? '')
   const [note, setNote] = useState(existing?.note ?? '')
+  const [claimStatus, setClaimStatus] = useState(claimStatusOf(existing))
   const [saving, setSaving] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
 
+  // Alleen een nog niet ingediende declaratie mag je hier aan- en uitzetten;
+  // vanaf 'Ingediend' loopt de status via het declaratiescherm.
+  const claimEditable = claimStatus === null || claimStatus === 'open'
   const selectedCat = catMap[category]
   const selectedSub = selectedCat?.subs?.find(s => s.key === subcategory)
 
@@ -24,7 +29,8 @@ export function TransactionForm({ onClose, existing }) {
     const amt = parseFloat(String(amount).replace(',', '.'))
     if (!date || isNaN(amt) || !category) return
     setSaving(true)
-    const tx = { date, amount: amt, type, category, subcategory, note }
+    const tx = { date, amount: amt, type, category, subcategory, note, claimStatus }
+    if (!existing) tx.claimBatchId = null
     if (existing) {
       await updateTransaction(existing.id, tx)
       // Learn from edits: record the category choice, with correction tracking
@@ -98,7 +104,7 @@ export function TransactionForm({ onClose, existing }) {
                   Af
                 </button>
                 <button
-                  onClick={() => setType('credit')}
+                  onClick={() => { setType('credit'); if (claimStatus === 'open') setClaimStatus(null) }}
                   className={`px-4 text-sm font-medium ${type === 'credit' ? 'bg-green text-white' : ''}`}
                   style={type !== 'credit' ? { background: 'var(--color-surface-2)', color: 'var(--color-muted)' } : undefined}
                 >
@@ -131,6 +137,48 @@ export function TransactionForm({ onClose, existing }) {
               <span className="text-muted">›</span>
             </button>
           </div>
+
+          {/* Declaratie voor werk */}
+          {type === 'debit' && (
+            claimEditable ? (
+              <button
+                onClick={() => setClaimStatus(claimStatus === 'open' ? null : 'open')}
+                className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left"
+                style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+              >
+                <span className="text-lg">💼</span>
+                <span className="flex-1 text-sm">
+                  Declaratie voor werk
+                  <span className="block text-[11px] text-muted">
+                    {claimStatus === 'open' ? 'Telt niet mee in je budget' : 'Telt mee als gewone uitgave'}
+                  </span>
+                </span>
+                <span
+                  className="rounded-full transition-colors duration-200 shrink-0"
+                  style={{
+                    width: 44, height: 26, padding: 3,
+                    background: claimStatus === 'open' ? 'var(--color-accent)' : 'var(--color-border)',
+                  }}
+                >
+                  <span
+                    className="block rounded-full bg-white transition-transform duration-200"
+                    style={{ width: 20, height: 20, transform: claimStatus === 'open' ? 'translateX(18px)' : 'none' }}
+                  />
+                </span>
+              </button>
+            ) : (
+              <div
+                className="w-full flex items-center gap-3 rounded-lg px-3 py-2"
+                style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+              >
+                <span className="text-lg">💼</span>
+                <span className="flex-1 text-sm">
+                  Declaratie · {CLAIM_STATUS_LABELS[claimStatus]}
+                  <span className="block text-[11px] text-muted">wijzigen via Declaraties</span>
+                </span>
+              </div>
+            )
+          )}
 
           {/* Note */}
           <label className="block">

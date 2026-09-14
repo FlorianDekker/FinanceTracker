@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { PageWrapper } from '../components/layout/PageWrapper'
@@ -8,10 +9,14 @@ import { MONTHS_LONG } from '../constants/categories'
 import { useCategories } from '../hooks/useCategories'
 import { useMonth } from '../hooks/useMonth'
 import { useMonthSwipe } from '../hooks/useMonthSwipe'
+import { CLAIM_STATUSES, isOpenClaim } from '../utils/claims'
+import { ClaimBadge } from '../components/transactions/ClaimBadge'
 
 export function TransactionsPage() {
   const { year, month, animDir, isCurrentMonth, goMonth, goToNow } = useMonth()
   const { catMap } = useCategories()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const claimsOnly = searchParams.get('filter') === 'claims'
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const searchRef = useRef(null)
@@ -21,10 +26,13 @@ export function TransactionsPage() {
   const txTouchStart = useRef(null)
 
   const prefix = `${year}-${String(month).padStart(2, '0')}`
+  // Declaraties lopen over maandgrenzen heen; met de filterchip aan tonen we ze allemaal.
   const txs = useLiveQuery(async () => {
-    const all = await db.transactions.where('date').startsWith(prefix).sortBy('date')
+    const all = claimsOnly
+      ? await db.transactions.where('claimStatus').anyOf(CLAIM_STATUSES).sortBy('date')
+      : await db.transactions.where('date').startsWith(prefix).sortBy('date')
     return all.reverse()
-  }, [prefix])
+  }, [prefix, claimsOnly])
 
   const filtered = (txs ?? []).filter(tx => {
     if (!search) return true
@@ -80,6 +88,27 @@ export function TransactionsPage() {
             </button>
           )}
         </div>
+        <div className="flex gap-2 mt-2.5">
+          {[
+            { id: 'all', label: 'Alles' },
+            { id: 'claims', label: '💼 Declaraties' },
+          ].map(chip => {
+            const active = chip.id === (claimsOnly ? 'claims' : 'all')
+            return (
+              <button
+                key={chip.id}
+                onClick={() => setSearchParams(chip.id === 'claims' ? { filter: 'claims' } : {}, { replace: true })}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${active ? 'btn-accent' : 'text-muted'}`}
+                style={active ? undefined : { background: 'var(--color-surface-2)' }}
+              >
+                {chip.label}
+              </button>
+            )
+          })}
+          {claimsOnly && (
+            <span className="text-[11px] self-center" style={{ color: 'var(--color-muted)' }}>alle maanden</span>
+          )}
+        </div>
       </div>
 
 
@@ -89,7 +118,9 @@ export function TransactionsPage() {
         className={`flex-1 min-h-[60vh] divide-y divide-border touch-pan-y ${slideClass}`}
       >
         {filtered.length === 0 && (
-          <div className="text-center text-muted py-12 text-sm">Geen transacties</div>
+          <div className="text-center text-muted py-12 text-sm">
+            {claimsOnly ? 'Geen declaraties' : 'Geen transacties'}
+          </div>
         )}
         {filtered.map(tx => {
           const cat = catMap[tx.category]
@@ -108,9 +139,15 @@ export function TransactionsPage() {
               <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💸'}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{tx.note || cat?.label || tx.category}</div>
-                <div className="text-xs text-muted">{fmtDate(tx.date)} · {cat?.label}</div>
+                <div className="text-xs text-muted flex items-center gap-1.5">
+                  <span className="truncate">{fmtDate(tx.date)} · {cat?.label}</span>
+                  <ClaimBadge tx={tx} />
+                </div>
               </div>
-              <span className={`text-sm font-semibold shrink-0 ${tx.type === 'credit' ? 'text-green' : ''}`} style={tx.type !== 'credit' ? { color: 'var(--color-text)' } : {}}>
+              <span
+                className={`text-sm font-semibold shrink-0 ${isOpenClaim(tx) ? 'text-muted' : tx.type === 'credit' ? 'text-green' : ''}`}
+                style={!isOpenClaim(tx) && tx.type !== 'credit' ? { color: 'var(--color-text)' } : {}}
+              >
                 {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
               </span>
             </button>
