@@ -108,6 +108,10 @@ export async function bulkRecordEvents(transactions) {
 const HALF_LIFE_DAYS = 90
 const MS_PER_DAY = 86400000
 
+// Voorspellingen mogen nooit naar een gearchiveerde of verwijderde categorie
+// wijzen. Zonder meegegeven controle is elke sleutel geldig (bestaand gedrag).
+const ALWAYS_ACTIVE = () => true
+
 function timeWeight(timestamp) {
   const days = (Date.now() - timestamp) / MS_PER_DAY
   return Math.pow(0.5, days / HALF_LIFE_DAYS)
@@ -129,7 +133,7 @@ function remiOverlap(currentTokens, eventTokens) {
  * Check if events indicate a recurring transaction pattern.
  * Returns the best recurring group or null.
  */
-function detectRecurring(events, amount) {
+function detectRecurring(events, amount, isActiveKey = ALWAYS_ACTIVE) {
   // Group by category+subcategory
   const groups = new Map()
   for (const ev of events) {
@@ -140,6 +144,7 @@ function detectRecurring(events, amount) {
 
   for (const [key, group] of groups) {
     if (group.length < 2) continue
+    if (!isActiveKey(key.slice(0, key.indexOf('|')))) continue
 
     // Check amount similarity (within 10% or €2)
     const amountMatch = group.filter(ev => {
@@ -164,7 +169,7 @@ function detectRecurring(events, amount) {
 /**
  * Predict the best category for a merchant using learned history.
  */
-export async function predictCategory(merchantName, amount, type, remi) {
+export async function predictCategory(merchantName, amount, type, remi, isActiveKey = ALWAYS_ACTIVE) {
   const { baseKey, tokens } = normalizeMerchant(merchantName)
   if (!baseKey) return null
 
@@ -173,7 +178,7 @@ export async function predictCategory(merchantName, amount, type, remi) {
 
   if (events.length > 0) {
     // Step 1: Recurring check
-    const recurring = detectRecurring(events, amount)
+    const recurring = detectRecurring(events, amount, isActiveKey)
     if (recurring) {
       return {
         cat: recurring.cat,
@@ -186,17 +191,17 @@ export async function predictCategory(merchantName, amount, type, remi) {
     }
 
     // Step 2: Multi-signal weighted voting
-    return scoredPrediction(events, amount, type, remi, 'learned')
+    return scoredPrediction(events, amount, type, remi, 'learned', isActiveKey)
   }
 
   // Step 3: Similar merchant fallback
-  return similarMerchantFallback(tokens, amount, type, remi)
+  return similarMerchantFallback(tokens, amount, type, remi, isActiveKey)
 }
 
 /**
  * Score events and produce a prediction.
  */
-function scoredPrediction(events, amount, type, remi, source) {
+function scoredPrediction(events, amount, type, remi, source, isActiveKey = ALWAYS_ACTIVE) {
   const currentRemiTokens = tokenizeRemi(remi)
   const catScores = new Map()    // category → total positive score
   const catPenalties = new Map() // category → total penalty from negative evidence
@@ -235,7 +240,10 @@ function scoredPrediction(events, amount, type, remi, source) {
   let bestCat = null
   let bestScore = 0
   for (const [cat, score] of catScores) {
+    // Het totaal blijft over alle stemmen lopen, zodat de confidence vanzelf
+    // daalt als de sterkste kandidaat gearchiveerd is.
     totalScore += score
+    if (!isActiveKey(cat)) continue
     if (score > bestScore) { bestScore = score; bestCat = cat }
   }
 
@@ -273,7 +281,7 @@ function jaccard(a, b) {
   return union === 0 ? 0 : intersection / union
 }
 
-async function similarMerchantFallback(tokens, amount, type, remi) {
+async function similarMerchantFallback(tokens, amount, type, remi, isActiveKey = ALWAYS_ACTIVE) {
   // Get all distinct baseKeys with their tokens
   // For performance: sample recent events only (last 2000)
   const recentEvents = await db.merchantHistory
@@ -303,7 +311,7 @@ async function similarMerchantFallback(tokens, amount, type, remi) {
   const queryTokens = tokens.filter(t => !/^\d+$/.test(t))
   if (queryTokens.length === 0) return null
 
-  for (const [bk, data] of baseKeyMap) {
+  for (const data of baseKeyMap.values()) {
     // Reconstruct base tokens from baseKey characters isn't great,
     // so use the merchant name from the most recent event
     const latestEvent = data.events[0]
@@ -324,7 +332,7 @@ async function similarMerchantFallback(tokens, amount, type, remi) {
   if (!bestMatch) return null
 
   // Use the similar merchant's events to predict, but cap confidence
-  const prediction = scoredPrediction(bestMatch.events, amount, type, remi, 'similar')
+  const prediction = scoredPrediction(bestMatch.events, amount, type, remi, 'similar', isActiveKey)
   if (prediction) {
     prediction.confidence = Math.min(prediction.confidence, 0.6)
   }

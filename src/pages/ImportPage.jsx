@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { parseABNExport, parseABNExcel } from '../utils/parsers'
 import { categorizeWithLearning } from '../utils/categorizer'
@@ -24,7 +24,7 @@ function stripReviewFields(tx) {
 }
 
 export function ImportPage() {
-  const { catMap } = useCategories()
+  const { catMap, getByRole } = useCategories()
   const [step, setStep] = useState('upload') // upload | review | done
   const [pending, setPending] = useState([])
   const [saved, setSaved] = useState(0)
@@ -32,7 +32,27 @@ export function ImportPage() {
   const [error, setError] = useState(null)
   const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? false), [])
 
-  async function handleFile(e) {
+  // De classificatie loopt async over honderden rijen; stabiele referenties
+  // voorkomen dat elke render een nieuwe context maakt en handleFile opnieuw
+  // wordt opgebouwd (stale closures tijdens het verwerken van een bestand).
+  const byRole = useMemo(() => ({
+    uncategorized: getByRole('uncategorized'),
+    transfer: getByRole('transfer'),
+    income: getByRole('income'),
+  }), [getByRole])
+
+  const isActiveKey = useCallback(key => {
+    const cat = catMap[key]
+    return !!cat && !cat.archived
+  }, [catMap])
+
+  // catMap is tijdens het laden leeg; dan zou alles naar de restbak vallen.
+  const classifyOptions = useMemo(
+    () => ({ isActiveKey: Object.keys(catMap).length ? isActiveKey : undefined }),
+    [catMap, isActiveKey]
+  )
+
+  const handleFile = useCallback(async e => {
     const file = e.target.files?.[0]
     if (!file) return
     setError(null)
@@ -52,7 +72,8 @@ export function ImportPage() {
         return
       }
       const withCats = await Promise.all(newOnes.map(async tx => {
-        const { cat, sub, confidence, confidencePct, possiblySterre, needsManual, source, eventCount, isRecurring } = await categorizeWithLearning(tx.merchant, tx.amount, tx.type, tx.remi)
+        const { cat, sub, confidence, confidencePct, possiblySterre, needsManual, source, eventCount, isRecurring } =
+          await categorizeWithLearning(tx.merchant, tx.amount, tx.type, tx.remi, byRole, classifyOptions)
         return { ...tx, category: cat, subcategory: sub, confidence, confidencePct, possiblySterre, needsManual, source, eventCount, isRecurring, _originalCategory: cat, note: tx.merchant }
       }))
       setPending(withCats)
@@ -60,7 +81,7 @@ export function ImportPage() {
     } catch (err) {
       setError(`Fout bij lezen bestand: ${err.message}`)
     }
-  }
+  }, [byRole, classifyOptions])
 
   async function handleSave() {
     const txs = pending.map(stripReviewFields)
