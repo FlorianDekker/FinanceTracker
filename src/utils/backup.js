@@ -239,11 +239,15 @@ export async function restoreBackup(input, { mode = 'merge' } = {}) {
 
   await db.transaction('rw', BACKUP_TABLES.map(name => db[name]), async () => {
     if (mode === 'replace') {
+      // Lokale geheimen (bv. AI-API-key) zitten nooit in een backup en mogen dus ook niet
+      // verloren gaan bij "alles vervangen": bewaar ze en zet ze na het wissen terug.
+      const secrets = (await db.settings.toArray()).filter(s => isSecretSettingKey(s.key))
       for (const name of BACKUP_TABLES) {
         await db[name].clear()
         if (src[name].length) await db[name].bulkPut(src[name])
         stats[name] = { added: src[name].length, skipped: 0 }
       }
+      if (secrets.length) await db.settings.bulkPut(secrets)
       return
     }
 

@@ -36,7 +36,7 @@ export function DetailChart({ year, month }) {
 
   return (
     <div>
-      <div className="card p-5 mb-4">
+      <div data-chart-area className="card p-5 mb-4">
         <StatCard label="Detail overzicht" value={grandTotal} delta={`${expenseCats.length} categorieën`} />
       </div>
 
