@@ -63,6 +63,22 @@ db.version(5).stores({
   claimBatches: '++id, status',
 })
 
+// v6: bonnetjes. `receipts` bewaart de bon zelf (afbeeldingen, uitgelezen regels,
+// status), `receiptItems` is de platgeslagen kopie van `receipts.items` zodat we
+// los op productnaam, groep en datum kunnen zoeken en aggregeren.
+// `transactions.receiptId` is nullable en krijgt bewust geen index: we zoeken
+// altijd vanuit de bon naar de transactie, nooit andersom over een hele tabel.
+db.version(6).stores({
+  transactions: '++id, date, category, type, claimStatus, [date+category]',
+  categories: 'key, order',
+  settings: 'key',
+  merchantHistory: '++id, merchantKey, baseKey, timestamp',
+  rules: '++id, category',
+  claimBatches: '++id, status',
+  receipts: '++id, transactionId, date, merchantKey, status',
+  receiptItems: '++id, receiptId, nameKey, group, date',
+})
+
 // Bootstrap learning from existing transactions (runs once, lazy-loaded to avoid circular imports)
 db.on('ready', async () => {
   const { bootstrapFromHistory } = await import('../utils/merchantLearning')

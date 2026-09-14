@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Sheet } from '../ui/Sheet'
 import { db } from '../../db/db'
 import {
   downloadBackup,
+  estimateBackupBytes,
   restoreBackup,
   summarizeBackup,
   daysSince,
@@ -18,6 +19,15 @@ const TABLE_LABELS = {
   merchantHistory: 'Geleerde herkenningen',
   rules: 'Herkenningsregels',
   claimBatches: 'Declaratie-batches',
+  receipts: 'Bonnetjes',
+  receiptItems: 'Bonregels',
+}
+
+function fmtBytes(bytes) {
+  if (bytes == null) return '…'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`
 }
 
 function lastBackupText(at) {
@@ -41,15 +51,29 @@ function fmtMoment(iso) {
  */
 export function BackupCard({ onStatus }) {
   const lastBackupAt = useLiveQuery(() => db.settings.get(LAST_BACKUP_KEY).then(r => r?.value ?? null), [])
+  const receiptCount = useLiveQuery(() => db.receipts.count(), [], 0)
   const [busy, setBusy] = useState(false)
   const [pending, setPending] = useState(null)
+  const [includeImages, setIncludeImages] = useState(false)
+  const [sizes, setSizes] = useState(null)
+
+  // Alleen relevant zodra er bonnen zijn; de schatting kost een volledige
+  // (in-memory) export, dus niet bij elke render.
+  useEffect(() => {
+    if (!receiptCount) return
+    let levend = true
+    Promise.all([estimateBackupBytes({ includeImages: false }), estimateBackupBytes({ includeImages: true })])
+      .then(([zonder, met]) => { if (levend) setSizes({ zonder, met }) })
+      .catch(() => {})
+    return () => { levend = false }
+  }, [receiptCount, lastBackupAt])
 
   const stale = lastBackupAt === undefined ? false : !lastBackupAt || daysSince(lastBackupAt) > BACKUP_REMINDER_DAYS
 
   async function handleBackup() {
     setBusy(true)
     try {
-      const res = await downloadBackup()
+      const res = await downloadBackup({ includeImages })
       if (!res.cancelled) {
         const total = Object.values(res.counts).reduce((a, b) => a + b, 0)
         onStatus?.({ success: `✓ Backup gemaakt: ${res.fileName} (${total} rijen).` })
@@ -106,6 +130,32 @@ export function BackupCard({ onStatus }) {
             </span>
           )}
         </button>
+
+        {receiptCount > 0 && (
+          <button
+            onClick={() => setIncludeImages(v => !v)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left"
+          >
+            <span className="text-xl">🧾</span>
+            <div className="flex-1">
+              <div className="text-sm">Met bon-afbeeldingen (groter bestand)</div>
+              <div className="text-xs text-muted">
+                {sizes
+                  ? `${fmtBytes(includeImages ? sizes.met : sizes.zonder)} · zonder ${fmtBytes(sizes.zonder)}, met ${fmtBytes(sizes.met)}`
+                  : 'grootte berekenen…'}
+              </div>
+            </div>
+            <span
+              className="rounded-full transition-colors duration-200 shrink-0"
+              style={{ width: 44, height: 26, padding: 3, background: includeImages ? 'var(--color-accent)' : 'var(--color-border)' }}
+            >
+              <span
+                className="block rounded-full bg-white transition-transform duration-200"
+                style={{ width: 20, height: 20, transform: includeImages ? 'translateX(18px)' : 'none' }}
+              />
+            </span>
+          </button>
+        )}
 
         <label className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer">
           <span className="text-xl">♻️</span>
