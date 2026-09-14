@@ -148,6 +148,7 @@ export function TransactionsPage() {
                 <div className="text-sm font-medium truncate">{tx.note || cat?.label || tx.category}</div>
                 <div className="text-xs text-muted flex items-center gap-1.5">
                   <span className="truncate">{fmtDate(tx.date)} · {cat?.label}</span>
+                  {tx.receiptId != null && <span title="Bon gekoppeld">🧾</span>}
                   <ClaimBadge tx={tx} />
                 </div>
               </div>

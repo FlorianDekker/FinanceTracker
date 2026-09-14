@@ -8,15 +8,23 @@ import { CategoryPicker, CategoryIcon } from '../categories/CategoryPicker'
 import { CLAIM_STATUS_LABELS, claimStatusOf } from '../../utils/claims'
 import { useSubmittedBatches } from '../../hooks/useClaims'
 import { LinkPayoutSheet } from '../claims/LinkPayoutSheet'
+import { ReceiptRow } from '../receipts/ReceiptRow'
 
-export function TransactionForm({ onClose, existing }) {
+/**
+ * Props:
+ *  - existing: bestaande transactie (bewerken)
+ *  - prefill: beginwaarden voor een nieuwe transactie (bijv. vanuit een bon)
+ *  - onSaved(id): na opslaan, met het id van de (nieuwe) transactie
+ */
+export function TransactionForm({ onClose, existing, prefill, onSaved }) {
   const { catMap } = useCategories()
-  const [date, setDate] = useState(existing?.date ?? today())
-  const [amount, setAmount] = useState(existing?.amount ? String(existing.amount).replace('.', ',') : '')
-  const [type, setType] = useState(existing?.type ?? 'debit')
-  const [category, setCategory] = useState(existing?.category ?? '')
-  const [subcategory, setSubcategory] = useState(existing?.subcategory ?? '')
-  const [note, setNote] = useState(existing?.note ?? '')
+  const start = existing ?? prefill ?? {}
+  const [date, setDate] = useState(start.date ?? today())
+  const [amount, setAmount] = useState(start.amount != null && start.amount !== '' ? String(start.amount).replace('.', ',') : '')
+  const [type, setType] = useState(start.type ?? 'debit')
+  const [category, setCategory] = useState(start.category ?? '')
+  const [subcategory, setSubcategory] = useState(start.subcategory ?? '')
+  const [note, setNote] = useState(start.note ?? '')
   const [claimStatus, setClaimStatus] = useState(claimStatusOf(existing))
   const [saving, setSaving] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -35,6 +43,7 @@ export function TransactionForm({ onClose, existing }) {
     setSaving(true)
     const tx = { date, amount: amt, type, category, subcategory, note, claimStatus }
     if (!existing) tx.claimBatchId = null
+    let savedId = existing?.id ?? null
     if (existing) {
       await updateTransaction(existing.id, tx)
       // Learn from edits: record the category choice, with correction tracking
@@ -45,13 +54,14 @@ export function TransactionForm({ onClose, existing }) {
         )
       }
     } else {
-      await addTransaction(tx)
+      savedId = await addTransaction(tx)
       // Learn from new manual transactions too
       if (note) {
         recordEvent(note, category, subcategory, amt, type, null, null)
       }
     }
     setSaving(false)
+    onSaved?.(savedId)
     onClose()
   }
 
@@ -213,6 +223,9 @@ export function TransactionForm({ onClose, existing }) {
               </span>
             </div>
           )}
+
+          {/* Bonnetje */}
+          {existing && <ReceiptRow transaction={existing} />}
 
           {/* Note */}
           <label className="block">

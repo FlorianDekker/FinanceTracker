@@ -12,6 +12,8 @@ import { useMonth } from '../hooks/useMonth'
 import { useRecurring } from '../hooks/useRecurring'
 import { useMonthSwipe } from '../hooks/useMonthSwipe'
 import { Sheet } from '../components/ui/Sheet'
+import { ReceiptCapture } from '../components/receipts/ReceiptCapture'
+import { ReceiptViewer } from '../components/receipts/ReceiptViewer'
 import { db } from '../db/db'
 import { countsInTotals } from '../utils/claims'
 import { useOutstandingClaims } from '../hooks/useClaims'
@@ -20,6 +22,8 @@ export function DashboardPage() {
   const { year, month, animDir, isCurrentMonth, goMonth, goToNow } = useMonth()
   const [selectedCat, setSelectedCat] = useState(null)
   const [showExpected, setShowExpected] = useState(false)
+  const [captureOpen, setCaptureOpen] = useState(false)
+  const [viewerId, setViewerId] = useState(null)
   const [view, setView] = useState('cards')
   const listRef = useRef(null)
   const catTouchStart = useRef(null)
@@ -61,7 +65,16 @@ export function DashboardPage() {
           </button>
           <button onClick={() => goMonth('next')} className="text-muted text-xl px-1">›</button>
         </div>
-        <div className="flex justify-center">
+        <div className="flex justify-center relative">
+          {/* Snelle ingang naar een bon: camera, bestand of klembord */}
+          <button
+            onClick={() => setCaptureOpen(true)}
+            aria-label="Bon toevoegen"
+            className="absolute right-0 top-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
+            style={{ background: 'var(--color-surface-2)' }}
+          >
+            📷
+          </button>
           <div className="flex rounded-full p-0.5" style={{ background: 'var(--color-surface-2)' }}>
             {['cards', 'list'].map(v => (
               <button
@@ -211,6 +224,13 @@ export function DashboardPage() {
       {showExpected && (
         <ExpectedSheet unpaid={unpaidRecurring} paid={paidRecurring} total={unpaidFixed} onClose={() => setShowExpected(false)} />
       )}
+
+      <ReceiptCapture
+        open={captureOpen}
+        onClose={() => setCaptureOpen(false)}
+        onDone={id => { setCaptureOpen(false); setViewerId(id) }}
+      />
+      {viewerId != null && <ReceiptViewer receiptId={viewerId} onClose={() => setViewerId(null)} />}
     </PageWrapper>
   )
 }
