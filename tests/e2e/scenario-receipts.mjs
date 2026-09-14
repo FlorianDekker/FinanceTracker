@@ -90,6 +90,20 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
   const sluitAlles = async () => { for (let i = 0; i < 6 && await sheets() > 0; i++) await sluitTop() }
   const nav = async i => { await sluitAlles(); await page.locator('nav a').nth(i).click(); await sleep(900) }
 
+  // De rijen van de transactielijst reageren alleen op echte touch-events.
+  async function touchTap(locator) {
+    await locator.scrollIntoViewIfNeeded()
+    const handle = await locator.elementHandle()
+    await page.evaluate(el => {
+      const r = el.getBoundingClientRect()
+      const x = r.left + r.width / 2, y = r.top + r.height / 2
+      const touch = () => new Touch({ identifier: 1, target: el, clientX: x, clientY: y })
+      el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, cancelable: true, touches: [touch()], targetTouches: [touch()], changedTouches: [touch()] }))
+      el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [], targetTouches: [], changedTouches: [touch()] }))
+    }, handle)
+    await handle.dispose()
+  }
+
   async function naarMaand(label) {
     for (let i = 0; i < 24; i++) {
       const kop = await page.locator('h1').first().innerText()
@@ -155,16 +169,18 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
     await sleep(700)
     await top().locator('button', { hasText: 'Geen subcategorie' }).click(); await sleep(600)
     await top().locator('input[placeholder="Bijv. Albert Heijn"]').fill('Lidl Utrecht')
-    // De bon-rij hoort hier al te staan (nog zonder bon)
+    // Een nog niet opgeslagen transactie heeft geen id om een bon aan te hangen;
+    // de bon-rij hoort hier dus nog niet te staan (die controleren we in H6).
     const bonRij = await top().locator('text=Bon toevoegen').count()
-    const s = await shot('formulier-met-bonrij')
+    const s = await shot('formulier-nieuwe-transactie')
     await top().locator('button', { hasText: /^Opslaan$/ }).click(); await sleep(1200)
     await sluitAlles()
     const dump = await page.evaluate(DUMP_BON)
     const tx = dump.transactions.find(t => t.note === 'Lidl Utrecht')
-    stap('H2', 'transactie €3,24 op 2026-02-11 aangemaakt; formulier toont "Bon toevoegen"',
-      !!tx && tx.amount === 3.24 && tx.date === '2026-02-11' && bonRij === 1 && errsSinds(i).length === 0,
-      `transactie=${JSON.stringify(tx)}; "Bon toevoegen"-rij=${bonRij}; errors=${errsSinds(i).length}`, s)
+    stap('H2', 'transactie €3,24 op 2026-02-11 aangemaakt',
+      !!tx && tx.amount === 3.24 && tx.date === '2026-02-11' && tx.receiptId == null && bonRij === 0
+      && errsSinds(i).length === 0,
+      `transactie=${JSON.stringify(tx)}; bon-rij in een nieuw formulier=${bonRij} (0 verwacht); errors=${errsSinds(i).length}`, s)
   }
 
   /* ================= H3: bon uploaden via /bon en uitlezen ================= */
@@ -189,6 +205,7 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
     const sC = await shot('viewer-uitgelezen')
     stap('H3', 'bon uit bestand uitgelezen: 2 regels en totaal €3,24',
       dump.receipts.length === 1 && bon.total === 3.24 && bon.date === '2026-02-11' && bon.merchant === 'Lidl'
+      && bon.merchantKey === 'lidl'
       && bon.items.length === 2 && bon.status === 'extracted' && bon.pages === 1 && bon.heeftThumb
       && dump.receiptItems.length === 2 && /Chips Great Britain/.test(viewer) && /Zakdoekjes balsem/.test(viewer)
       && /3,24/.test(viewer) && /klopt/.test(viewer)
@@ -224,10 +241,10 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
   /* ================= H5: groep corrigeren wordt onthouden ================= */
   {
     const i = logs.length
-    await page.locator('button', { hasText: /^🧽 Huishouden$/ }).first().click(); await sleep(900)
+    await top().locator('button', { hasText: 'Huishouden' }).first().click(); await sleep(900)
     const groepen = (await top().innerText()).replace(/\n+/g, ' | ')
     const sA = await shot('groepkiezer')
-    await top().locator('button', { hasText: /^🧴 Verzorging$/ }).first().click(); await sleep(1300)
+    await top().locator('button', { hasText: 'Verzorging' }).first().click(); await sleep(1300)
 
     const dump = await page.evaluate(DUMP_BON)
     const bon = dump.receipts[0]
@@ -250,11 +267,20 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
     await sluitAlles()
     await nav(1)
     await naarMaand('Februari 2026')
-    const rij = await page.locator('div.divide-y button', { hasText: 'Lidl Utrecht' }).first().innerText()
-    const s = await shot('transactielijst-met-bon')
-    stap('H6', 'de transactierij toont het bon-icoon',
-      /🧾/.test(rij) && errsSinds(i).length === 0,
-      `rij="${rij.replace(/\n+/g, ' | ')}"; errors=${errsSinds(i).length}`, s)
+    const rijLocator = page.locator('div.divide-y button', { hasText: 'Lidl Utrecht' }).first()
+    const rij = await rijLocator.innerText()
+    const sA = await shot('transactielijst-met-bon')
+
+    await touchTap(rijLocator)
+    await sleep(1000)
+    const formulier = (await top().innerText()).replace(/\n+/g, ' | ')
+    const sB = await shot('formulier-met-bon')
+    await sluitAlles()
+    stap('H6', 'de transactierij toont 🧾 en het formulier de bon-rij met het aantal regels',
+      /🧾/.test(rij) && /🧾 Bon · 2 regels/.test(formulier) && /Lidl/.test(formulier)
+      && errsSinds(i).length === 0,
+      `rij="${rij.replace(/\n+/g, ' | ')}"; formulier="${formulier.slice(0, 220)}"; errors=${errsSinds(i).length}`,
+      [sA, sB].join(', '))
   }
 
   /* ================= H7: backup zonder afbeeldingen ================= */

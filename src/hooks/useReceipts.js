@@ -408,7 +408,9 @@ export async function extractReceiptById(receiptId, { model, signal, language = 
     const validation = validateReceipt({ ...uit, items })
     const patch = {
       merchant: uit.merchant,
-      merchantKey: uit.merchant ? normalizeMerchant(uit.merchant) : '',
+      // normalizeMerchant geeft { merchantKey, baseKey, tokens } terug; alleen
+      // de string hoort in de index.
+      merchantKey: uit.merchant ? normalizeMerchant(uit.merchant).merchantKey : '',
       date: uit.date,
       time: uit.time,
       total: uit.total,
@@ -534,7 +536,7 @@ export async function updateReceiptFields(receiptId, fields = {}) {
   const patch = { ...fields }
   if ('merchant' in patch) {
     patch.merchant = String(patch.merchant ?? '').trim() || null
-    patch.merchantKey = patch.merchant ? normalizeMerchant(patch.merchant) : ''
+    patch.merchantKey = patch.merchant ? normalizeMerchant(patch.merchant).merchantKey : ''
   }
   if ('total' in patch) patch.total = patch.total == null || patch.total === '' ? null : rond(Number(patch.total))
   const samen = { ...bon, ...patch }
