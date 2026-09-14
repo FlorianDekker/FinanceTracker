@@ -1,8 +1,12 @@
 import { db } from '../db/db'
 
-// Build dedup key for a transaction
-export function dedupKey(date, amount, type) {
-  return `${date}|${amount}|${type}`
+// Build dedup key for a transaction.
+// Zonder `note` blijft de sleutel identiek aan de oude vorm (bankimport);
+// backup/restore geeft de omschrijving wel mee, zodat twee losse betalingen van
+// hetzelfde bedrag op dezelfde dag niet ten onrechte als duplicaat gelden.
+export function dedupKey(date, amount, type, note) {
+  const base = `${date}|${amount}|${type}`
+  return note === undefined ? base : `${base}|${note}`
 }
 
 // Get all existing dedup keys from IndexedDB
