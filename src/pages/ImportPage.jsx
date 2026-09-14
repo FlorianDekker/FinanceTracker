@@ -5,11 +5,13 @@ import { categorizeWithLearning } from '../utils/categorizer'
 import { getExistingKeys, dedupKey } from '../utils/importHelpers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
 import { recordEvent, bulkRecordEvents } from '../utils/merchantLearning'
-import { euro, fmtDate } from '../utils/formatters'
+import { euro, fmtDate, fmtTimestamp } from '../utils/formatters'
 import { useCategories } from '../hooks/useCategories'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { CategoryPicker } from '../components/categories/CategoryPicker'
-import { claimStatusOf } from '../utils/claims'
+import { Sheet } from '../components/ui/Sheet'
+import { amountsMatch, claimStatusOf } from '../utils/claims'
+import { closeBatchWithPayout, useSubmittedBatches } from '../hooks/useClaims'
 import { db } from '../db/db'
 
 // Velden die alleen in het reviewscherm leven en niet in de database horen.
@@ -31,6 +33,9 @@ export function ImportPage() {
   const [saved, setSaved] = useState(0)
   const [editIdx, setEditIdx] = useState(null)
   const [error, setError] = useState(null)
+  const [payoutIdx, setPayoutIdx] = useState(null)   // rij waarvoor je een batch kiest
+  const [payoutHint, setPayoutHint] = useState(null)
+  const submittedBatches = useSubmittedBatches()
   const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? false), [])
   const userRules = useLiveQuery(() => db.rules.toArray(), [], [])
 
@@ -87,9 +92,28 @@ export function ImportPage() {
 
   async function handleSave() {
     const txs = pending.map(stripReviewFields)
-    await bulkAddTransactions(txs)
+    const ids = await bulkAddTransactions(txs)
     // Learn from all reviewed transactions
     await bulkRecordEvents(pending)
+
+    // Gekoppelde bulkbetalingen: klopt het bedrag precies, dan sluiten we de
+    // batch hier meteen af. Wijkt het af, dan blijft hij openstaan en maak je
+    // hem op het declaratiescherm af (daar kies je welke zijn afgekeurd).
+    let openstaand = 0
+    for (let i = 0; i < txs.length; i++) {
+      const tx = txs[i]
+      if (claimStatusOf(tx) !== 'payout' || tx.claimBatchId == null) continue
+      const batch = (submittedBatches ?? []).find(b => b.id === tx.claimBatchId)
+      if (batch && amountsMatch(tx.amount, batch.expectedTotal)) {
+        await closeBatchWithPayout({ batchId: batch.id, transactionId: ids[i] })
+      } else {
+        openstaand += 1
+      }
+    }
+
+    setPayoutHint(openstaand
+      ? `${openstaand} ${openstaand === 1 ? 'uitbetaling wijkt' : 'uitbetalingen wijken'} af van het verwachte bedrag — rond ze af bij Declaraties.`
+      : null)
     setSaved(txs.length)
     setStep('done')
   }
@@ -100,6 +124,14 @@ export function ImportPage() {
     setPending(p => p.map((t, i) => (
       i === idx ? { ...t, claimStatus: claimStatusOf(t) === 'open' ? null : 'open', claimBatchId: null } : t
     )))
+  }
+
+  // 💼 op een bijschrijving: dit is de bulkbetaling van werk voor één batch.
+  function choosePayout(idx, batch) {
+    setPending(p => p.map((t, i) => (
+      i === idx ? { ...t, claimStatus: batch ? 'payout' : null, claimBatchId: batch?.id ?? null } : t
+    )))
+    setPayoutIdx(null)
   }
 
   function handleCategoryChange(idx, category, subcategory) {
@@ -122,6 +154,7 @@ export function ImportPage() {
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <div style={{ filter: 'drop-shadow(0 0 20px rgba(48, 209, 88, 0.4))' }}><span className="text-5xl">✅</span></div>
           <p className="text-lg font-semibold">{saved} transacties opgeslagen!</p>
+          {payoutHint && <p className="text-xs text-orange text-center px-8">{payoutHint}</p>}
           <button onClick={() => { setStep('upload'); setPending([]) }}
             className="text-green text-sm">Nog een bestand importeren</button>
         </div>
@@ -200,6 +233,19 @@ export function ImportPage() {
                     )}
                   </div>
                 </button>
+                {tx.type === 'credit' && submittedBatches?.length > 0 && (
+                  <button
+                    onClick={() => setPayoutIdx(idx)}
+                    aria-pressed={claimStatusOf(tx) === 'payout'}
+                    title="Uitbetaling van een declaratie-batch"
+                    className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
+                    style={claimStatusOf(tx) === 'payout'
+                      ? { background: 'var(--color-accent)' }
+                      : { background: 'var(--color-surface-2)', opacity: 0.45 }}
+                  >
+                    💼
+                  </button>
+                )}
                 {tx.type === 'debit' && (
                   <button
                     onClick={() => toggleClaim(idx)}
@@ -217,6 +263,38 @@ export function ImportPage() {
             )
           })}
         </div>
+
+        <Sheet
+          open={payoutIdx !== null}
+          onClose={() => setPayoutIdx(null)}
+          title="Uitbetaling van welke batch?"
+          subtitle={payoutIdx !== null ? `${euro(pending[payoutIdx].amount)} op ${fmtDate(pending[payoutIdx].date)}` : undefined}
+        >
+          <div className="divide-y divide-border">
+            {(submittedBatches ?? []).map(batch => (
+              <button
+                key={batch.id}
+                onClick={() => choosePayout(payoutIdx, batch)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left"
+              >
+                <span className="text-xl shrink-0">💼</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm truncate">{batch.name}</div>
+                  <div className="text-[11px] text-muted">Ingediend {fmtTimestamp(batch.submittedAt)}</div>
+                </div>
+                <span className="text-sm font-semibold tabular-nums">{euro(batch.expectedTotal ?? 0)}</span>
+              </button>
+            ))}
+            {payoutIdx !== null && claimStatusOf(pending[payoutIdx]) === 'payout' && (
+              <button
+                onClick={() => choosePayout(payoutIdx, null)}
+                className="w-full px-4 py-3 text-left text-sm text-red"
+              >
+                Koppeling weghalen
+              </button>
+            )}
+          </div>
+        </Sheet>
 
         <CategoryPicker
           open={editIdx !== null}

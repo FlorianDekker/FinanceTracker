@@ -5,6 +5,8 @@ import { ClaimsChart } from '../components/claims/ClaimsChart'
 import { SubmitClaimSheet } from '../components/claims/SubmitClaimSheet'
 import { ClaimItemSheet } from '../components/claims/ClaimItemSheet'
 import { BatchSheet } from '../components/claims/BatchSheet'
+import { LinkPayoutSheet } from '../components/claims/LinkPayoutSheet'
+import { RejectClaimSheet } from '../components/claims/RejectClaimSheet'
 import { useCategories } from '../hooks/useCategories'
 import { useAllClaims, useClaimBatches, useClaimExpiryMonths } from '../hooks/useClaims'
 import { euro, euroParts, fmtDate, fmtTimestamp } from '../utils/formatters'
@@ -36,6 +38,8 @@ export function ClaimsPage() {
   const [detail, setDetail] = useState(null)     // losse declaratie
   const [batchDetail, setBatchDetail] = useState(null)
   const [submitOpen, setSubmitOpen] = useState(false)
+  const [linking, setLinking] = useState(null)   // { batch, transaction }
+  const [rejecting, setRejecting] = useState(null)
   // Standaard staat alles aangevinkt; we onthouden dus wat je juist NIET
   // meestuurt. Nieuwe open declaraties zijn daardoor meteen geselecteerd.
   const [unselected, setUnselected] = useState(() => new Set())
@@ -48,6 +52,9 @@ export function ClaimsPage() {
       payouts: list.filter(isPayout),
       payoutsThisYear: list.filter(tx => isPayout(tx) && String(tx.date ?? '').startsWith(year)),
       looseRejected: list.filter(tx => claimStatusOf(tx) === 'rejected' && tx.claimBatchId == null),
+      payoutByBatch: Object.fromEntries(
+        list.filter(tx => isPayout(tx) && tx.claimBatchId != null).map(tx => [tx.claimBatchId, tx]),
+      ),
       byBatch: list.reduce((map, tx) => {
         if (tx.claimBatchId == null || isPayout(tx)) return map
         ;(map[tx.claimBatchId] ??= []).push(tx)
@@ -160,8 +167,10 @@ export function ClaimsPage() {
               key={batch.id}
               batch={batch}
               items={groups.byBatch[batch.id] ?? []}
+              payout={groups.payoutByBatch[batch.id] ?? null}
               onOpen={() => setBatchDetail(batch)}
               onExport={items => exportBatch(batch, items)}
+              onLink={() => setLinking({ batch, transaction: groups.payoutByBatch[batch.id] ?? null })}
             />
           ))}
         </div>
@@ -222,7 +231,22 @@ export function ClaimsPage() {
           onSubmitted={() => { setUnselected(new Set()); setTab('submitted') }}
         />
       )}
-      {detail && <ClaimItemSheet tx={detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <ClaimItemSheet
+          tx={detail}
+          onClose={() => setDetail(null)}
+          onReject={tx => { setDetail(null); setRejecting(tx) }}
+        />
+      )}
+      {rejecting && <RejectClaimSheet tx={rejecting} onClose={() => setRejecting(null)} />}
+      {linking && (
+        <LinkPayoutSheet
+          batch={linking.batch}
+          transaction={linking.transaction}
+          onClose={() => setLinking(null)}
+          onDone={() => setTab('done')}
+        />
+      )}
       {batchDetail && <BatchSheet batch={batchDetail} onClose={() => setBatchDetail(null)} />}
     </PageWrapper>
   )
@@ -309,7 +333,7 @@ function ExpiryBadge({ tone, children }) {
   )
 }
 
-function BatchCard({ batch, items, onOpen, onExport }) {
+function BatchCard({ batch, items, payout = null, onOpen, onExport, onLink }) {
   const rejected = items.filter(tx => claimStatusOf(tx) === 'rejected')
   const closed = batch.status === 'closed'
   return (
@@ -323,6 +347,9 @@ function BatchCard({ batch, items, onOpen, onExport }) {
               ? `Uitbetaald ${fmtTimestamp(batch.paidAt)} · ${items.length} ${items.length === 1 ? 'uitgave' : 'uitgaven'}`
               : `Ingediend ${fmtTimestamp(batch.submittedAt)} · ${items.length} ${items.length === 1 ? 'uitgave' : 'uitgaven'}`}
           </div>
+          {!closed && payout && (
+            <div className="text-[11px] text-green">Bijschrijving {euro(payout.amount)} gekoppeld</div>
+          )}
           {closed && rejected.length > 0 && (
             <div className="text-[11px] text-red">{euro(sumAmount(rejected))} afgekeurd</div>
           )}
@@ -336,15 +363,22 @@ function BatchCard({ batch, items, onOpen, onExport }) {
         <span style={{ color: 'var(--color-muted)' }}>›</span>
       </button>
 
-      {!closed && onExport && (
+      {!closed && (
         <div className="flex gap-2 px-4 pb-3">
-          <button
-            onClick={() => onExport(items)}
-            className="flex-1 rounded-xl py-2 text-xs font-semibold"
-            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
-          >
-            Exporteer CSV
-          </button>
+          {onExport && (
+            <button
+              onClick={() => onExport(items)}
+              className="flex-1 rounded-xl py-2 text-xs font-semibold"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+            >
+              Exporteer CSV
+            </button>
+          )}
+          {onLink && (
+            <button onClick={onLink} className="flex-1 btn-accent rounded-xl py-2 text-xs">
+              {payout ? 'Uitbetaling afronden' : 'Uitbetaling koppelen'}
+            </button>
+          )}
         </div>
       )}
     </div>

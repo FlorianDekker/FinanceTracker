@@ -25,6 +25,8 @@ export async function deleteTransaction(id) {
   return db.transactions.delete(id)
 }
 
+// `allKeys` zodat de aanroeper de nieuwe id's kan gebruiken (de import koppelt
+// er bijvoorbeeld meteen een declaratie-uitbetaling aan).
 export async function bulkAddTransactions(txs) {
-  return db.transactions.bulkAdd(txs.map(t => ({ ...t, importedAt: Date.now() })))
+  return db.transactions.bulkAdd(txs.map(t => ({ ...t, importedAt: Date.now() })), { allKeys: true })
 }

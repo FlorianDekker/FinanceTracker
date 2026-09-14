@@ -1,0 +1,329 @@
+import { useMemo, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../../db/db'
+import { Sheet } from '../ui/Sheet'
+import { CategoryPicker } from '../categories/CategoryPicker'
+import { CategoryChoiceRow } from './RejectClaimSheet'
+import { euro, fmtDate, fmtTimestamp } from '../../utils/formatters'
+import { amountsMatch, claimStatusOf, round2, sumAmount } from '../../utils/claims'
+import { closeBatchWithPayout, useBatchItems, useSubmittedBatches } from '../../hooks/useClaims'
+
+const DAGEN = 90
+
+function isoDaysAgo(days) {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Koppelt de bulkbetaling van werk aan een ingediende batch en sluit die af.
+ *
+ * Je komt hier binnen vanaf de batch (dan kies je de bijschrijving) of vanaf een
+ * bijschrijving (dan kies je de batch). Klopt het bedrag niet, dan wijs je aan
+ * welke declaraties zijn afgekeurd en waar die uitgaven alsnog thuishoren.
+ */
+export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx = null, onClose, onDone }) {
+  const [batch, setBatch] = useState(startBatch)
+  const [tx, setTx] = useState(startTx)
+  const [phase, setPhase] = useState('compare')          // compare | reject | categorize
+  const [rejectedIds, setRejectedIds] = useState(() => new Set())
+  const [choices, setChoices] = useState({})             // id -> { category, subcategory }
+  const [picking, setPicking] = useState(null)           // id waarvoor de kiezer openstaat
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  const batches = useSubmittedBatches()
+  const items = useBatchItems(batch?.id ?? null)
+  const cutoff = useMemo(() => isoDaysAgo(DAGEN), [])
+  const credits = useLiveQuery(
+    () => db.transactions.where('date').aboveOrEqual(cutoff).toArray(),
+    [cutoff],
+    null,
+  )
+
+  const expected = round2(batch?.expectedTotal ?? sumAmount(items ?? []))
+  const paid = round2(tx?.amount ?? 0)
+  const diff = round2(expected - paid)
+  const exact = amountsMatch(paid, expected)
+
+  /* ---------------- stap 1: de ontbrekende helft kiezen ---------------- */
+
+  if (!batch) {
+    const keuzes = (batches ?? []).sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0))
+    return (
+      <Sheet open onClose={onClose} title="Koppel aan declaratie-batch" subtitle={tx ? `${euro(paid)} ontvangen` : undefined}>
+        {batches == null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
+        {batches?.length === 0 && (
+          <div className="text-center text-muted py-8 text-sm px-6">Er staat geen ingediende batch open.</div>
+        )}
+        <div className="divide-y divide-border">
+          {keuzes.map(b => (
+            <button key={b.id} onClick={() => setBatch(b)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+              <span className="text-xl shrink-0">💼</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm truncate">{b.name}</div>
+                <div className="text-[11px] text-muted">Ingediend {fmtTimestamp(b.submittedAt)}</div>
+              </div>
+              <span className="text-sm font-semibold tabular-nums">{euro(b.expectedTotal ?? 0)}</span>
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    )
+  }
+
+  if (!tx) {
+    // De beste kandidaat bovenaan: de bijschrijving die het dichtst bij het
+    // verwachte bedrag ligt, uit de laatste 90 dagen.
+    const keuzes = (credits ?? [])
+      .filter(c => c.type === 'credit' && (claimStatusOf(c) === null || c.claimBatchId === batch.id))
+      .sort((a, b) => Math.abs(a.amount - expected) - Math.abs(b.amount - expected))
+    return (
+      <Sheet open onClose={onClose} title="Welke bijschrijving is dit?" subtitle={`${batch.name} · ${euro(expected)} verwacht`}>
+        {credits == null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
+        {credits != null && keuzes.length === 0 && (
+          <div className="text-center text-muted py-8 text-sm px-6">
+            Geen bijschrijvingen in de laatste {DAGEN} dagen. Voeg de betaling eerst toe of importeer je afschrift.
+          </div>
+        )}
+        <div className="divide-y divide-border">
+          {keuzes.map((c, i) => (
+            <button key={c.id} onClick={() => setTx(c)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+              <span className="text-xl shrink-0">{amountsMatch(c.amount, expected) ? '🎯' : '💶'}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm truncate">{c.note || 'Bijschrijving'}</div>
+                <div className="text-[11px] text-muted">
+                  {fmtDate(c.date)}{i === 0 && ' · beste match'}
+                </div>
+              </div>
+              <span className="text-sm font-semibold tabular-nums text-green">+{euro(c.amount)}</span>
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    )
+  }
+
+  /* ---------------- stap 2: bedragen vergelijken ---------------- */
+
+  const rejected = (items ?? []).filter(t => rejectedIds.has(t.id))
+  const rejectedTotal = sumAmount(rejected)
+  const rest = round2(diff - rejectedTotal)
+  const passend = amountsMatch(rejectedTotal, diff)
+
+  const rejections = rejected.map(t => ({
+    tx: t,
+    category: choices[t.id]?.category ?? t.category,
+    subcategory: choices[t.id]?.subcategory ?? t.subcategory ?? '',
+  }))
+  const gewijzigd = rejections.filter(r => r.category !== r.tx.category || r.subcategory !== (r.tx.subcategory ?? '')).length
+
+  function noteFor() {
+    if (paid > expected && !exact) return `${euro(round2(paid - expected))} meer ontvangen dan verwacht`
+    if (!exact && !passend) return `${euro(Math.abs(rest))} verschil niet toegewezen`
+    return ''
+  }
+
+  async function finish() {
+    setBusy(true)
+    setError(null)
+    try {
+      await closeBatchWithPayout({
+        batchId: batch.id,
+        transactionId: tx.id,
+        rejections: phase === 'compare' ? [] : rejections,
+        note: noteFor(),
+      })
+      onDone?.()
+      onClose()
+    } catch (err) {
+      setError(err?.message ?? 'Afsluiten is niet gelukt.')
+      setBusy(false)
+    }
+  }
+
+  function toggleRejected(id) {
+    setRejectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const kop = { title: batch.name, subtitle: `${euro(paid)} ontvangen op ${fmtDate(tx.date)}` }
+
+  if (phase === 'compare') {
+    return (
+      <Sheet
+        open
+        onClose={onClose}
+        {...kop}
+        bodyClassName="p-4"
+        footer={
+          <div className="pb-1">
+            {error && <p className="text-xs text-red mb-2">{error}</p>}
+            <button
+              onClick={exact || paid > expected ? finish : () => setPhase('reject')}
+              disabled={busy}
+              className="w-full btn-accent rounded-2xl py-3.5 text-base disabled:opacity-40"
+            >
+              {busy ? 'Afsluiten…' : exact ? 'Afsluiten' : paid > expected ? 'Toch afsluiten' : 'Verder'}
+            </button>
+          </div>
+        }
+      >
+        <Vergelijking expected={expected} paid={paid} items={items} />
+        <p className="text-xs text-muted mt-3">
+          {exact
+            ? 'Het bedrag klopt precies: alle declaraties worden als uitbetaald gemarkeerd en de bijschrijving telt niet als inkomen.'
+            : paid > expected
+            ? `Je ontving ${euro(round2(paid - expected))} méér dan verwacht. Controleer of hier nog een oude declaratie bij zat; het verschil komt als notitie op de batch.`
+            : `Je ontving ${euro(diff)} minder. In de volgende stap wijs je aan welke declaraties zijn afgekeurd.`}
+        </p>
+      </Sheet>
+    )
+  }
+
+  if (phase === 'reject') {
+    return (
+      <Sheet
+        open
+        onClose={onClose}
+        title={`${euro(diff)} minder ontvangen`}
+        subtitle="Welke zijn afgekeurd?"
+        bodyClassName="pb-2"
+        footer={
+          <div className="pb-1">
+            <div className="flex justify-between text-xs mb-2">
+              <span className="text-muted">geselecteerd</span>
+              <span className={`tabular-nums font-semibold ${passend ? 'text-green' : ''}`}>
+                {euro(rejectedTotal)} van {euro(diff)}
+              </span>
+            </div>
+            {!passend && rejected.length > 0 && (
+              <p className="text-[11px] text-muted mb-2">
+                Er blijft {euro(Math.abs(rest))} over. Sluit je toch af, dan komt dat verschil als notitie op de batch.
+              </p>
+            )}
+            <button
+              onClick={() => setPhase('categorize')}
+              disabled={rejected.length === 0}
+              className="w-full btn-accent rounded-2xl py-3.5 text-base disabled:opacity-40"
+            >
+              {passend ? 'Verder' : 'Toch afsluiten'}
+            </button>
+          </div>
+        }
+      >
+        <div className="divide-y divide-border">
+          {(items ?? []).map(item => {
+            const checked = rejectedIds.has(item.id)
+            return (
+              <button
+                key={item.id}
+                onClick={() => toggleRejected(item.id)}
+                role="checkbox"
+                aria-checked={checked}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left"
+              >
+                <span
+                  className="shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center text-[13px] text-white"
+                  style={checked ? { background: 'var(--color-red)' } : { border: '1.5px solid var(--color-border)' }}
+                >
+                  {checked ? '✓' : ''}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm truncate">{item.note || item.category}</div>
+                  <div className="text-[11px] text-muted">{fmtDate(item.date)}</div>
+                </div>
+                <span className="text-sm font-semibold tabular-nums">{euro(item.amount)}</span>
+              </button>
+            )
+          })}
+        </div>
+      </Sheet>
+    )
+  }
+
+  /* ---------------- stap 3: waar horen de afgekeurde thuis? ---------------- */
+  return (
+    <>
+      <Sheet
+        open
+        onClose={onClose}
+        title="Waar horen deze uitgaven thuis?"
+        subtitle={`${rejected.length} afgekeurd · ${euro(rejectedTotal)}`}
+        bodyClassName="p-4"
+        footer={
+          <div className="pb-1">
+            {error && <p className="text-xs text-red mb-2">{error}</p>}
+            <button
+              onClick={finish}
+              disabled={busy}
+              className="w-full btn-accent rounded-2xl py-3.5 text-base disabled:opacity-40"
+            >
+              {busy
+                ? 'Afronden…'
+                : gewijzigd === 0
+                ? 'Alle afgekeurde houden hun huidige categorie'
+                : `Afronden · ${gewijzigd} gewijzigd`}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-xs text-muted mb-3">
+          Deze uitgaven worden niet vergoed en tellen vanaf nu weer mee in je budget.
+        </p>
+        <div className="space-y-2">
+          {rejections.map(r => (
+            <CategoryChoiceRow
+              key={r.tx.id}
+              label={`${r.tx.note || ''} · ${euro(r.tx.amount)}`}
+              category={r.category}
+              subcategory={r.subcategory}
+              onOpen={() => setPicking(r.tx.id)}
+            />
+          ))}
+        </div>
+      </Sheet>
+
+      <CategoryPicker
+        open={picking != null}
+        value={picking != null ? (choices[picking] ?? rejected.find(t => t.id === picking)) : undefined}
+        onSelect={(cat, sub) => {
+          setChoices(prev => ({ ...prev, [picking]: { category: cat, subcategory: sub } }))
+          setPicking(null)
+        }}
+        onClose={() => setPicking(null)}
+        title="Categorie wijzigen"
+      />
+    </>
+  )
+}
+
+function Vergelijking({ expected, paid, items }) {
+  const verschil = round2(expected - paid)
+  return (
+    <div className="rounded-xl px-4 py-3" style={{ background: 'var(--color-surface-2)' }}>
+      <Regel label={`Verwacht (${items?.length ?? 0} declaraties)`} value={euro(expected)} />
+      <Regel label="Ontvangen" value={euro(paid)} tone="text-green" />
+      <div className="mt-2 pt-2 flex justify-between text-sm font-semibold" style={{ borderTop: '1px solid var(--color-border)' }}>
+        <span>Verschil</span>
+        <span className={`tabular-nums ${verschil === 0 ? '' : verschil > 0 ? 'text-red' : 'text-orange'}`}>
+          {verschil === 0 ? euro(0) : `${verschil > 0 ? '-' : '+'}${euro(Math.abs(verschil))}`}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function Regel({ label, value, tone = '' }) {
+  return (
+    <div className="flex justify-between text-sm py-0.5">
+      <span className="text-muted">{label}</span>
+      <span className={`tabular-nums ${tone}`}>{value}</span>
+    </div>
+  )
+}

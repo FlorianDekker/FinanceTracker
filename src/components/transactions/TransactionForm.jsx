@@ -6,6 +6,8 @@ import { Sheet } from '../ui/Sheet'
 import { recordEvent } from '../../utils/merchantLearning'
 import { CategoryPicker, CategoryIcon } from '../categories/CategoryPicker'
 import { CLAIM_STATUS_LABELS, claimStatusOf } from '../../utils/claims'
+import { useSubmittedBatches } from '../../hooks/useClaims'
+import { LinkPayoutSheet } from '../claims/LinkPayoutSheet'
 
 export function TransactionForm({ onClose, existing }) {
   const { catMap } = useCategories()
@@ -18,6 +20,8 @@ export function TransactionForm({ onClose, existing }) {
   const [claimStatus, setClaimStatus] = useState(claimStatusOf(existing))
   const [saving, setSaving] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [linkOpen, setLinkOpen] = useState(false)
+  const submittedBatches = useSubmittedBatches()
 
   // Alleen een nog niet ingediende declaratie mag je hier aan- en uitzetten;
   // vanaf 'Ingediend' loopt de status via het declaratiescherm.
@@ -180,6 +184,36 @@ export function TransactionForm({ onClose, existing }) {
             )
           )}
 
+          {/* Declaratie-uitbetaling van werk */}
+          {type === 'credit' && existing && claimStatus !== 'payout' && submittedBatches?.length > 0 && (
+            <button
+              onClick={() => setLinkOpen(true)}
+              className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left"
+              style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+            >
+              <span className="text-lg">💼</span>
+              <span className="flex-1 text-sm">
+                Koppel aan declaratie-batch
+                <span className="block text-[11px] text-muted">
+                  {submittedBatches.length} {submittedBatches.length === 1 ? 'batch wacht' : 'batches wachten'} op betaling
+                </span>
+              </span>
+              <span className="text-muted">›</span>
+            </button>
+          )}
+          {type === 'credit' && claimStatus === 'payout' && (
+            <div
+              className="w-full flex items-center gap-3 rounded-lg px-3 py-2"
+              style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+            >
+              <span className="text-lg">💼</span>
+              <span className="flex-1 text-sm">
+                Declaratie-uitbetaling
+                <span className="block text-[11px] text-muted">Telt niet mee als inkomen</span>
+              </span>
+            </div>
+          )}
+
           {/* Note */}
           <label className="block">
             <span className="text-xs text-muted">Omschrijving</span>
@@ -212,6 +246,14 @@ export function TransactionForm({ onClose, existing }) {
           )}
         </div>
       </Sheet>
+
+      {linkOpen && (
+        <LinkPayoutSheet
+          transaction={existing}
+          onClose={() => setLinkOpen(false)}
+          onDone={onClose}
+        />
+      )}
 
       <CategoryPicker
         open={pickerOpen}
