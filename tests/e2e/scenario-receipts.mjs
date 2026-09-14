@@ -310,7 +310,135 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
       `receiptItems=${backup.tables.receiptItems.length}, sleutel in backup=${geheim}; errors=${errsSinds(i).length}`, s)
   }
 
-  /* ================= H8: een AH-PDF uit Bestanden ================= */
+  /* ================= H8: het bonnetjes-overzicht ================= */
+  {
+    const i = logs.length
+    await page.goto(`${BASE}bon`, { waitUntil: 'networkidle' })
+    await sleep(900)
+    const dump = await page.evaluate(DUMP_BON)
+    const tekst = (await page.locator('div.px-4.space-y-3').first().innerText()).replace(/\n+/g, ' | ')
+    const s = await shot('bon-overzicht')
+    // Het drieluik toont het aantal bonnen; "Deze maand" en "Dekking" gaan over
+    // de lopende maand, die in deze test leeg is (de bon staat in februari).
+    const bonnenTegel = new RegExp(`BONNEN \\| ${dump.receipts.length} \\|`, 'i')
+    stap('H8', 'het bonnetjes-overzicht toont het drieluik en de bon in zijn maandgroep',
+      bonnenTegel.test(tekst) && /deze maand/i.test(tekst) && /dekking/i.test(tekst)
+      && /februari 2026/i.test(tekst) && /Lidl/.test(tekst)
+      && /Alle \(1\)/.test(tekst) && /Te controleren \(0\)/.test(tekst)
+      && errsSinds(i).length === 0,
+      `drieluik+lijst="${tekst.slice(0, 260)}"; bonnen in db=${dump.receipts.length}; errors=${errsSinds(i).length}`, s)
+  }
+
+  /* ================= H9: zoeken op productnaam ================= */
+  {
+    const i = logs.length
+    const zoekveld = page.locator('input[placeholder="Zoek product…"]')
+    await zoekveld.fill('zakdoek')
+    await sleep(700)
+    const kop = await page.locator('div.text-\\[11px\\]').first().innerText()
+    const rijen = page.locator('div.card.divide-y > button')
+    const aantal = await rijen.count()
+    const regel = aantal ? (await rijen.first().innerText()).replace(/\n+/g, ' | ') : ''
+    const sA = await shot('zoeken-zakdoek')
+
+    // Zelfde treffer met accenten en hoofdletters: het zoeken normaliseert.
+    await zoekveld.fill('ZAKDÓÉK')
+    await sleep(600)
+    const aantalAccent = await page.locator('div.card.divide-y > button').count()
+
+    await zoekveld.fill('zakdoek')
+    await sleep(500)
+    await rijen.first().click()
+    await sleep(1100)
+    const viewer = (await top().innerText()).replace(/\n+/g, ' | ')
+    const sB = await shot('zoekresultaat-opent-bon')
+    await sluitAlles()
+    await zoekveld.fill('')
+    await sleep(500)
+
+    stap('H9', 'zoeken op "zakdoek" geeft één regel met prijs, groep en de bon erachter',
+      aantal === 1 && aantalAccent === 1 && /Zakdoekjes balsem/.test(regel) && /1,55/.test(regel)
+      && /Verzorging/.test(regel) && /1× gekocht/.test(kop) && /1,55/.test(kop)
+      && /Lidl/.test(viewer) && /Zakdoekjes balsem/.test(viewer) && errsSinds(i).length === 0,
+      `treffers=${aantal} (met accenten/hoofdletters: ${aantalAccent}); kopregel="${kop.replace(/\n+/g, ' ')}"; ` +
+      `regel="${regel}"; viewer="${viewer.slice(0, 120)}"; errors=${errsSinds(i).length}`, [sA, sB].join(', '))
+  }
+
+  /* ================= H10: filterchip Ongekoppeld is leeg na koppelen ================= */
+  {
+    const i = logs.length
+    const chip = page.locator('button', { hasText: /^Ongekoppeld \(\d+\)$/ }).first()
+    const label = await chip.innerText()
+    await chip.click()
+    await sleep(700)
+    const tekst = (await page.locator('div.px-4.space-y-3').first().innerText()).replace(/\n+/g, ' | ')
+    const s = await shot('filter-ongekoppeld-leeg')
+    await page.locator('button', { hasText: /^Alle \(\d+\)$/ }).first().click()
+    await sleep(500)
+    stap('H10', 'de chip "Ongekoppeld" is leeg zodra de bon aan een transactie hangt',
+      // "Lidl (1)" blijft als winkel-chip staan; het gaat erom dat er geen
+      // maandgroep met tegels meer onder staat.
+      label.trim() === 'Ongekoppeld (0)' && /Geen bonnen in dit filter/.test(tekst)
+      && !/februari 2026/i.test(tekst) && errsSinds(i).length === 0,
+      `chip="${label.trim()}"; scherm="${tekst.slice(0, 200)}"; errors=${errsSinds(i).length}`, s)
+  }
+
+  /* ================= H11: grafiek Boodschappen-verdeling ================= */
+  {
+    const i = logs.length
+    await nav(2)
+    const tabSel = 'div.flex.gap-2.py-3 button'
+    const tabs = (await page.locator(tabSel).allInnerTexts()).map(t => t.trim())
+    await page.locator(tabSel, { hasText: /^Boodschappen-verdeling$/ }).first().click()
+    await sleep(1200)
+    // De bonregels staan in februari 2026; de grafiek begint op de lopende maand.
+    for (let k = 0; k < 12; k++) {
+      const kop = (await page.locator('div.safe-top span.font-bold').first().innerText()).trim()
+      if (kop === 'Februari 2026') break
+      await page.locator('div.safe-top button', { hasText: /^‹$/ }).first().click()
+      await sleep(400)
+    }
+    await sleep(900)
+    const maandKop = (await page.locator('div.safe-top span.font-bold').first().innerText()).trim()
+    const tekst = (await page.locator('div.p-4.overflow-hidden').first().innerText()).replace(/\n+/g, ' | ')
+    const groepen = await page.locator('div.card div.divide-y > button').count()
+    const s = await shot('grafiek-boodschappen-verdeling')
+    stap('H11', 'de grafiek Boodschappen-verdeling staat standaard aan en toont twee groepen',
+      tabs.includes('Boodschappen-verdeling') && tabs.includes('Prijzen') && maandKop === 'Februari 2026'
+      && groepen === 2 && /Snacks & snoep/.test(tekst) && /Verzorging/.test(tekst)
+      && /1,69/.test(tekst) && /1,55/.test(tekst)
+      && /Gebaseerd op 1 bon/.test(tekst) && /100% van je boodschappen/.test(tekst)
+      && errsSinds(i).length === 0,
+      `tabs=${JSON.stringify(tabs)}; maand="${maandKop}"; groepen=${groepen}; scherm="${tekst.slice(0, 320)}"; ` +
+      `errors=${errsSinds(i).length}`, s)
+  }
+
+  /* ================= H12: grafiek Prijzen ================= */
+  {
+    const i = logs.length
+    await page.locator('div.flex.gap-2.py-3 button', { hasText: /^Prijzen$/ }).first().click()
+    await sleep(1200)
+    await page.locator('button', { hasText: /^chips great britain$/ }).first().click()
+    await sleep(900)
+    const tekst = (await page.locator('div.p-4.overflow-hidden').first().innerText()).replace(/\n+/g, ' | ')
+    const canvassen = await page.locator('div[data-chart-area] canvas').count()
+    const sA = await shot('grafiek-prijzen')
+
+    await page.locator('button', { hasText: /^Dit jaar$/ }).first().click()
+    await sleep(900)
+    const jaarTekst = (await page.locator('div.p-4.overflow-hidden').first().innerText()).replace(/\n+/g, ' | ')
+    const sB = await shot('grafiek-prijzen-dit-jaar')
+
+    stap('H12', 'Prijzen: de chip "chips great britain" geeft één prijspunt bij Lidl',
+      /Chips Great Britain/i.test(tekst) && /1,69/.test(tekst) && /één keer gekocht/.test(tekst)
+      && /Lidl/.test(tekst) && canvassen === 1
+      && /Meest gekocht/i.test(jaarTekst) && /Meeste euro/i.test(jaarTekst) && /Chips Great Britain/i.test(jaarTekst)
+      && errsSinds(i).length === 0,
+      `scherm="${tekst.slice(0, 260)}"; canvas=${canvassen}; dit jaar="${jaarTekst.slice(0, 220)}"; ` +
+      `errors=${errsSinds(i).length}`, [sA, sB].join(', '))
+  }
+
+  /* ================= H13: een AH-PDF uit Bestanden ================= */
   const pdfSample = path.join(DATA, 'samples', 'ah_bon_2026-09-10.pdf')
   if (fs.existsSync(pdfSample)) {
     const i = logs.length
@@ -326,14 +454,14 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
     const bon = dump.receipts.find(r => r.source === 'pdf')
     const laatste = aanroepen[aanroepen.length - 1]
     const s = await shot('pdf-uitgelezen')
-    stap('H8', 'AH-PDF: pagina gerenderd, tekst uitgelezen en allebei meegestuurd',
+    stap('H13', 'AH-PDF: pagina gerenderd, tekst uitgelezen en allebei meegestuurd',
       !!bon && bon.pages === 1 && bon.heeftPdf && bon.heeftThumb && bon.rawTextLen > 200
       && laatste?.beelden === 1 && laatste?.tekstDelen === 2 && errsSinds(i).length === 0,
       `bon={source:${bon?.source}, pages:${bon?.pages}, pdf bewaard:${bon?.heeftPdf}, thumb:${bon?.heeftThumb}, ` +
       `rawText:${bon?.rawTextLen} tekens, regels:${bon?.items?.length}}; aanroep=${JSON.stringify(laatste)}; ` +
       `errors=${errsSinds(i).length}`, s)
   } else {
-    stap('H8', 'AH-PDF overgeslagen', true, `voorbeeldbestand ontbreekt: ${pdfSample}`)
+    stap('H13', 'AH-PDF overgeslagen', true, `voorbeeldbestand ontbreekt: ${pdfSample}`)
   }
 
   await page.unroute('**/chat/completions')
