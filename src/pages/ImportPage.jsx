@@ -6,11 +6,24 @@ import { getExistingKeys, dedupKey } from '../utils/importHelpers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
 import { recordEvent, bulkRecordEvents } from '../utils/merchantLearning'
 import { euro, fmtDate } from '../utils/formatters'
-import { CATEGORY_MAP, CATEGORIES } from '../constants/categories'
+import { useCategories } from '../hooks/useCategories'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { db } from '../db/db'
 
+// Velden die alleen in het reviewscherm leven en niet in de database horen.
+const REVIEW_ONLY_FIELDS = [
+  'merchant', 'confidence', 'confidencePct', 'possiblySterre', 'needsManual',
+  'remi', 'source', 'eventCount', 'isRecurring', '_originalCategory',
+]
+
+function stripReviewFields(tx) {
+  const out = { ...tx }
+  for (const field of REVIEW_ONLY_FIELDS) delete out[field]
+  return out
+}
+
 export function ImportPage() {
+  const { catMap } = useCategories()
   const [step, setStep] = useState('upload') // upload | review | done
   const [pending, setPending] = useState([])
   const [saved, setSaved] = useState(0)
@@ -49,7 +62,7 @@ export function ImportPage() {
   }
 
   async function handleSave() {
-    const txs = pending.map(({ merchant, confidence, confidencePct, possiblySterre, needsManual, remi, source, eventCount, isRecurring, _originalCategory, ...tx }) => tx)
+    const txs = pending.map(stripReviewFields)
     await bulkAddTransactions(txs)
     // Learn from all reviewed transactions
     await bulkRecordEvents(pending)
@@ -99,7 +112,7 @@ export function ImportPage() {
 
         <div className="divide-y divide-border">
           {pending.map((tx, idx) => {
-            const cat = CATEGORY_MAP[tx.category]
+            const cat = catMap[tx.category]
             const isLowConf = tx.confidence === 'low' || tx.possiblySterre
             return (
               <button
@@ -160,7 +173,6 @@ export function ImportPage() {
 
         {editIdx !== null && (
           <CategoryPicker
-            current={{ category: pending[editIdx].category, subcategory: pending[editIdx].subcategory }}
             merchant={pending[editIdx].merchant}
             remi={pending[editIdx].remi}
             onSelect={(cat, sub) => handleCategoryChange(editIdx, cat, sub)}
@@ -196,7 +208,8 @@ export function ImportPage() {
   )
 }
 
-function CategoryPicker({ current, merchant, remi, onSelect, onClose }) {
+function CategoryPicker({ merchant, remi, onSelect, onClose }) {
+  const { categories } = useCategories()
   const [mainCat, setMainCat] = useState(null)
 
   return (
@@ -222,11 +235,11 @@ function CategoryPicker({ current, merchant, remi, onSelect, onClose }) {
 
         {!mainCat ? (
           <div className="divide-y divide-border">
-            {CATEGORIES.map(cat => (
+            {categories.map(cat => (
               <button
                 key={cat.key}
                 onClick={() => {
-                  if (cat.subs.length === 0) onSelect(cat.key, '')
+                  if (!cat.subs?.length) onSelect(cat.key, '')
                   else setMainCat(cat)
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left"

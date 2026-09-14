@@ -4,11 +4,13 @@ import { db } from '../db/db'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { TransactionForm } from '../components/transactions/TransactionForm'
 import { euro, fmtDate } from '../utils/formatters'
-import { CATEGORY_MAP, MONTHS_LONG } from '../constants/categories'
+import { MONTHS_LONG } from '../constants/categories'
+import { useCategories } from '../hooks/useCategories'
 import { useMonth } from '../hooks/useMonth'
 
 export function TransactionsPage() {
-  const { year, month, animDir, showPill, isCurrentMonth, goMonth, goToNow, animating } = useMonth()
+  const { year, month, animDir, isCurrentMonth, goMonth, goToNow } = useMonth()
+  const { catMap } = useCategories()
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const searchRef = useRef(null)
@@ -128,7 +130,7 @@ export function TransactionsPage() {
           <div className="text-center text-muted py-12 text-sm">Geen transacties</div>
         )}
         {filtered.map(tx => {
-          const cat = CATEGORY_MAP[tx.category]
+          const cat = catMap[tx.category]
           return (
             <button
               key={tx.id}

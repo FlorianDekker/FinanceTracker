@@ -4,14 +4,16 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { CategoryRow } from '../components/dashboard/CategoryRow'
 import { useBudgetStats } from '../hooks/useBudgetStats'
 import { euro, euroParts, fmtDate } from '../utils/formatters'
-import { MONTHS_LONG, CAT_COLORS, CATEGORY_MAP } from '../constants/categories'
+import { MONTHS_LONG } from '../constants/categories'
+import { useCategories } from '../hooks/useCategories'
 import { TransactionForm } from '../components/transactions/TransactionForm'
 import { useMonth } from '../hooks/useMonth'
 import { useSheetGestures } from '../hooks/useSheetGestures'
 import { db } from '../db/db'
 
 export function DashboardPage() {
-  const { year, month, animDir, showPill, isCurrentMonth, goMonth, goToNow } = useMonth()
+  const { year, month, animDir, isCurrentMonth, goMonth, goToNow } = useMonth()
+  const { catMap } = useCategories()
   const [selectedCat, setSelectedCat] = useState(null)
   const [showExpected, setShowExpected] = useState(false)
   const [view, setView] = useState('cards')
@@ -61,7 +63,7 @@ export function DashboardPage() {
       const sorted = [...g.amounts].sort((a, b) => a - b)
       const median = sorted[Math.floor(sorted.length / 2)]
 
-      const cat = CATEGORY_MAP[g.category]
+      const cat = catMap[g.category]
       const sub = cat?.subs?.find(s => s.key === g.subcategory)
 
       recurring.push({
@@ -279,7 +281,8 @@ export function DashboardPage() {
 }
 
 function CategoryCard({ cat, onClick }) {
-  const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+  const { colors } = useCategories()
+  const color = colors[cat.key] ?? '#8E8E93'
   const spent = cat.spent
   const budget = cat.budget
   const ratio = budget > 0 ? Math.min(spent / budget, 1) : (spent > 0 ? 1 : 0)
@@ -319,6 +322,7 @@ function CategoryCard({ cat, onClick }) {
 }
 
 function CategorySheet({ cat, year, month, onClose }) {
+  const { colors } = useCategories()
   const prefix = `${year}-${String(month).padStart(2, '0')}`
   const sheetRef = useSheetGestures(onClose)
   const [editing, setEditing] = useState(null)
@@ -335,8 +339,8 @@ function CategorySheet({ cat, year, month, onClose }) {
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
       <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[75vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
         {/* Colored category header */}
-        <div className="sticky top-0 z-10 rounded-t-3xl" style={{ background: CAT_COLORS[cat.key] ?? '#8E8E93' }}>
-          <div className="px-5 pt-2 pb-4 flex flex-col" style={{ background: `linear-gradient(135deg, ${CAT_COLORS[cat.key] ?? '#8E8E93'}, ${CAT_COLORS[cat.key] ?? '#8E8E93'}CC)` }}>
+        <div className="sticky top-0 z-10 rounded-t-3xl" style={{ background: colors[cat.key] ?? '#8E8E93' }}>
+          <div className="px-5 pt-2 pb-4 flex flex-col" style={{ background: `linear-gradient(135deg, ${colors[cat.key] ?? '#8E8E93'}, ${colors[cat.key] ?? '#8E8E93'}CC)` }}>
             <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

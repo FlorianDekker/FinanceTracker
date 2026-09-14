@@ -1,10 +1,11 @@
 import { BudgetBar } from './BudgetBar'
 import { euro } from '../../utils/formatters'
-import { CAT_COLORS } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 
 export function CategoryRow({ category }) {
+  const { colors } = useCategories()
   const { icon, label, key, budget, remaining, ratio, bufferRatio, overspent } = category
-  const color = CAT_COLORS[key] ?? '#8E8E93'
+  const color = colors[key] ?? '#8E8E93'
 
   return (
     <div className="flex items-center gap-3.5 px-4 py-3.5">

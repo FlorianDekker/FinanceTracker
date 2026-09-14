@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { addTransaction, updateTransaction, deleteTransaction } from '../../hooks/useTransactions'
-import { CATEGORIES } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { today } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { recordEvent } from '../../utils/merchantLearning'
 
 export function TransactionForm({ onClose, existing }) {
+  const { categories, catMap } = useCategories()
   const [date, setDate] = useState(existing?.date ?? today())
   const [amount, setAmount] = useState(existing?.amount ? String(existing.amount).replace('.', ',') : '')
   const [type, setType] = useState(existing?.type ?? 'debit')
@@ -15,7 +16,10 @@ export function TransactionForm({ onClose, existing }) {
   const [saving, setSaving] = useState(false)
   const sheetRef = useSheetGestures(onClose)
 
-  const selectedCat = CATEGORIES.find(c => c.key === category)
+  const selectedCat = catMap[category]
+  // Een gearchiveerde categorie van een bestaande transactie blijft kiesbaar,
+  // anders zou opslaan hem stilzwijgend wissen.
+  const pickable = selectedCat?.archived ? [...categories, selectedCat] : categories
 
   async function handleSave() {
     const amt = parseFloat(String(amount).replace(',', '.'))
@@ -118,7 +122,7 @@ export function TransactionForm({ onClose, existing }) {
               style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
             >
               <option value="">Kies categorie…</option>
-              {CATEGORIES.map(c => (
+              {pickable.map(c => (
                 <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
               ))}
             </select>
