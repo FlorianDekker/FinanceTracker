@@ -299,7 +299,7 @@ return (
 
         <BackupCard onStatus={setImportStatus} />
 
-        {/* Oude bestandsformaten staan ingeklapt: backup/restore is de normale weg */}
+        {/* Ingeklapt: backup/restore is de normale weg, dit is het vangnet */}
         <div className="card overflow-hidden mt-3">
           <button
             onClick={() => setAdvancedOpen(o => !o)}
@@ -308,8 +308,8 @@ return (
           >
             <span className="text-xl">🧰</span>
             <div className="flex-1">
-              <div className="text-sm">Geavanceerd (oude bestanden)</div>
-              <div className="text-xs text-muted">CSV-import/-export en Dictionary.json</div>
+              <div className="text-sm">Geavanceerd</div>
+              <div className="text-xs text-muted">CSV-import/-export, Dictionary.json en alles wissen</div>
             </div>
             <span className="text-sm text-muted">{advancedOpen ? '⌃' : '⌄'}</span>
           </button>

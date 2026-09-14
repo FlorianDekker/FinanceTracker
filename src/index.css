@@ -11,7 +11,7 @@
   --color-surface-solid: #ffffff;
   --color-surface-2: #f0f1f5;
   --color-border: rgba(0, 0, 0, 0.06);
-  --color-muted: #9ca3af;
+  --color-muted: #6b7280; /* 4,83:1 op wit — WCAG AA voor kleine tekst */
   --color-text: #1a1a2e;
   --color-text-secondary: #6b7280;
   --color-text-tertiary: #4b5563;

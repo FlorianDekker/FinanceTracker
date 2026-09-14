@@ -115,11 +115,34 @@ export async function updateCategory(key, patch = {}) {
   })
 }
 
+/**
+ * Hernummert de actieve categorieën naar 0..n-1 zodat er na archiveren of
+ * verwijderen geen gaten in `order` achterblijven. Geeft de rijen terug die
+ * geschreven moeten worden; de aanroeper doet er één bulkPut mee.
+ *
+ * @param rows    alle rijen uit de tabel (ná de wijziging die je doorvoert)
+ * @param pending rijen die sowieso geschreven moeten worden
+ */
+function compactOrderPuts(rows, pending = []) {
+  const puts = new Map(pending.map(r => [r.key, r]))
+  const merged = rows.map(r => puts.get(r.key) ?? r)
+  merged
+    .filter(c => !c.archived)
+    .sort(byOrder)
+    .forEach((row, index) => {
+      if (row.order !== index) puts.set(row.key, { ...row, order: index })
+    })
+  return [...puts.values()]
+}
+
 export async function archiveCategory(key) {
-  const row = await db.categories.get(key)
-  if (!row) throw new Error(`Categorie '${key}' bestaat niet`)
-  if (row.role === 'uncategorized') throw new Error('De restcategorie kan niet gearchiveerd worden')
-  await db.categories.put({ ...row, archived: true })
+  await db.transaction('rw', db.categories, async () => {
+    const rows = await db.categories.toArray()
+    const row = rows.find(c => c.key === key)
+    if (!row) throw new Error(`Categorie '${key}' bestaat niet`)
+    if (row.role === 'uncategorized') throw new Error('De restcategorie kan niet gearchiveerd worden')
+    await db.categories.bulkPut(compactOrderPuts(rows, [{ ...row, archived: true }]))
+  })
 }
 
 export async function restoreCategory(key) {
@@ -134,7 +157,12 @@ export async function deleteCategory(key) {
   if (count > 0) {
     throw new Error(`Deze categorie heeft nog ${count} transactie${count === 1 ? '' : 's'}; verplaats of archiveer ze eerst`)
   }
-  await db.categories.delete(key)
+  await db.transaction('rw', db.categories, async () => {
+    await db.categories.delete(key)
+    const rows = await db.categories.toArray()
+    const puts = compactOrderPuts(rows)
+    if (puts.length) await db.categories.bulkPut(puts)
+  })
 }
 
 // Nieuwe volgorde in één bulkPut (geen flikkering in de UI).
