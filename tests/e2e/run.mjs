@@ -101,13 +101,22 @@ function ruimOp() {
 }
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { ruimOp(); process.exit(130) })
 
-// label -> id, uit src/pages/ChartsPage.jsx (ALL_CHARTS)
-const CHART_IDS = {
-  'Budgettempo': 'budgettempo', 'Spaarpercentage': 'spaarpercentage', 'Verdeling': 'verdeling',
-  'Dagelijks': 'dagelijks', 'Top': 'top', 'Weekdag': 'weekdag', 'Vergelijk': 'vergelijk',
-  'Forecast': 'forecast', 'Subcategorieën': 'subcategorie', 'Detail': 'detail',
-  'Sub trends': 'subtrends', 'Gemiddeld': 'gemiddeld', 'Records': 'records',
-  'Jaar': 'jaar', 'Trends': 'trends',
+// De grafiekenlijst wordt uit de bron van de TARGET-build gelezen in plaats van
+// hier herhaald: zo hoeft deze test niet mee te veranderen als er een grafiek
+// bijkomt of verdwijnt. CHART_IDS (label -> id) is alleen voor de bestandsnamen
+// van de screenshots; VERWACHTE_TABS is het aantal standaard ingeschakelde
+// grafieken en dus het aantal tabs dat de smoke-test moet zien.
+let CHART_IDS = {}
+let VERWACHTE_TABS = 0
+
+function leesCharts(dir) {
+  const kandidaten = ['src/components/charts/registry.js', 'src/pages/ChartsPage.jsx']
+  const bron = kandidaten.map(f => path.join(dir, f)).find(f => fs.existsSync(f))
+  if (!bron) throw new Error('geen grafiekenregistratie gevonden in ' + dir)
+  const blok = fs.readFileSync(bron, 'utf8').match(/ALL_CHARTS = \[([\s\S]*?)\n\]/)
+  if (!blok) throw new Error('ALL_CHARTS niet gevonden in ' + bron)
+  return [...blok[1].matchAll(/\{[^}]*?id:\s*'([^']+)'[^}]*?label:\s*'([^']+)'([^}]*)\}/g)]
+    .map(m => ({ id: m[1], label: m[2], defaultOn: !/defaultOn:\s*false/.test(m[3]) }))
 }
 
 /* ---------------- static server met verwisselbare root ---------------- */
@@ -675,8 +684,8 @@ async function main() {
   for (const [run, s] of [['B', report.runB.smoke], ['C', report.fresh.smoke]].filter(([, s]) => s)) {
     const tabsMetError = s.charts.results.filter(r => r.errors.length)
     const leeg = s.charts.results.filter(r => r.chars === 0 || r.snippet === '<geen render>')
-    add(`${run}-charts-alle-tabs`, s.charts.results.length === 15 && tabsMetError.length === 0 && leeg.length === 0,
-      `${s.charts.results.length} tabs geklikt, ${s.charts.results.filter(r => r.canvases > 0).length} met canvas, ${leeg.length} leeg, ${tabsMetError.length} met errors` +
+    add(`${run}-charts-alle-tabs`, s.charts.results.length === VERWACHTE_TABS && tabsMetError.length === 0 && leeg.length === 0,
+      `${s.charts.results.length}/${VERWACHTE_TABS} tabs geklikt, ${s.charts.results.filter(r => r.canvases > 0).length} met canvas, ${leeg.length} leeg, ${tabsMetError.length} met errors` +
       (tabsMetError.length ? `: ${tabsMetError.map(t => t.label + ' -> ' + JSON.stringify(t.errors)).join(' | ')}` : ''))
     add(`${run}-picker-subcategorie`, s.pickerSub.ok,
       `voorgeselecteerd="${s.pickerSub.preselected}", ${s.pickerSub.optionCount} opties, gewisseld naar "${s.pickerSub.after}", statkaart veranderd=${s.pickerSub.statVeranderd}, errors=${s.pickerSub.errors.length}`)
@@ -705,8 +714,8 @@ async function main() {
     const nb = report.runB.chartsNa
     const metError = nb.results.filter(r => r.errors.length)
     const leeg = nb.results.filter(r => r.chars === 0)
-    add('D12-charts-na-mutaties', nb.results.length === 15 && metError.length === 0 && leeg.length === 0,
-      `${nb.results.length} tabs opnieuw geklikt, ${leeg.length} leeg, ${metError.length} met errors` +
+    add('D12-charts-na-mutaties', nb.results.length === VERWACHTE_TABS && metError.length === 0 && leeg.length === 0,
+      `${nb.results.length}/${VERWACHTE_TABS} tabs opnieuw geklikt, ${leeg.length} leeg, ${metError.length} met errors` +
       (metError.length ? `: ${metError.map(t => t.label + ' -> ' + JSON.stringify(t.errors)).join(' | ')}` : ''))
     const dn = report.runB.dumpNa
     const n1 = report.runB.dash.cards.map(c => `${c.icon} ${c.label} ${c.amount}`)
@@ -760,6 +769,10 @@ let shaBase, shaTarget, code = 1
 try {
   shaBase = bouwWorktree('base', BASE_REF)
   shaTarget = bouwWorktree('target', TARGET_REF)
+  const charts = leesCharts(path.join(WT, 'target'))
+  CHART_IDS = Object.fromEntries(charts.map(c => [c.label, c.id]))
+  VERWACHTE_TABS = charts.filter(c => c.defaultOn).length
+  console.log(`grafieken in ${TARGET_REF}: ${charts.length} geregistreerd, ${VERWACHTE_TABS} standaard aan`)
   if (shaBase === shaTarget) console.log('let op: BASE_REF en TARGET_REF wijzen naar dezelfde commit')
   code = await main()
 } catch (err) {
