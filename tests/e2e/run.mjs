@@ -135,8 +135,15 @@ function leesCharts(dir) {
   if (!bron) throw new Error('geen grafiekenregistratie gevonden in ' + dir)
   const blok = fs.readFileSync(bron, 'utf8').match(/ALL_CHARTS = \[([\s\S]*?)\n\]/)
   if (!blok) throw new Error('ALL_CHARTS niet gevonden in ' + bron)
+  // `needsReceipts: true` telt hier als "standaard uit": die grafieken komen
+  // pas in de tabbalk zodra er een bon in de database staat, en de smoke-runs
+  // draaien op een database zonder bonnen.
   return [...blok[1].matchAll(/\{[^}]*?id:\s*'([^']+)'[^}]*?label:\s*'([^']+)'([^}]*)\}/g)]
-    .map(m => ({ id: m[1], label: m[2], defaultOn: !/defaultOn:\s*false/.test(m[3]) }))
+    .map(m => ({
+      id: m[1],
+      label: m[2],
+      defaultOn: !/defaultOn:\s*false/.test(m[3]) && !/needsReceipts:\s*true/.test(m[3]),
+    }))
 }
 
 /* ---------------- static server met verwisselbare root ---------------- */

@@ -20,7 +20,9 @@ export function ChartsPage() {
 
   // Load chart config from settings
   const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
-  const { order: orderIds, enabled: enabledIds } = mergeChartConfig(chartConfig)
+  // De bon-grafieken staan standaard aan zodra er ten minste één bon is.
+  const heeftBonnen = useLiveQuery(() => db.receipts.count().then(n => n > 0), [], false)
+  const { order: orderIds, enabled: enabledIds } = mergeChartConfig(chartConfig, { hasReceipts: heeftBonnen })
 
   // Build visible tabs in order
   const visibleCharts = orderIds.filter(id => enabledIds.includes(id) && CHART_MAP[id]).map(id => CHART_MAP[id])

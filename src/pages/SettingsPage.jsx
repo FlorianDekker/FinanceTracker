@@ -37,6 +37,8 @@ export function SettingsPage() {
   const accentColor = useLiveQuery(() => db.settings.get('accentColor').then(r => r?.value ?? '#1E3A5F'), [])
   const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
   const chartStats = useLiveQuery(() => db.settings.get('chartStats').then(r => r?.value ?? {}), [])
+  // Bepaalt of de bon-grafieken standaard aanstaan (zelfde regel als ChartsPage).
+  const receiptCount = useLiveQuery(() => db.receipts.count(), [], 0)
   const demoMode = useLiveQuery(() => db.settings.get(DEMO_MODE_KEY).then(r => r?.value === true), [])
   const claimExpiryMonths = useClaimExpiryMonths()
   const claims = useOutstandingClaims()
@@ -45,7 +47,7 @@ export function SettingsPage() {
   // Zelfde samenvoeging als de Grafieken-pagina: onbekende ids eruit, nieuwe
   // grafieken achteraan erbij. Zonder dit blijven nieuwe grafieken onzichtbaar
   // zodra er ooit een chartConfig is opgeslagen.
-  const merged = mergeChartConfig(chartConfig)
+  const merged = mergeChartConfig(chartConfig, { hasReceipts: (receiptCount ?? 0) > 0 })
   const chartOrder = merged.order
   const chartEnabled = new Set(merged.enabled)
 
