@@ -3,9 +3,10 @@ import { Doughnut } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import { euro, euroParts } from '../../utils/formatters'
+import { euro } from '../../utils/formatters'
 import { useCategories } from '../../hooks/useCategories'
 import { chartColors, tooltipTheme } from '../../utils/theme'
+import { StatCard } from '../ui/StatCard'
 
 ChartJS.register(ArcElement, Tooltip)
 
@@ -56,7 +57,6 @@ export function SubcategoryChart({ year, month }) {
   if (noneAmount > 0) subs.push({ key: '_none', label: 'Overig', amount: noneAmount })
 
   const total = subs.reduce((s, c) => s + c.amount, 0)
-  const tp = euroParts(total)
   const colors = subColors(color, subs.length)
 
   const chartData = subs.length > 0 ? {
@@ -112,19 +112,7 @@ export function SubcategoryChart({ year, month }) {
     <div>
       {/* Stat card */}
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            {cat.icon} {cat.label}
-          </div>
-          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{tp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
-          </div>
-          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
-            {subs.length} subcategorieën
-          </div>
-        </div>
+        <StatCard label={`${cat.icon} ${cat.label}`} value={total} delta={`${subs.length} subcategorieën`} />
       </div>
 
       {/* Category selector */}

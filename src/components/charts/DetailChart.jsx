@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import { euro, euroParts } from '../../utils/formatters'
+import { euro } from '../../utils/formatters'
 import { useCategories } from '../../hooks/useCategories'
+import { StatCard } from '../ui/StatCard'
 
 export function DetailChart({ year, month }) {
   // Kan een maand uit het verleden tonen: gearchiveerde categorieen meenemen.
@@ -32,24 +33,11 @@ export function DetailChart({ year, month }) {
     .sort((a, b) => b.total - a.total)
 
   const grandTotal = expenseCats.reduce((s, c) => s + c.total, 0)
-  const tp = euroParts(grandTotal)
 
   return (
     <div>
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            Detail overzicht
-          </div>
-          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{tp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
-          </div>
-          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
-            {expenseCats.length} categorieën
-          </div>
-        </div>
+        <StatCard label="Detail overzicht" value={grandTotal} delta={`${expenseCats.length} categorieën`} />
       </div>
 
       <div className="space-y-3">

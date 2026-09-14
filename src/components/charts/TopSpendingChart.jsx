@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import { euro, euroParts, fmtDate } from '../../utils/formatters'
+import { euro, fmtDate } from '../../utils/formatters'
 import { useCategories } from '../../hooks/useCategories'
 import { TransactionForm } from '../transactions/TransactionForm'
+import { StatCard } from '../ui/StatCard'
 
 export function TopSpendingChart({ year, month }) {
   const { catMap, colors } = useCategories()
@@ -23,24 +24,11 @@ export function TopSpendingChart({ year, month }) {
   const sorted = [...txs].reverse().slice(0, 15)
   const total = sorted.reduce((s, t) => s + t.amount, 0)
   const maxAmount = sorted[0]?.amount ?? 1
-  const tp = euroParts(total)
 
   return (
     <div>
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            Top 15 uitgaven
-          </div>
-          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{tp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
-          </div>
-          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
-            {sorted.length} transacties
-          </div>
-        </div>
+        <StatCard label="Top 15 uitgaven" value={total} delta={`${sorted.length} transacties`} />
       </div>
 
       <div data-chart-area className="card overflow-hidden">

@@ -1,7 +1,8 @@
 import { useBudgetStats } from '../../hooks/useBudgetStats'
-import { euro, euroParts } from '../../utils/formatters'
+import { euro } from '../../utils/formatters'
 import { MONTHS_LONG } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
+import { StatCard } from '../ui/StatCard'
 
 export function CompareChart({ year, month }) {
   const { colors } = useCategories()
@@ -20,7 +21,6 @@ export function CompareChart({ year, month }) {
   const diff = currentTotal - prevTotal
   const diffPct = prevTotal > 0 ? Math.round((diff / prevTotal) * 100) : 0
 
-  const tp = euroParts(currentTotal)
   const maxSpent = Math.max(currentTotal, prevTotal, 1)
 
   // Per-category comparison
@@ -38,19 +38,14 @@ export function CompareChart({ year, month }) {
     <div>
       {/* Summary */}
       <div data-chart-area className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            {MONTHS_LONG[month - 1]} vs {MONTHS_LONG[prevMonth - 1]}
-          </div>
-          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{tp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
-          </div>
-          <div className={`text-sm font-bold tabular-nums mt-1 ${diff > 0 ? 'text-red' : 'text-green'}`} style={{ opacity: 0.7 }}>
-            {diff > 0 ? '+' : ''}{euro(diff)} ({diff > 0 ? '+' : ''}{diffPct}%)
-          </div>
-        </div>
+        <StatCard
+          label={`${MONTHS_LONG[month - 1]} vs ${MONTHS_LONG[prevMonth - 1]}`}
+          value={currentTotal}
+          delta={`${diff > 0 ? '+' : ''}${euro(diff)} (${diff > 0 ? '+' : ''}${diffPct}%)`}
+          deltaTone={diff > 0 ? 'red' : 'green'}
+          deltaOpacity={0.7}
+          deltaMargin="mt-1"
+        />
 
         {/* Comparison bars */}
         <div className="mt-4 space-y-2">

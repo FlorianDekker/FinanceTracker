@@ -8,8 +8,9 @@ import {
 } from 'chart.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import { euro, euroParts, euroCompact } from '../../utils/formatters'
+import { euro, euroCompact } from '../../utils/formatters'
 import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
+import { StatCard } from '../ui/StatCard'
 
 ChartJS.register(BarElement, LinearScale, CategoryScale, Tooltip)
 
@@ -41,7 +42,6 @@ export function WeekdayChart({ year, month }) {
   const total = dayTotals.reduce((s, v) => s + v, 0)
   const maxDay = dayTotals.indexOf(Math.max(...dayTotals))
   const minDay = dayTotals.indexOf(Math.min(...dayTotals.filter(v => v > 0)))
-  const tp = euroParts(total)
 
   const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#1E3A5F'
 
@@ -91,19 +91,7 @@ export function WeekdayChart({ year, month }) {
   return (
     <div>
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            Totaal uitgegeven
-          </div>
-          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{tp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
-          </div>
-          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
-            Duurste dag: {DAYS_NL[maxDay]}
-          </div>
-        </div>
+        <StatCard label="Totaal uitgegeven" value={total} delta={`Duurste dag: ${DAYS_NL[maxDay]}`} />
         <div className="flex justify-between mt-3">
           <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
             {txs.length} transacties

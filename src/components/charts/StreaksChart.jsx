@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import { euro, fmtDate } from '../../utils/formatters'
+import { euro } from '../../utils/formatters'
 
 export function StreaksChart({ year, month }) {
   const prefix = `${year}-${String(month).padStart(2, '0')}`

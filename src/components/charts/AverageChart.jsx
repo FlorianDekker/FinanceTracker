@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import { euro, euroParts } from '../../utils/formatters'
+import { euro } from '../../utils/formatters'
 import { MONTHS } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
+import { StatCard } from '../ui/StatCard'
 
 const now = new Date()
 
@@ -37,24 +38,11 @@ export function AverageChart() {
 
   const totalAvg = cats.reduce((s, c) => s + c.avg, 0)
   const maxAvg = cats[0]?.avg ?? 1
-  const tp = euroParts(totalAvg)
 
   return (
     <div>
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            Gemiddeld per maand
-          </div>
-          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{tp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
-          </div>
-          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
-            {monthCount} maanden in {currentYear}
-          </div>
-        </div>
+        <StatCard label="Gemiddeld per maand" value={totalAvg} delta={`${monthCount} maanden in ${currentYear}`} />
       </div>
 
       <div className="card overflow-hidden">

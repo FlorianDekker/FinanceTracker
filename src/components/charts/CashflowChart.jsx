@@ -10,12 +10,13 @@ import { useState } from 'react'
 import { TransactionForm } from '../transactions/TransactionForm'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCashflowData } from '../../hooks/useCashflowData'
-import { euro, euroParts, euroCompact, fmtDate } from '../../utils/formatters'
+import { euro, euroCompact, fmtDate } from '../../utils/formatters'
 import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { MONTHS, MONTHS_LONG } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
+import { StatCard } from '../ui/StatCard'
 
 ChartJS.register(BarElement, LinearScale, CategoryScale, Tooltip)
 
@@ -126,25 +127,19 @@ export function CashflowChart() {
   }
 
   const currentSaved = current?.saved ?? 0
-  const sp = euroParts(Math.abs(currentSaved))
 
   return (
     <div>
       {/* Stats card */}
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            Gespaard deze maand
-          </div>
-          <div className={`tabular-nums tracking-tight leading-none ${currentSaved >= 0 ? 'text-green' : 'text-red'}`}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{sp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{sp.dec}</span>
-          </div>
-          <div className={`text-sm font-bold tabular-nums mt-0.5 ${currentSaved >= 0 ? 'text-green' : 'text-red'}`} style={{ opacity: 0.3 }}>
-            {avgSavingsRate}%
-          </div>
-        </div>
+        <StatCard
+          label="Gespaard deze maand"
+          value={Math.abs(currentSaved)}
+          tone={currentSaved >= 0 ? 'green' : 'red'}
+          delta={`${avgSavingsRate}%`}
+          deltaTone={currentSaved >= 0 ? 'green' : 'red'}
+          deltaOpacity={0.3}
+        />
         <div className="flex items-center gap-3 mt-3">
           <div className="flex-1 h-[6px] rounded-full" style={{ background: 'var(--color-surface-2)' }}>
             <div

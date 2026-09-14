@@ -10,11 +10,12 @@ import {
 } from 'chart.js'
 import { useState } from 'react'
 import { usePaceData, setPaceExcluded, useDefaultPaceExcluded } from '../../hooks/usePaceData'
-import { euroCompact, euro, euroParts } from '../../utils/formatters'
+import { euroCompact, euro } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
+import { StatCard } from '../ui/StatCard'
 
 ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip)
 
@@ -163,24 +164,14 @@ export function PaceChart({ year, month }) {
     <div>
       {/* Stats card */}
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            {isAhead ? 'Onder budget' : 'Over budget'}
-          </div>
-          {(() => {
-            const p = euroParts(Math.abs(diff))
-            return (
-              <div className={`tabular-nums tracking-tight leading-none ${isAhead ? 'text-green' : 'text-red'}`}>
-                <span className="text-lg font-bold align-top">€</span>
-                <span className="text-4xl font-extrabold">{p.whole}</span>
-                <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{p.dec}</span>
-              </div>
-            )
-          })()}
-          <div className={`text-sm font-bold tabular-nums mt-0.5 ${isAhead ? 'text-green' : 'text-red'}`} style={{ opacity: 0.3 }}>
-            {pctUsed}%
-          </div>
-        </div>
+        <StatCard
+          label={isAhead ? 'Onder budget' : 'Over budget'}
+          value={Math.abs(diff)}
+          tone={isAhead ? 'green' : 'red'}
+          delta={`${pctUsed}%`}
+          deltaTone={isAhead ? 'green' : 'red'}
+          deltaOpacity={0.3}
+        />
         <div className="flex items-center gap-3 mt-3">
           <div className="flex-1 h-[6px] rounded-full" style={{ background: 'var(--color-surface-2)' }}>
             <div

@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { useCategories } from '../../hooks/useCategories'
-import { euro, euroParts, fmtDate } from '../../utils/formatters'
+import { euro, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { TransactionForm } from '../transactions/TransactionForm'
+import { StatCard } from '../ui/StatCard'
 
 const DAYS_NL = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
 
@@ -54,26 +55,16 @@ export function CalendarChart({ year, month }) {
   const totalSpent = spent.reduce((s, v) => s + v, 0)
   const totalEarned = earned.reduce((s, v) => s + v, 0)
 
-  const tp = euroParts(totalSpent)
 
   return (
     <div>
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            Totaal uitgegeven
-          </div>
-          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{tp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
-          </div>
-          {totalEarned > 0 && (
-            <div className="text-sm font-bold tabular-nums mt-0.5 text-green" style={{ opacity: 0.5 }}>
-              +{euro(totalEarned)} terugontvangen
-            </div>
-          )}
-        </div>
+        <StatCard
+          label="Totaal uitgegeven"
+          value={totalSpent}
+          delta={totalEarned > 0 ? `+${euro(totalEarned)} terugontvangen` : null}
+          deltaTone="green"
+        />
       </div>
 
       {/* Day headers */}

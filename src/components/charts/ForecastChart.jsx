@@ -1,6 +1,7 @@
 import { useBudgetStats } from '../../hooks/useBudgetStats'
-import { euro, euroParts } from '../../utils/formatters'
+import { euro } from '../../utils/formatters'
 import { useCategories } from '../../hooks/useCategories'
+import { StatCard } from '../ui/StatCard'
 
 export function ForecastChart({ year, month }) {
   const stats = useBudgetStats(year, month)
@@ -16,7 +17,6 @@ export function ForecastChart({ year, month }) {
   const totalBudget = expenses.reduce((s, c) => s + c.budget, 0)
   const predicted = ratio > 0 ? Math.round(totalSpent / ratio) : totalSpent
   const predictedDiff = predicted - totalBudget
-  const pp = euroParts(predicted)
 
   const cats = expenses
     .map(c => {
@@ -30,19 +30,13 @@ export function ForecastChart({ year, month }) {
   return (
     <div>
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            Verwachte uitgaven einde maand
-          </div>
-          <div className={`tabular-nums tracking-tight leading-none ${predictedDiff > 0 ? 'text-red' : 'text-green'}`}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{pp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{pp.dec}</span>
-          </div>
-          <div className={`text-sm font-bold tabular-nums mt-0.5 ${predictedDiff > 0 ? 'text-red' : 'text-green'}`} style={{ opacity: 0.5 }}>
-            {predictedDiff > 0 ? '+' : ''}{euro(predictedDiff)} vs budget
-          </div>
-        </div>
+        <StatCard
+          label="Verwachte uitgaven einde maand"
+          value={predicted}
+          tone={predictedDiff > 0 ? 'red' : 'green'}
+          delta={`${predictedDiff > 0 ? '+' : ''}${euro(predictedDiff)} vs budget`}
+          deltaTone={predictedDiff > 0 ? 'red' : 'green'}
+        />
         <div className="flex justify-between mt-3">
           <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
             Nu: {euro(totalSpent)} (dag {todayDay})

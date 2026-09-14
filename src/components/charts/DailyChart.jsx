@@ -10,11 +10,12 @@ import { useState } from 'react'
 import { TransactionForm } from '../transactions/TransactionForm'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDailySpending, setDailyIncludeVoorschot } from '../../hooks/useDailySpending'
-import { euro, euroParts, euroCompact, fmtDate } from '../../utils/formatters'
+import { euro, euroCompact, fmtDate } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useCategories } from '../../hooks/useCategories'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { db } from '../../db/db'
+import { StatCard } from '../ui/StatCard'
 
 ChartJS.register(BarElement, LinearScale, CategoryScale, Tooltip)
 
@@ -117,25 +118,12 @@ export function DailyChart({ year, month }) {
     },
   }
 
-  const tp = euroParts(total)
   const progressPct = Math.min(100, (todayDay / daysInMonth) * 100)
 
   return (
     <div>
       <div className="card p-5 mb-4">
-        <div className="text-center mb-1">
-          <div className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-            Totaal uitgegeven
-          </div>
-          <div className="tabular-nums tracking-tight leading-none" style={{ color: 'var(--color-text)' }}>
-            <span className="text-lg font-bold align-top">€</span>
-            <span className="text-4xl font-extrabold">{tp.whole}</span>
-            <span className="text-base font-semibold align-top" style={{ opacity: 0.4 }}>{tp.dec}</span>
-          </div>
-          <div className="text-sm font-bold tabular-nums mt-0.5 text-muted" style={{ opacity: 0.5 }}>
-            Gem. {euro(average)} / dag
-          </div>
-        </div>
+        <StatCard label="Totaal uitgegeven" value={total} delta={`Gem. ${euro(average)} / dag`} />
         <div className="flex items-center gap-3 mt-3">
           <div className="flex-1 h-[6px] rounded-full" style={{ background: 'var(--color-surface-2)' }}>
             <div
