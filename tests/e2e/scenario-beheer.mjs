@@ -39,7 +39,7 @@ export function maakHelpers({ page, OUT, logs, DUMP }) {
   return { shot, top, sluitTop, dump, cat, errsSinds, rijen, opinRij, zorgArchiefOpen, isError }
 }
 
-export async function beheerScenario({ page, OUT, logs, DUMP, dialogs }) {
+export async function beheerScenario({ page, OUT, logs, DUMP, dialogs, aantalCategorieen }) {
   const H = maakHelpers({ page, OUT, logs, DUMP })
   const { shot, top, sluitTop, dump, cat, errsSinds, rijen, opinRij, zorgArchiefOpen } = H
   const stappen = []
@@ -57,7 +57,7 @@ export async function beheerScenario({ page, OUT, logs, DUMP, dialogs }) {
     const titel = await top().locator('div.text-base.font-semibold').first().innerText().catch(() => '')
     const r = await rijen()
     const s = await shot('beheer-open')
-    stap(1, 'beheer-sheet opent', titel === 'Categorieën beheren' && r.length === 16,
+    stap(1, 'beheer-sheet opent', titel === 'Categorieën beheren' && r.length === aantalCategorieen,
       `titel="${titel}", ${r.length} actieve categorieen, errors=${errsSinds(i).length}`, s)
   }
 
@@ -239,7 +239,7 @@ export async function beheerScenario({ page, OUT, logs, DUMP, dialogs }) {
       naHerstel.categories.find(c => c.key === 'huisdieren')?.archived === false
       && naArchief.categories.find(c => c.key === 'huisdieren')?.archived === true
       && !naVerwijder.categories.some(c => c.key === 'huisdieren')
-      && naVerwijder.categories.length === 16 && errsSinds(i).length === 0,
+      && naVerwijder.categories.length === aantalCategorieen && errsSinds(i).length === 0,
       `sectie "Gearchiveerd (1)" zichtbaar=${archZichtbaar} ("${archRegel.split('\n').filter(Boolean).slice(-4).join(' | ')}"); na herstel archived=${naHerstel.categories.find(c => c.key === 'huisdieren')?.archived}; na archiveren archived=${naArchief.categories.find(c => c.key === 'huisdieren')?.archived}; na verwijderen aanwezig=${naVerwijder.categories.some(c => c.key === 'huisdieren')} (${naVerwijder.categories.length} rijen); confirms="${dlg.map(d => d.message).join(' | ')}"; errors=${errsSinds(i).length}`, s)
   }
 

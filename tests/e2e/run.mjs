@@ -31,8 +31,10 @@ import { scenarioE } from './scenario-e.mjs'
 import { scenarioClaims } from './scenario-claims.mjs'
 import { scenarioImport } from './scenario-import.mjs'
 import { scenarioReceipts } from './scenario-receipts.mjs'
-// Alleen voor het verwachte aantal rijen bij een verse installatie (run C).
+// Voor het verwachte aantal categorie-rijen: sinds de onboarding-wizard start
+// elke run (ook run A) met de standaard-template, dus DEFAULT_CATEGORIES.
 import { DEFAULT_CATEGORIES } from '../../src/constants/categories.js'
+const AANTAL_CATEGORIEEN = DEFAULT_CATEGORIES.length
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..')
@@ -70,10 +72,10 @@ if (!['alle', 'beheer', 'e', 'claims', 'import', 'demo', 'bon'].includes(SCENARI
   process.exit(2)
 }
 // De testdata staat bewust buiten de repo (persoonlijke transacties).
-const ontbreekt = doeMigratie ? ['Dictionary.json', 'Transactions.csv'].filter(f => !fs.existsSync(path.join(DATA, f))) : []
+const ontbreekt = doeMigratie ? ['Transactions.csv'].filter(f => !fs.existsSync(path.join(DATA, f))) : []
 if (ontbreekt.length) {
   console.error(`Testdata ontbreekt in ${DATA}: ${ontbreekt.join(', ')}`)
-  console.error('Zet FT_DATA_DIR naar de map met Dictionary.json en Transactions.csv.')
+  console.error('Zet FT_DATA_DIR naar de map met Transactions.csv.')
   process.exit(2)
 }
 
@@ -653,13 +655,15 @@ async function main() {
     const page = ctx.pages()[0] ?? await ctx.newPage()
     attachLogs(page, logs)
     await page.goto(BASE, { waitUntil: 'networkidle' })
-    await page.waitForSelector('text=Begin met Budget Tracker', { timeout: 15000 })
-
-    await page.locator('input[type=file][accept=".json"]').setInputFiles(path.join(DATA, 'Dictionary.json'))
-    await page.waitForSelector('text=Dictionary.json geladen', { timeout: 10000 })
-    await page.locator('input[type=file][accept=".csv,.txt"]').setInputFiles(path.join(DATA, 'Transactions.csv'))
-    await page.waitForSelector('text=transacties geladen', { timeout: 15000 })
-    await page.locator('button', { hasText: 'Begin met Budget Tracker' }).click()
+    // De MigrationPage (met Dictionary.json + Transactions.csv) is in Fase 3
+    // vervangen door de onboarding-wizard. Florians testdata komt nu binnen via
+    // de gewone import: `detectFormat` herkent Transactions.csv als "eigen
+    // export van deze app" en behoudt de categorieen uit het bestand.
+    await doorlopOnboarding(page, 'A', 'Bankbestand importeren')
+    await page.locator('input[type=file]').first().setInputFiles(path.join(DATA, 'Transactions.csv'))
+    await page.waitForSelector('text=nieuwe transacties', { timeout: 30000 })
+    await page.locator('button', { hasText: /^Opslaan$/ }).click()
+    await page.waitForSelector('text=transacties opgeslagen', { timeout: 30000 })
     await sleep(1500)
 
     // handmatige wijziging: Boodschappen -> 333
@@ -705,14 +709,14 @@ async function main() {
     let beheer = []
     if (doeBeheer) {
       console.log(' -- scenario D: categorie-beheer --')
-      beheer = await beheerScenario({ page, OUT, logs, DUMP, dialogs })
+      beheer = await beheerScenario({ page, OUT, logs, DUMP, dialogs, aantalCategorieen: AANTAL_CATEGORIEEN })
     }
 
     let e = { stappen: [] }
     if (doeE) {
       console.log(' -- scenario E: lijst-sheets, charts, swipe, backup, regels --')
       const cdp = await ctx.newCDPSession(page)
-      e = await scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMonth, VERWACHTE_MAAND })
+      e = await scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMonth, VERWACHTE_MAAND, aantalCategorieen: AANTAL_CATEGORIEEN })
     }
 
     let chartsNa = null, dashNa = null, dumpNa = null
@@ -899,8 +903,8 @@ async function main() {
     const n2 = report.runB.dashNa.cards.map(c => `${c.icon} ${c.label} ${c.amount}`)
     add('D12-dashboard-na-mutaties', JSON.stringify(n1) === JSON.stringify(n2),
       `maart 2026 onveranderd na het beheer-scenario (${n2.length} tegels); de handmatige transactie staat in sep 2026`)
-    add('D12-db-eindstand', dn.categories.length === 16 && dn.transactionCount === report.runA.dump.transactionCount + 1,
-      `${dn.categories.length} categorieen (16 verwacht, Huisdier verwijderd), ${dn.transactionCount} transacties (A=${report.runA.dump.transactionCount} + 1 handmatige)`)
+    add('D12-db-eindstand', dn.categories.length === AANTAL_CATEGORIEEN && dn.transactionCount === report.runA.dump.transactionCount + 1,
+      `${dn.categories.length} categorieen (${AANTAL_CATEGORIEEN} verwacht, Huisdier verwijderd), ${dn.transactionCount} transacties (A=${report.runA.dump.transactionCount} + 1 handmatige)`)
     add('D12-console-heleronde', report.runB.logs.filter(isError).length === 0,
       report.runB.logs.filter(isError).length ? JSON.stringify(report.runB.logs.filter(isError), null, 2) : 'geen errors in run B inclusief het hele beheer-scenario')
   }

@@ -5,7 +5,7 @@ import path from 'node:path'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
-export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMonth, VERWACHTE_MAAND }) {
+export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMonth, VERWACHTE_MAAND, aantalCategorieen }) {
   const isError = l => l.type !== 'warning'
   const errsSinds = i => logs.slice(i).filter(isError)
   let n = 0
@@ -289,7 +289,7 @@ export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMon
 
     // schemaVersion groeit mee met Dexie (4 in Fase 1, 5 vanaf de declaraties)
     const backupOk = backup.app === 'FinanceTracker' && backup.schemaVersion >= 4
-      && backup.tables.transactions.length === 253 && backup.tables.categories.length === 16
+      && backup.tables.transactions.length === 253 && backup.tables.categories.length === aantalCategorieen
       && geheimen.length === 0
     stap('E5a', 'backup maken', backupOk,
       `bestand="${download.suggestedFilename()}"; app="${backup.app}", schemaVersion=${backup.schemaVersion}, exportedAt=${backup.exportedAt}; transactions=${backup.tables.transactions.length}, categories=${backup.tables.categories.length}, settings=${backup.tables.settings.length}, merchantHistory=${backup.tables.merchantHistory.length}, rules=${backup.tables.rules.length}; settings-keys=[${settingKeys}]; geheime keys in backup=${geheimen.length} (aiApiKey/aiModel stonden wél in de db); boodschappen-budget=${budgetInBackup.boodschappen}`, sB)
@@ -312,7 +312,7 @@ export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMon
 
     stap('E5b', 'wissen en terugzetten',
       naWis.transactionCount === 0 && naHerstel.transactionCount === 253
-      && naHerstel.categories.length === 16 && b.boodschappen === 333 && errsSinds(i).length === 0,
+      && naHerstel.categories.length === aantalCategorieen && b.boodschappen === 333 && errsSinds(i).length === 0,
       `na wissen ${naWis.transactionCount} transacties (categorieen blijven: ${naWis.categories.length}); samenvattingssheet: "${samenvatting}"; na terugzetten ${naHerstel.transactionCount} transacties, ${naHerstel.categories.length} categorieen, boodschappen=${b.boodschappen}, woning=${b.woning}, reiskosten=${b.reiskosten}, hobbys=${b.hobbys}; ai-keys na replace-restore: ${aiNa.length}; errors=${errsSinds(i).length}`, sC + ', ' + sD + ', ' + sE)
 
     stappen.push({ id: 'E5-secties', titel: 'info', pass: true, bewijs: `secties=${JSON.stringify(secties)}, backupKnop=${backupKnop}, restoreKnop=${restoreKnop}, wisKnop=${wisKnop}`, screenshot: sA })
