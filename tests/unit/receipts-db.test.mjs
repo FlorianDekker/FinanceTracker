@@ -309,7 +309,11 @@ await t('samenvoegen laat transactions.receiptId en receipts.transactionId klopp
   }
 
   const res = await B.restoreBackup(backup, { mode: 'merge' })
-  assert.equal(res.stats.receipts.added, backup.tables.receipts.length, 'alle bonnen uit de backup zijn nieuw')
+  // In de backup staan twee bonnen van dezelfde aankoop (dezelfde winkel,
+  // datum en totaal): de merge-sleutel merchantKey|date|total vat ze samen.
+  assert.equal(backup.tables.receipts.length, 2)
+  assert.equal(res.stats.receipts.added, 1, 'dubbele bon wordt niet nog eens toegevoegd')
+  assert.equal(res.stats.receipts.skipped, 1)
   assert.ok(res.stats.transactions.added >= 1)
 
   const bon = (await db.receipts.toArray()).find(r => r.merchantKey === 'lidl')
