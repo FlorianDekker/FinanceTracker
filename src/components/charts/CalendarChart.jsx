@@ -4,8 +4,7 @@ import { db } from '../../db/db'
 import { euro, fmtDate } from '../../utils/formatters'
 import { TransactionListSheet } from '../transactions/TransactionListSheet'
 import { StatCard } from '../ui/StatCard'
-
-const DAYS_NL = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
+import { DAYS_NL } from '../../constants/categories'
 
 export function CalendarChart({ year, month }) {
   const [selectedDay, setSelectedDay] = useState(null)

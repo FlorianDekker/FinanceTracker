@@ -11,10 +11,9 @@ import { db } from '../../db/db'
 import { euro, euroCompact } from '../../utils/formatters'
 import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { StatCard } from '../ui/StatCard'
+import { DAYS_NL } from '../../constants/categories'
 
 ChartJS.register(BarElement, LinearScale, CategoryScale, Tooltip)
-
-const DAYS_NL = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
 
 export function WeekdayChart({ year, month }) {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
