@@ -171,18 +171,19 @@ export const DEFAULT_CATEGORIES = [
   },
 ]
 
-// @deprecated — tijdelijke re-export tijdens de migratie naar bewerkbare categorieen (Fase 1).
-// Gebruik `useCategories()` voor de actuele lijst uit de database.
-export const CATEGORIES = DEFAULT_CATEGORIES
+// De actuele categorieen komen uit de database via `useCategories()`; alles
+// hieronder beschrijft alleen nog de standaardwaarden voor seeds en migraties.
+const DEFAULT_FIXED_KEYS = new Set(['woning', 'abonnementen', 'vakantie', 'reiskosten'])
 
-// Quick lookup maps
-export const CATEGORY_MAP = Object.fromEntries(DEFAULT_CATEGORIES.map(c => [c.key, c]))
-export const EXPENSE_CATEGORIES = DEFAULT_CATEGORIES.filter(c => c.type === 'expense')
-export const FIXED_CATEGORIES = new Set(['woning', 'abonnementen', 'vakantie', 'reiskosten'])
+// Zoekt de standaarddefinitie van een key op (seed/migratie, niet voor de UI).
+export function defaultCategoryDef(key) {
+  return DEFAULT_CATEGORIES.find(c => c.key === key) ?? null
+}
+
 export const MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec']
 export const MONTHS_LONG = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December']
 
-export const CAT_COLORS = {
+const DEFAULT_COLORS = {
   woning:               '#FF9F0A',
   abonnementen:         '#5E5CE6',
   boodschappen:         '#16A34A',
@@ -218,10 +219,10 @@ export function makeCategoryRow(def, budget = 0) {
     key: def.key,
     label: def.label ?? def.key,
     icon: def.icon ?? DEFAULT_CATEGORY_ICON,
-    color: def.color ?? CAT_COLORS[def.key] ?? DEFAULT_CATEGORY_COLOR,
+    color: def.color ?? DEFAULT_COLORS[def.key] ?? DEFAULT_CATEGORY_COLOR,
     type: def.type ?? 'expense',
     order: def.order ?? 0,
-    isFixed: def.isFixed ?? FIXED_CATEGORIES.has(def.key),
+    isFixed: def.isFixed ?? DEFAULT_FIXED_KEYS.has(def.key),
     archived: def.archived ?? false,
     role: def.role ?? ROLE_BY_KEY[def.key] ?? null,
     subs: Array.isArray(def.subs) ? def.subs : [],

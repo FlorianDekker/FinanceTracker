@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import {
-  CATEGORY_MAP,
+  defaultCategoryDef,
   buildDefaultCategoryRows,
   makeCategoryRow,
   DEFAULT_CATEGORY_COLOR,
@@ -41,7 +41,7 @@ export async function setCategoryBudget(key, budget) {
   await db.transaction('rw', db.categories, async () => {
     const existing = await db.categories.get(key)
     if (existing) await db.categories.put({ ...existing, budget: value })
-    else await db.categories.put(makeCategoryRow(CATEGORY_MAP[key] ?? { key }, value))
+    else await db.categories.put(makeCategoryRow(defaultCategoryDef(key) ?? { key }, value))
   })
 }
 
@@ -60,7 +60,7 @@ export async function seedCategories(dictJson) {
       const row = byKey[key]
       puts.push(row
         ? { ...row, budget }
-        : makeCategoryRow({ order: nextOrder++, ...(CATEGORY_MAP[key] ?? { key }) }, budget))
+        : makeCategoryRow({ order: nextOrder++, ...(defaultCategoryDef(key) ?? { key }) }, budget))
     }
     if (puts.length) await db.categories.bulkPut(puts)
   })
