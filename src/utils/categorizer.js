@@ -47,6 +47,32 @@ function ruleResult(rule, amount, resolve) {
 
 const unmatched = cat => ({ cat, sub: '', confidence: 'low', possiblySterre: false, needsManual: false, matched: false })
 
+// Sleutels die niet (meer) actief zijn belanden in de restbak.
+const makeResolve = (byRole, isActiveKey) => {
+  const uncategorizedKey = byRole?.uncategorized?.key ?? 'overige_kosten'
+  return key => (key && isActiveKey(key) ? key : uncategorizedKey)
+}
+
+// Credits lopen ook langs de regels (bijv. een gedeelde Spotify-betaling via
+// SEPA); daar telt het REMI-veld mee, bij afschrijvingen alleen de tegenpartij.
+function applyRules(rules, merchant, amount, type, remi, resolve) {
+  const m = String(merchant).toLowerCase()
+  const r = String(remi).toLowerCase()
+  const rule = findRule(rules, type === 'credit' ? [m, r] : [m])
+  return rule ? ruleResult(rule, amount, resolve) : null
+}
+
+// Zet een `categorize`-resultaat om naar de vorm die de import-UI verwacht.
+function asLearningResult({ matched, ...rest }) {
+  return {
+    ...rest,
+    source: matched ? 'rules' : 'unknown',
+    confidencePct: matched ? 100 : 0,
+    eventCount: 0,
+    isRecurring: false,
+  }
+}
+
 /**
  * Categoriseert een transactie op basis van naam, bedrag en type.
  *
@@ -57,14 +83,13 @@ const unmatched = cat => ({ cat, sub: '', confidence: 'low', possiblySterre: fal
  */
 export function categorize(merchant, amount, type, remi = '', byRole = null, options = {}) {
   const { isActiveKey = ALWAYS_ACTIVE, rules: userRules = [] } = options
-  const m = String(merchant).toLowerCase()
-  const r = String(remi).toLowerCase()
+  const resolve = makeResolve(byRole, isActiveKey)
 
-  const uncategorizedKey = byRole?.uncategorized?.key ?? 'overige_kosten'
-  const resolve = key => (key && isActiveKey(key) ? key : uncategorizedKey)
-
-  // Gebruikersregels gaan vóór de ingebouwde regels.
-  const rules = userRules.length ? [...userRules, ...RULES] : RULES
+  // Eigen herkenningsregels winnen altijd — ook van de salarisdrempel.
+  if (userRules.length) {
+    const own = applyRules(userRules, merchant, amount, type, remi, resolve)
+    if (own) return own
+  }
 
   if (type === 'credit' && amount >= SALARY_THRESHOLD) {
     return {
@@ -73,20 +98,26 @@ export function categorize(merchant, amount, type, remi = '', byRole = null, opt
     }
   }
 
-  // Credits lopen ook langs de regels (bijv. een gedeelde Spotify-betaling via
-  // SEPA); daar telt het REMI-veld mee, bij afschrijvingen alleen de tegenpartij.
-  const rule = findRule(rules, type === 'credit' ? [m, r] : [m])
-  if (rule) return ruleResult(rule, amount, resolve)
+  const rule = applyRules(RULES, merchant, amount, type, remi, resolve)
+  if (rule) return rule
 
   if (type === 'credit') return unmatched(resolve(byRole?.transfer?.key ?? 'bankoverschrijving'))
-  return unmatched(uncategorizedKey)
+  return unmatched(resolve(null))
 }
 
 /**
- * Async wrapper: eerst de geleerde merchant-historie, daarna de regels.
+ * Async wrapper. Volgorde: eigen herkenningsregels → geleerde merchant-historie
+ * → ingebouwde regels. De gebruiker heeft zijn eigen regels expliciet ingesteld,
+ * dus die mogen nooit door de leerdata overruled worden.
  */
 export async function categorizeWithLearning(merchant, amount, type, remi = '', byRole = null, options = {}) {
-  const { isActiveKey = ALWAYS_ACTIVE } = options
+  const { isActiveKey = ALWAYS_ACTIVE, rules: userRules = [] } = options
+
+  if (userRules.length) {
+    const own = applyRules(userRules, merchant, amount, type, remi, makeResolve(byRole, isActiveKey))
+    if (own) return asLearningResult(own)
+  }
+
   const prediction = await predictCategory(merchant, amount, type, remi, isActiveKey)
 
   if (prediction) {
@@ -119,13 +150,6 @@ export async function categorizeWithLearning(merchant, amount, type, remi = '', 
     }
   }
 
-  // Terugvallen op de regels
-  const { matched, ...rest } = categorize(merchant, amount, type, remi, byRole, options)
-  return {
-    ...rest,
-    source: matched ? 'rules' : 'unknown',
-    confidencePct: matched ? 100 : 0,
-    eventCount: 0,
-    isRecurring: false,
-  }
+  // Terugvallen op de regels (eigen regels zijn hierboven al afgehandeld)
+  return asLearningResult(categorize(merchant, amount, type, remi, byRole, options))
 }
