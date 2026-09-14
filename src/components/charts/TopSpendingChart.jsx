@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { euro, euroParts, fmtDate } from '../../utils/formatters'
-import { CATEGORY_MAP, CAT_COLORS } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { TransactionForm } from '../transactions/TransactionForm'
 
 export function TopSpendingChart({ year, month }) {
+  const { catMap, colors } = useCategories()
   const [editing, setEditing] = useState(null)
   const prefix = `${year}-${String(month).padStart(2, '0')}`
 
@@ -44,8 +45,8 @@ export function TopSpendingChart({ year, month }) {
 
       <div data-chart-area className="card overflow-hidden">
         {sorted.map((tx, i) => {
-          const cat = CATEGORY_MAP[tx.category]
-          const color = CAT_COLORS[tx.category] ?? '#8E8E93'
+          const cat = catMap[tx.category]
+          const color = colors[tx.category] ?? '#8E8E93'
           const barWidth = Math.max((tx.amount / maxAmount) * 100, 3)
 
           return (

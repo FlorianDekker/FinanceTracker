@@ -1,8 +1,10 @@
 import { useBudgetStats } from '../../hooks/useBudgetStats'
 import { euro, euroParts } from '../../utils/formatters'
-import { CAT_COLORS, MONTHS_LONG } from '../../constants/categories'
+import { MONTHS_LONG } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 
 export function CompareChart({ year, month }) {
+  const { colors } = useCategories()
   // Current month
   const currentStats = useBudgetStats(year, month)
   // Previous month
@@ -72,7 +74,7 @@ export function CompareChart({ year, month }) {
       {/* Per-category comparison */}
       <div className="card overflow-hidden">
         {compared.map((cat, i) => {
-          const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+          const color = colors[cat.key] ?? '#8E8E93'
           const catDiff = cat.currentSpent - cat.prevSpent
           const catMax = Math.max(cat.currentSpent, cat.prevSpent, 1)
 

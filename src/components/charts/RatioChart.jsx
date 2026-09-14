@@ -2,17 +2,18 @@ import { Doughnut } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js'
 import { useBudgetStats } from '../../hooks/useBudgetStats'
 import { euro, euroParts } from '../../utils/formatters'
-import { FIXED_CATEGORIES } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { chartColors, tooltipTheme } from '../../utils/theme'
 
 ChartJS.register(ArcElement, Tooltip)
 
 export function RatioChart({ year, month }) {
   const stats = useBudgetStats(year, month)
+  const { fixedKeys } = useCategories()
 
   const expenses = stats.filter(c => c.type === 'expense' && c.spent > 0)
-  const fixed = expenses.filter(c => FIXED_CATEGORIES.has(c.key))
-  const variable = expenses.filter(c => !FIXED_CATEGORIES.has(c.key))
+  const fixed = expenses.filter(c => fixedKeys.has(c.key))
+  const variable = expenses.filter(c => !fixedKeys.has(c.key))
 
   const fixedTotal = fixed.reduce((s, c) => s + c.spent, 0)
   const variableTotal = variable.reduce((s, c) => s + c.spent, 0)

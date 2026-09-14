@@ -4,12 +4,10 @@ import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { euro, euroParts } from '../../utils/formatters'
-import { CATEGORIES, CAT_COLORS, CATEGORY_MAP } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { chartColors, tooltipTheme } from '../../utils/theme'
 
 ChartJS.register(ArcElement, Tooltip)
-
-const EXPENSE_CATS_WITH_SUBS = CATEGORIES.filter(c => c.type === 'expense' && c.subs.length > 0)
 
 // Generate distinct colors for subcategories based on parent color
 function subColors(baseColor, count) {
@@ -22,24 +20,28 @@ function subColors(baseColor, count) {
 }
 
 export function SubcategoryChart({ year, month }) {
-  const [selectedCat, setSelectedCat] = useState(EXPENSE_CATS_WITH_SUBS[0]?.key ?? '')
+  // Picker toont actieve categorieen; catMap/colors resolven ook gearchiveerde.
+  const { categories, catMap, colors: catColors } = useCategories()
+  const [selectedCat, setSelectedCat] = useState('')
   const prefix = `${year}-${String(month).padStart(2, '0')}`
+
+  const catsWithSubs = categories.filter(c => c.type === 'expense' && c.subs?.length > 0)
+  const activeCat = selectedCat || catsWithSubs[0]?.key || ''
 
   const txs = useLiveQuery(
     () => db.transactions.where('date').startsWith(prefix)
-      .filter(t => t.type === 'debit' && t.category === selectedCat)
+      .filter(t => t.type === 'debit' && t.category === activeCat)
       .toArray(),
-    [prefix, selectedCat]
+    [prefix, activeCat]
   )
 
-  const cat = CATEGORY_MAP[selectedCat]
-  const color = CAT_COLORS[selectedCat] ?? '#8E8E93'
+  const cat = catMap[activeCat]
+  const color = catColors[activeCat] ?? '#8E8E93'
 
   if (!txs || !cat) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
   // Group by subcategory
   const subMap = new Map()
-  let noSubTotal = 0
   for (const tx of txs) {
     const subKey = tx.subcategory || '_none'
     subMap.set(subKey, (subMap.get(subKey) ?? 0) + tx.amount)
@@ -56,7 +58,6 @@ export function SubcategoryChart({ year, month }) {
   const total = subs.reduce((s, c) => s + c.amount, 0)
   const tp = euroParts(total)
   const colors = subColors(color, subs.length)
-  const maxAmount = subs[0]?.amount ?? 1
 
   const chartData = subs.length > 0 ? {
     labels: subs.map(s => s.label),
@@ -129,12 +130,12 @@ export function SubcategoryChart({ year, month }) {
       {/* Category selector */}
       <div className="card mb-4">
         <select
-          value={selectedCat}
+          value={activeCat}
           onChange={e => setSelectedCat(e.target.value)}
           className="w-full px-4 py-3 rounded-2xl appearance-none font-semibold text-sm"
           style={{ fontSize: '16px', background: 'var(--color-surface)', color: 'var(--color-text)', border: 'none' }}
         >
-          {EXPENSE_CATS_WITH_SUBS.map(c => (
+          {catsWithSubs.map(c => (
             <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
           ))}
         </select>

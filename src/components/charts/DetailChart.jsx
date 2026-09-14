@@ -1,9 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { euro, euroParts } from '../../utils/formatters'
-import { CATEGORIES, CAT_COLORS } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 
 export function DetailChart({ year, month }) {
+  // Kan een maand uit het verleden tonen: gearchiveerde categorieen meenemen.
+  const { allCategories, colors } = useCategories()
   const prefix = `${year}-${String(month).padStart(2, '0')}`
 
   const txs = useLiveQuery(
@@ -24,14 +26,13 @@ export function DetailChart({ year, month }) {
     subTotals.set(subKey, (subTotals.get(subKey) ?? 0) + tx.amount)
   }
 
-  const expenseCats = CATEGORIES
+  const expenseCats = allCategories
     .filter(c => c.type === 'expense' && (catTotals.get(c.key) ?? 0) > 0)
     .map(c => ({ ...c, total: catTotals.get(c.key) ?? 0 }))
     .sort((a, b) => b.total - a.total)
 
   const grandTotal = expenseCats.reduce((s, c) => s + c.total, 0)
   const tp = euroParts(grandTotal)
-  const maxTotal = expenseCats[0]?.total ?? 1
 
   return (
     <div>
@@ -53,7 +54,7 @@ export function DetailChart({ year, month }) {
 
       <div className="space-y-3">
         {expenseCats.map(cat => {
-          const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+          const color = colors[cat.key] ?? '#8E8E93'
           const catPct = grandTotal > 0 ? Math.round((cat.total / grandTotal) * 100) : 0
 
           // Get subcategories for this category

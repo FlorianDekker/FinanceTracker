@@ -9,7 +9,7 @@ import {
 import { useYearGrid } from '../../hooks/useYearGrid'
 import { euro, euroParts, euroCompact } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
-import { EXPENSE_CATEGORIES, MONTHS, CAT_COLORS } from '../../constants/categories'
+import { MONTHS } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 
 ChartJS.register(BarElement, LinearScale, CategoryScale, Tooltip)
@@ -19,16 +19,18 @@ const now = new Date()
 
 export function StackedChart({ year }) {
   const data = useYearGrid(year)
-  const { categories } = useCategories()
+  // Jaaroverzicht: gearchiveerde categorieen moeten zichtbaar blijven.
+  const { allCategories, colors } = useCategories()
 
   if (!data) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
   const { matrix, monthTotals } = data
   const currentMonth = year === now.getFullYear() ? now.getMonth() : 11
   const visibleMonths = MONTHS.slice(0, currentMonth + 1)
+  const expenseCats = allCategories.filter(c => c.type === 'expense')
 
   // Sort by total spend so biggest category is at the bottom (most visible)
-  const ranked = EXPENSE_CATEGORIES
+  const ranked = expenseCats
     .map(cat => ({
       ...cat,
       total: (matrix[cat.key] ?? []).slice(0, currentMonth + 1).reduce((s, v) => s + Math.max(0, v), 0),
@@ -39,7 +41,7 @@ export function StackedChart({ year }) {
     labels: visibleMonths,
     datasets: ranked.map((cat, i) => {
       const row = (matrix[cat.key] ?? []).slice(0, currentMonth + 1)
-      const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+      const color = colors[cat.key] ?? '#8E8E93'
       const isLast = i === ranked.length - 1
       const isFirst = i === 0
       return {
@@ -162,7 +164,7 @@ export function StackedChart({ year }) {
       {/* Category legend sorted by total */}
       <div className="mt-4 space-y-2">
         {legendCats.filter(c => c.total > 0).map(cat => {
-          const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+          const color = colors[cat.key] ?? '#8E8E93'
           const pct = yearTotal > 0 ? (cat.total / yearTotal) * 100 : 0
           return (
             <div key={cat.key} className="relative overflow-hidden rounded-xl py-2.5 px-3 flex items-center gap-3">

@@ -12,13 +12,13 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { euro, euroCompact } from '../../utils/formatters'
-import { CATEGORIES, CAT_COLORS, MONTHS } from '../../constants/categories'
+import { MONTHS } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 
 ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip)
 
 const now = new Date()
-const EXPENSE_CATS_WITH_SUBS = CATEGORIES.filter(c => c.type === 'expense' && c.subs.length > 0)
 
 // Distinct colors that work well together regardless of parent category
 const DISTINCT_SUB_COLORS = [
@@ -39,7 +39,12 @@ function getSubColors(count) {
 }
 
 export function SubTrendsChart() {
-  const [selectedCat, setSelectedCat] = useState(EXPENSE_CATS_WITH_SUBS[0]?.key ?? '')
+  // Jaaroverzicht: gearchiveerde categorieen moeten kiesbaar en zichtbaar blijven.
+  const { allCategories, catMap } = useCategories()
+  const [selectedCat, setSelectedCat] = useState('')
+
+  const catsWithSubs = allCategories.filter(c => c.type === 'expense' && c.subs?.length > 0)
+  const activeCat = selectedCat || catsWithSubs[0]?.key || ''
 
   const year = now.getFullYear()
   const currentMonth = now.getMonth()
@@ -49,8 +54,7 @@ export function SubTrendsChart() {
     [year]
   )
 
-  const cat = CATEGORIES.find(c => c.key === selectedCat)
-  const color = CAT_COLORS[selectedCat] ?? '#8E8E93'
+  const cat = catMap[activeCat]
 
   if (!txs || !cat) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
@@ -63,7 +67,7 @@ export function SubTrendsChart() {
   subMonthly['_none'] = Array(currentMonth + 1).fill(0)
 
   for (const tx of txs) {
-    if (tx.type !== 'debit' || tx.category !== selectedCat) continue
+    if (tx.type !== 'debit' || tx.category !== activeCat) continue
     const m = parseInt(tx.date.slice(5, 7), 10) - 1
     if (m > currentMonth) continue
     const subKey = tx.subcategory || '_none'
@@ -152,12 +156,12 @@ export function SubTrendsChart() {
       {/* Category selector */}
       <div className="card mb-4">
         <select
-          value={selectedCat}
+          value={activeCat}
           onChange={e => setSelectedCat(e.target.value)}
           className="w-full px-4 py-3 rounded-2xl appearance-none font-semibold text-sm"
           style={{ fontSize: '16px', background: 'var(--color-surface)', color: 'var(--color-text)', border: 'none' }}
         >
-          {EXPENSE_CATS_WITH_SUBS.map(c => (
+          {catsWithSubs.map(c => (
             <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
           ))}
         </select>

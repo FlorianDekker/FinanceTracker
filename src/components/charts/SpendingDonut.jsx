@@ -1,8 +1,8 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState } from 'react'
 import { Doughnut } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CAT_COLORS } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { useBudgetStats } from '../../hooks/useBudgetStats'
 import { euro, euroParts, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
@@ -15,6 +15,7 @@ ChartJS.register(ArcElement, Tooltip)
 
 export function SpendingDonut({ year, month }) {
   const stats = useBudgetStats(year, month)
+  const { colors } = useCategories()
   const [selectedCat, setSelectedCat] = useState(null)
   const chartRef = useRef(null)
   const catsRef = useRef([])
@@ -40,7 +41,7 @@ export function SpendingDonut({ year, month }) {
     labels: cats.map(c => c.label),
     datasets: [{
       data: cats.map(c => c.spent),
-      backgroundColor: cats.map(c => CAT_COLORS[c.key] ?? '#8E8E93'),
+      backgroundColor: cats.map(c => colors[c.key] ?? '#8E8E93'),
       borderWidth: 0,
       hoverOffset: 8,
     }],
@@ -109,7 +110,7 @@ export function SpendingDonut({ year, month }) {
           if (tailX < minX) { tailX = minX; endX = Math.max(endX, tailX + 16) }
         }
 
-        const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+        const color = colors[cat.key] ?? '#8E8E93'
 
         ctx.save()
         // Line from arc to outside
@@ -165,7 +166,6 @@ export function SpendingDonut({ year, month }) {
     },
   }
 
-  const tp = euroParts(total)
 
   return (
     <div>
@@ -177,7 +177,7 @@ export function SpendingDonut({ year, month }) {
         <div className="space-y-1">
           {cats.map(c => {
             const pct = total > 0 ? (c.spent / total) * 100 : 0
-            const color = CAT_COLORS[c.key] ?? '#8E8E93'
+            const color = colors[c.key] ?? '#8E8E93'
             return (
               <button
                 key={c.key}
@@ -226,7 +226,7 @@ export function SpendingDonut({ year, month }) {
           cat={selectedCat}
           year={year}
           month={month}
-          color={CAT_COLORS[selectedCat.key] ?? '#8E8E93'}
+          color={colors[selectedCat.key] ?? '#8E8E93'}
           onClose={() => setSelectedCat(null)}
         />
       )}

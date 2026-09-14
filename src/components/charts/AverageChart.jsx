@@ -1,22 +1,25 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { euro, euroParts } from '../../utils/formatters'
-import { EXPENSE_CATEGORIES, CAT_COLORS, MONTHS } from '../../constants/categories'
+import { MONTHS } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 
 const now = new Date()
 
 export function AverageChart() {
   const txs = useLiveQuery(() => db.transactions.toArray(), [])
+  // Jaaroverzicht: gearchiveerde categorieen moeten zichtbaar blijven.
+  const { allCategories, colors } = useCategories()
 
   if (!txs) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
   const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth()
+  const expenseCats = allCategories.filter(c => c.type === 'expense')
 
   // Count months with data
   const monthSet = new Set()
   const catTotals = {}
-  for (const cat of EXPENSE_CATEGORIES) catTotals[cat.key] = 0
+  for (const cat of expenseCats) catTotals[cat.key] = 0
 
   for (const tx of txs) {
     if (tx.type !== 'debit' || tx.category === 'bankoverschrijving') continue
@@ -27,7 +30,7 @@ export function AverageChart() {
   }
 
   const monthCount = Math.max(monthSet.size, 1)
-  const cats = EXPENSE_CATEGORIES
+  const cats = expenseCats
     .map(cat => ({ ...cat, total: catTotals[cat.key] ?? 0, avg: Math.round((catTotals[cat.key] ?? 0) / monthCount) }))
     .filter(c => c.total > 0)
     .sort((a, b) => b.avg - a.avg)
@@ -56,7 +59,7 @@ export function AverageChart() {
 
       <div className="card overflow-hidden">
         {cats.map((cat, i) => {
-          const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+          const color = colors[cat.key] ?? '#8E8E93'
           const barPct = Math.max((cat.avg / maxAvg) * 100, 2)
           return (
             <div

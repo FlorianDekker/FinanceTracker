@@ -1,10 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { euro, fmtDate } from '../../utils/formatters'
-import { CATEGORY_MAP, MONTHS_LONG } from '../../constants/categories'
+import { MONTHS_LONG } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 
 export function RecordsChart() {
   const txs = useLiveQuery(() => db.transactions.toArray(), [])
+  const { catMap } = useCategories()
 
   if (!txs) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
@@ -14,7 +16,7 @@ export function RecordsChart() {
 
   // Biggest single transaction
   const biggest = debits.reduce((max, t) => t.amount > max.amount ? t : max, debits[0])
-  const biggestCat = CATEGORY_MAP[biggest.category]
+  const biggestCat = catMap[biggest.category]
 
   // Most expensive day
   const dayMap = new Map()
@@ -55,7 +57,7 @@ export function RecordsChart() {
   for (const [key, count] of catCount) {
     if (count > topCatCount) { topCatKey = key; topCatCount = count }
   }
-  const topCat = CATEGORY_MAP[topCatKey]
+  const topCat = catMap[topCatKey]
 
   // Most spent category (total)
   const catSpend = new Map()
@@ -67,7 +69,7 @@ export function RecordsChart() {
   for (const [key, amt] of catSpend) {
     if (amt > topSpendAmt) { topSpendKey = key; topSpendAmt = amt }
   }
-  const topSpendCat = CATEGORY_MAP[topSpendKey]
+  const topSpendCat = catMap[topSpendKey]
 
   // Total transactions & total spent
   const totalSpent = debits.reduce((s, t) => s + t.amount, 0)

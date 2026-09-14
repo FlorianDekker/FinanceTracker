@@ -6,13 +6,13 @@ import {
   CategoryScale,
   Tooltip,
 } from 'chart.js'
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { TransactionForm } from '../transactions/TransactionForm'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useDailySpending, setDailyIncludeVoorschot } from '../../hooks/useDailySpending'
 import { euro, euroParts, euroCompact, fmtDate } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
-import { CATEGORY_MAP } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { db } from '../../db/db'
 
@@ -210,6 +210,7 @@ export function DailyChart({ year, month }) {
 }
 
 function DayTransactionSheet({ day, year, month, onClose }) {
+  const { catMap } = useCategories()
   const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   const sheetRef = useSheetGestures(onClose)
   const [editing, setEditing] = useState(null)
@@ -217,9 +218,9 @@ function DayTransactionSheet({ day, year, month, onClose }) {
   const txs = useLiveQuery(
     () => db.transactions
       .where('date').equals(dateStr)
-      .filter(t => t.type === 'debit' && CATEGORY_MAP[t.category]?.type === 'expense')
+      .filter(t => t.type === 'debit' && catMap[t.category]?.type === 'expense')
       .sortBy('amount'),
-    [dateStr]
+    [dateStr, catMap]
   )
   const sorted = txs ? [...txs].reverse() : null
   const dayTotal = sorted?.reduce((s, t) => s + t.amount, 0) ?? 0
@@ -244,7 +245,7 @@ function DayTransactionSheet({ day, year, month, onClose }) {
         {sorted === null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
         {sorted?.length === 0 && <div className="text-center text-muted py-8 text-sm">Geen uitgaven op deze dag</div>}
         {sorted?.map(tx => {
-          const cat = CATEGORY_MAP[tx.category]
+          const cat = catMap[tx.category]
           return (
             <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 text-left" style={{ borderBottom: '1px solid var(--color-border)' }}>
               <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💸'}</span>

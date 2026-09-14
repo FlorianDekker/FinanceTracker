@@ -13,7 +13,7 @@ import {
 import { useYearGrid } from '../../hooks/useYearGrid'
 import { euro, euroCompact } from '../../utils/formatters'
 import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
-import { EXPENSE_CATEGORIES, MONTHS, CAT_COLORS } from '../../constants/categories'
+import { MONTHS } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 
 ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip, Legend)
@@ -23,7 +23,8 @@ const now = new Date()
 
 export function TrendsChart({ year }) {
   const data = useYearGrid(year)
-  const { categories } = useCategories()
+  // Jaaroverzicht: gearchiveerde categorieen moeten zichtbaar blijven.
+  const { allCategories, colors } = useCategories()
   const [hidden, setHidden] = useState(new Set())
 
   if (!data) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
@@ -31,10 +32,10 @@ export function TrendsChart({ year }) {
   const { matrix } = data
   const currentMonth = year === now.getFullYear() ? now.getMonth() : 11
   const visibleMonths = MONTHS.slice(0, currentMonth + 1)
-  const budgetMap = Object.fromEntries(categories.map(c => [c.key, c.budget]))
+  const expenseCats = allCategories.filter(c => c.type === 'expense')
 
   // Sort categories by total spend (descending)
-  const ranked = EXPENSE_CATEGORIES
+  const ranked = expenseCats
     .map(cat => ({
       ...cat,
       total: (matrix[cat.key] ?? []).slice(0, currentMonth + 1).reduce((s, v) => s + Math.max(0, v), 0),
@@ -49,14 +50,14 @@ export function TrendsChart({ year }) {
     })
   }
 
-  // Use stable EXPENSE_CATEGORIES order for datasets so lines don't swap
+  // Use stable expenseCats order for datasets so lines don't swap
   const chartData = {
     labels: visibleMonths,
-    datasets: EXPENSE_CATEGORIES
+    datasets: expenseCats
       .filter(cat => !hidden.has(cat.key))
       .map(cat => {
         const row = (matrix[cat.key] ?? []).slice(0, currentMonth + 1)
-        const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+        const color = colors[cat.key] ?? '#8E8E93'
         return {
           label: cat.label,
           data: row.map(v => Math.max(0, v)),
@@ -135,7 +136,7 @@ export function TrendsChart({ year }) {
       <div className="card p-3 mb-4 grid grid-cols-3 gap-1.5">
         {ranked.map(cat => {
           const isHidden = hidden.has(cat.key)
-          const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+          const color = colors[cat.key] ?? '#8E8E93'
           return (
             <button
               key={cat.key}

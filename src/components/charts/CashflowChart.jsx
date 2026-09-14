@@ -6,19 +6,19 @@ import {
   CategoryScale,
   Tooltip,
 } from 'chart.js'
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { TransactionForm } from '../transactions/TransactionForm'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCashflowData } from '../../hooks/useCashflowData'
 import { euro, euroParts, euroCompact, fmtDate } from '../../utils/formatters'
-import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
+import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
-import { MONTHS, MONTHS_LONG, CATEGORY_MAP } from '../../constants/categories'
+import { MONTHS, MONTHS_LONG } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
 
 ChartJS.register(BarElement, LinearScale, CategoryScale, Tooltip)
 
-const now = new Date()
 const EARNED_INCOME_KEYWORDS = ['salaris', 'salary', 'loon', 'overige_kosten']
 
 export function CashflowChart() {
@@ -191,6 +191,7 @@ export function CashflowChart() {
 }
 
 function CashflowSheet({ monthData, mode, onClose }) {
+  const { catMap } = useCategories()
   const { year, month } = monthData
   const prefix = `${year}-${String(month).padStart(2, '0')}`
   const sheetRef = useSheetGestures(onClose)
@@ -211,13 +212,13 @@ function CashflowSheet({ monthData, mode, onClose }) {
       return all
         .filter(tx => {
           if (tx.category === 'bankoverschrijving' || tx.category === 'voorschot') return false
-          const catType = CATEGORY_MAP[tx.category]?.type
+          const catType = catMap[tx.category]?.type
           if (tx.type === 'debit') return true
           return tx.type === 'credit' && catType === 'expense'
         })
         .sort((a, b) => b.amount - a.amount)
     }
-  }, [prefix, mode])
+  }, [prefix, mode, catMap])
 
   const isIncome = mode === 'income'
   const debits = txs?.filter(t => t.type === 'debit') ?? []
@@ -254,7 +255,7 @@ function CashflowSheet({ monthData, mode, onClose }) {
         {txs === undefined && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
         {txs?.length === 0 && <div className="text-center text-muted py-8 text-sm">Geen transacties</div>}
         {txs?.map(tx => {
-          const cat = CATEGORY_MAP[tx.category]
+          const cat = catMap[tx.category]
           return (
             <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 text-left" style={{ borderBottom: '1px solid var(--color-border)' }}>
               <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💸'}</span>

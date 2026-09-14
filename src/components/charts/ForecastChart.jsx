@@ -1,9 +1,10 @@
 import { useBudgetStats } from '../../hooks/useBudgetStats'
 import { euro, euroParts } from '../../utils/formatters'
-import { CAT_COLORS, EXPENSE_CATEGORIES } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 
 export function ForecastChart({ year, month }) {
   const stats = useBudgetStats(year, month)
+  const { colors } = useCategories()
   const now = new Date()
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1
   const daysInMonth = new Date(year, month, 0).getDate()
@@ -57,7 +58,7 @@ export function ForecastChart({ year, month }) {
           <span className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>Voorspelling per categorie</span>
         </div>
         {cats.map((cat, i) => {
-          const color = CAT_COLORS[cat.key] ?? '#8E8E93'
+          const color = colors[cat.key] ?? '#8E8E93'
           const barPct = Math.max((cat.forecast / maxForecast) * 100, 2)
           const budgetPct = cat.budget > 0 ? Math.round((cat.forecast / cat.budget) * 100) : null
 

@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useYearGrid } from '../../hooks/useYearGrid'
 import { euroCompact, euro, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { TransactionForm } from '../transactions/TransactionForm'
-import { EXPENSE_CATEGORIES, MONTHS, MONTHS_LONG, CATEGORY_MAP, CAT_COLORS } from '../../constants/categories'
+import { MONTHS, MONTHS_LONG } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
 
@@ -23,14 +23,16 @@ function heatColor(net, budget) {
 
 export function YearGrid({ year }) {
   const data = useYearGrid(year)
-  const { categories } = useCategories()
+  // Jaaroverzicht: gearchiveerde categorieen moeten zichtbaar blijven.
+  const { allCategories } = useCategories()
   const [selected, setSelected] = useState(null) // { cat, month (0-indexed) }
 
   if (!data) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
   const { matrix, monthTotals } = data
   const currentMonth = year === now.getFullYear() ? now.getMonth() : 11
-  const budgetMap = Object.fromEntries(categories.map(c => [c.key, c.budget]))
+  const expenseCats = allCategories.filter(c => c.type === 'expense')
+  const budgetMap = Object.fromEntries(allCategories.map(c => [c.key, c.budget]))
   const visibleMonths = MONTHS.slice(0, currentMonth + 1)
 
   const yearTotal = monthTotals.slice(0, currentMonth + 1).reduce((s, v) => s + v, 0)
@@ -39,11 +41,10 @@ export function YearGrid({ year }) {
     <div>
       {/* Category cards */}
       <div className="space-y-2 mb-4">
-        {EXPENSE_CATEGORIES.map(cat => {
+        {expenseCats.map(cat => {
           const row = matrix[cat.key] ?? Array(12).fill(0)
           const budget = budgetMap[cat.key] ?? 0
           const catTotal = row.slice(0, currentMonth + 1).reduce((s, v) => s + v, 0)
-          const color = CAT_COLORS[cat.key] ?? '#8E8E93'
 
           return (
             <div key={cat.key} className="card px-4 py-3">
@@ -144,6 +145,7 @@ export function YearGrid({ year }) {
 }
 
 function YearGridSheet({ cat, year, month, onClose }) {
+  const { colors } = useCategories()
   const prefix = `${year}-${String(month).padStart(2, '0')}`
   const sheetRef = useSheetGestures(onClose)
   const [editing, setEditing] = useState(null)
@@ -159,8 +161,8 @@ function YearGridSheet({ cat, year, month, onClose }) {
     <>
       <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
       <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="sticky top-0 z-10 rounded-t-3xl" style={{ background: CAT_COLORS[cat.key] ?? '#8E8E93' }}>
-          <div className="px-5 pt-2 pb-4 flex flex-col items-center justify-between" style={{ background: `linear-gradient(135deg, ${CAT_COLORS[cat.key] ?? '#8E8E93'}, ${CAT_COLORS[cat.key] ?? '#8E8E93'}CC)` }}>
+        <div className="sticky top-0 z-10 rounded-t-3xl" style={{ background: colors[cat.key] ?? '#8E8E93' }}>
+          <div className="px-5 pt-2 pb-4 flex flex-col items-center justify-between" style={{ background: `linear-gradient(135deg, ${colors[cat.key] ?? '#8E8E93'}, ${colors[cat.key] ?? '#8E8E93'}CC)` }}>
             <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-3">

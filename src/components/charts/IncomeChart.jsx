@@ -1,9 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { euro, euroParts, fmtDate } from '../../utils/formatters'
-import { CATEGORY_MAP, CAT_COLORS } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 
 export function IncomeChart({ year, month }) {
+  const { catMap: categoryMap, colors } = useCategories()
   const prefix = `${year}-${String(month).padStart(2, '0')}`
 
   const txs = useLiveQuery(
@@ -29,7 +30,7 @@ export function IncomeChart({ year, month }) {
     g.count++
   }
   const catGroups = [...catMap.entries()]
-    .map(([key, data]) => ({ key, ...data, cat: CATEGORY_MAP[key] }))
+    .map(([key, data]) => ({ key, ...data, cat: categoryMap[key] }))
     .sort((a, b) => b.amount - a.amount)
   const maxCatAmount = catGroups[0]?.amount ?? 1
 
@@ -55,7 +56,7 @@ export function IncomeChart({ year, month }) {
       {catGroups.length > 0 && (
         <div className="card overflow-hidden mb-4">
           {catGroups.map((g, i) => {
-            const color = CAT_COLORS[g.key] ?? '#8E8E93'
+            const color = colors[g.key] ?? '#8E8E93'
             const barPct = Math.max((g.amount / maxCatAmount) * 100, 3)
             const pct = total > 0 ? Math.round((g.amount / total) * 100) : 0
             return (
@@ -86,7 +87,7 @@ export function IncomeChart({ year, month }) {
           <span className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>Alle transacties</span>
         </div>
         {sorted.map((tx, i) => {
-          const cat = CATEGORY_MAP[tx.category]
+          const cat = categoryMap[tx.category]
           return (
             <div
               key={tx.id}

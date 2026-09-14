@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import { CATEGORY_MAP } from '../../constants/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { euro, euroParts, fmtDate } from '../../utils/formatters'
 import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { TransactionForm } from '../transactions/TransactionForm'
@@ -49,7 +49,6 @@ export function CalendarChart({ year, month }) {
   }
   if (week.length > 0) { while (week.length < 7) week.push(null); weeks.push(week) }
 
-  const maxSpent = Math.max(...spent.slice(1), 1)
 
   // Totals
   const totalSpent = spent.reduce((s, v) => s + v, 0)
@@ -132,6 +131,7 @@ export function CalendarChart({ year, month }) {
 }
 
 function DaySheet({ day, year, month, onClose }) {
+  const { catMap } = useCategories()
   const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   const sheetRef = useSheetGestures(onClose)
   const [editing, setEditing] = useState(null)
@@ -170,7 +170,7 @@ function DaySheet({ day, year, month, onClose }) {
         {sorted === null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
         {sorted?.length === 0 && <div className="text-center text-muted py-8 text-sm">Geen transacties</div>}
         {sorted?.map(tx => {
-          const cat = CATEGORY_MAP[tx.category]
+          const cat = catMap[tx.category]
           return (
             <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 text-left" style={{ borderBottom: '1px solid var(--color-border)' }}>
               <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💸'}</span>

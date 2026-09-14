@@ -1,9 +1,15 @@
+import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { useCategories } from './useCategories'
 
 export function useYearGrid(year) {
-  const { expenseCategories, loading } = useCategories()
+  // Jaargrid is historisch: ook gearchiveerde uitgavencategorieen tellen mee.
+  const { allCategories, loading } = useCategories()
+  const expenseCats = useMemo(
+    () => allCategories.filter(c => c.type === 'expense'),
+    [allCategories]
+  )
 
   return useLiveQuery(async () => {
     if (!year || loading) return null
@@ -12,7 +18,7 @@ export function useYearGrid(year) {
 
     // Build spend[category][month] matrix
     const matrix = {}
-    for (const cat of expenseCategories) {
+    for (const cat of expenseCats) {
       matrix[cat.key] = Array(12).fill(0)
     }
 
@@ -29,5 +35,5 @@ export function useYearGrid(year) {
     }
 
     return { matrix, monthTotals }
-  }, [year, expenseCategories, loading])
+  }, [year, expenseCats, loading])
 }
