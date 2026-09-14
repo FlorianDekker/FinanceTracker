@@ -1,16 +1,27 @@
-# React + Vite
+# FinanceTracker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Een persoonlijke budget-app als PWA. Je importeert je ABN AMRO-afschriften,
+de app categoriseert de transacties zelflerend (handmatige correcties worden
+onthouden) en laat je per maand zien waar je geld heen gaat: budgetten,
+cashflow, trends en vergelijkingen tussen periodes.
 
-Currently, two official plugins are available:
+Alle gegevens blijven lokaal op je eigen apparaat, in IndexedDB. Er is geen
+server, geen account en er gaat niets naar buiten.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+React 19, Vite 8, Tailwind CSS, Dexie (IndexedDB), Chart.js en vite-plugin-pwa.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Aan de slag
 
-## Expanding the ESLint configuration
+```bash
+npm install
+npm run dev      # lokale dev-server
+npm run build    # productie-build naar dist/
+npm run deploy   # build + publiceren naar GitHub Pages
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+De app draait op https://floriandekker.github.io/FinanceTracker
+
+De oorspronkelijke iOS-Scriptable-implementatie staat als referentie in
+`legacy/scriptable/` en wordt niet meer onderhouden.

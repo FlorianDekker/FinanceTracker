@@ -346,7 +346,7 @@ return (
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Over</h2>
         <div className="card divide-y divide-border overflow-hidden">
           <div className="px-4 py-3 text-sm text-muted space-y-1">
-            <div>Versie 1.0.1</div>
+            <div>Versie {__APP_VERSION__}</div>
             <div>Gegevens opgeslagen op dit apparaat</div>
             <div className="text-white font-medium pt-1">{totalTxCount ?? '…'} transacties in de app</div>
           </div>
