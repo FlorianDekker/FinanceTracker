@@ -9,7 +9,7 @@ import { Sheet } from '../ui/Sheet'
  *  - open, onClose
  *  - value: { category, subcategory } (optioneel, alleen voor de markering)
  *  - onSelect(categoryKey, subcategoryKey) — sluiten doet de aanroeper
- *  - title, subtitle, filterType ('expense' | 'income' | 'transfer')
+ *  - title, subtitle, filterType ('expense' | 'income' | 'transfer'), excludeKey
  */
 export function CategoryPicker({
   open,
@@ -19,6 +19,7 @@ export function CategoryPicker({
   title = 'Kies categorie',
   subtitle,
   filterType,
+  excludeKey,
 }) {
   const { categories, catMap } = useCategories()
   const [parent, setParent] = useState(null)
@@ -35,6 +36,7 @@ export function CategoryPicker({
   const selectedSub = value?.subcategory ?? ''
 
   let list = filterType ? categories.filter(c => c.type === filterType) : categories
+  if (excludeKey) list = list.filter(c => c.key !== excludeKey)
   // Een gearchiveerde categorie die nu gekozen is, blijft bovenaan staan —
   // anders zou opslaan de bestaande waarde stilzwijgend wissen.
   const current = catMap[selectedKey]

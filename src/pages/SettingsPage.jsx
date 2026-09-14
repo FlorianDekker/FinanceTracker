@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Sheet } from '../components/ui/Sheet'
+import { CategoryManagerSheet } from '../components/categories/CategoryManagerSheet'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'
 import { exportToCsv } from '../utils/importHelpers'
 import { euro } from '../utils/formatters'
@@ -14,6 +15,7 @@ import { ALL_CHARTS } from './ChartsPage'
 export function SettingsPage() {
   const { categories } = useCategories()
   const [editingCat, setEditingCat] = useState(null)
+  const [managerOpen, setManagerOpen] = useState(false)
   const [inputVal, setInputVal] = useState('')
   const [importStatus, setImportStatus] = useState(null)
   const totalTxCount = useLiveQuery(() => db.transactions.count(), [])
@@ -248,6 +250,21 @@ return (
         </div>
       </section>
 
+      {/* Categorieën */}
+      <section className="px-4 pt-4 pb-2">
+        <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Categorieën</h2>
+        <div className="card overflow-hidden">
+          <button onClick={() => setManagerOpen(true)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+            <span className="text-xl">🗂️</span>
+            <div className="flex-1">
+              <div className="text-sm">Categorieën beheren</div>
+              <div className="text-xs text-muted">Naam, icoon, kleur, subcategorieën en volgorde</div>
+            </div>
+            <span className="text-sm text-muted">{categories.length} ›</span>
+          </button>
+        </div>
+      </section>
+
       {/* Budget per category */}
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Maandbudget</h2>
@@ -353,6 +370,7 @@ return (
           </div>
         </div>
       </section>
+      <CategoryManagerSheet open={managerOpen} onClose={() => setManagerOpen(false)} />
       {editingCat && <BudgetEditSheet cat={editingCat} inputVal={inputVal} setInputVal={setInputVal} onSave={saveEdit} onAdjust={adjust} onClose={() => setEditingCat(null)} />}
     </PageWrapper>
   )
