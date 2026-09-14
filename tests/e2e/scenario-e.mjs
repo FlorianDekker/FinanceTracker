@@ -284,7 +284,8 @@ export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMon
     await sleep(600)
     const sB = await shot('backup-gemaakt')
 
-    const backupOk = backup.app === 'FinanceTracker' && backup.schemaVersion === 4
+    // schemaVersion groeit mee met Dexie (4 in Fase 1, 5 vanaf de declaraties)
+    const backupOk = backup.app === 'FinanceTracker' && backup.schemaVersion >= 4
       && backup.tables.transactions.length === 253 && backup.tables.categories.length === 16
       && geheimen.length === 0
     stap('E5a', 'backup maken', backupOk,

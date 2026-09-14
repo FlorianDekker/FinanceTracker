@@ -11,8 +11,8 @@ async function t(name, fn) {
 }
 
 async function reset() {
-  await db.transaction('rw', db.transactions, db.categories, db.settings, db.merchantHistory, db.rules, async () => {
-    await Promise.all([db.transactions.clear(), db.categories.clear(), db.settings.clear(), db.merchantHistory.clear(), db.rules.clear()])
+  await db.transaction('rw', db.transactions, db.categories, db.settings, db.merchantHistory, db.rules, db.claimBatches, async () => {
+    await Promise.all([db.transactions.clear(), db.categories.clear(), db.settings.clear(), db.merchantHistory.clear(), db.rules.clear(), db.claimBatches.clear()])
   })
 }
 async function seed() {
@@ -49,10 +49,10 @@ await t('formaat: app, schemaVersion, exportedAt, tables', () => {
   assert.equal(backup.app, 'FinanceTracker')
   assert.equal(backup.schemaVersion, db.verno)
   assert.match(backup.exportedAt, /^\d{4}-\d{2}-\d{2}T/)
-  assert.deepEqual(Object.keys(backup.tables).sort(), ['categories', 'merchantHistory', 'rules', 'settings', 'transactions'].sort())
+  assert.deepEqual(Object.keys(backup.tables).sort(), ['categories', 'claimBatches', 'merchantHistory', 'rules', 'settings', 'transactions'].sort())
 })
 await t('aantallen kloppen', () => {
-  assert.deepEqual(B.countRows(backup), { transactions: 3, categories: 2, settings: 2, merchantHistory: 2, rules: 1 })
+  assert.deepEqual(B.countRows(backup), { transactions: 3, categories: 2, settings: 2, merchantHistory: 2, rules: 1, claimBatches: 0 })
 })
 await t('geheime settings (ai*, *apiKey*) zitten er NIET in', () => {
   const keys = backup.tables.settings.map(s => s.key)
