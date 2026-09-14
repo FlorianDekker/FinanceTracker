@@ -4,7 +4,9 @@
 // Run B = build van TARGET_REF (standaard HEAD) op HETZELFDE Chrome-profiel en
 //         dus dezelfde origin: dat test de echte Dexie-upgrade, alle schermen,
 //         het categorie-beheer (scenario D) en scenario E.
-// Run C = verse installatie op de TARGET_REF-build.
+// Run C = verse installatie op de TARGET_REF-build: onboarding-wizard + de
+//         bankimport met kolommapper (scenario G).
+// Run C2 = nog een verse installatie, met "Probeer met voorbeelddata".
 //
 // Beide builds draaien op http://localhost:4173/FinanceTracker/ zodat IndexedDB
 // tussen run A en B bewaard blijft. De service worker staat bewust uit (zie de
@@ -14,6 +16,8 @@
 //   npm run test:e2e                      # main -> HEAD, alle scenario's
 //   TARGET_REF=v2/stap-6 npm run test:e2e # main -> branch
 //   BASE_REF=v2/stap-5 TARGET_REF=v2/stap-6 npm run test:e2e
+//   npm run test:e2e:import               # alleen run C + scenario G
+//   npm run test:e2e:demo                 # alleen run C2
 import { chromium } from 'playwright'
 import http from 'node:http'
 import fs from 'node:fs'
@@ -24,6 +28,7 @@ import { fileURLToPath } from 'node:url'
 import { beheerScenario } from './scenario-beheer.mjs'
 import { scenarioE } from './scenario-e.mjs'
 import { scenarioClaims } from './scenario-claims.mjs'
+import { scenarioImport } from './scenario-import.mjs'
 // Alleen voor het verwachte aantal rijen bij een verse installatie (run C).
 import { DEFAULT_CATEGORIES } from '../../src/constants/categories.js'
 
@@ -42,19 +47,26 @@ const PORT = Number(process.env.FT_E2E_PORT || 4173)
 const BASE = `http://localhost:${PORT}/FinanceTracker/`
 const UDD_UPGRADE = path.join(HERE, 'profile-upgrade')
 const UDD_FRESH = path.join(HERE, 'profile-fresh')
+const UDD_DEMO = path.join(HERE, 'profile-demo')
 const DIST_BASE = path.join(WT, 'base', 'dist')
 const DIST_TARGET = path.join(WT, 'target', 'dist')
 const doeAlles = SCENARIO === 'alle'
 const doeBeheer = doeAlles || SCENARIO === 'beheer'
 const doeE = doeAlles || SCENARIO === 'e'
 const doeClaims = doeAlles || SCENARIO === 'claims'
+const doeImport = doeAlles || SCENARIO === 'import'
+const doeDemo = doeAlles || SCENARIO === 'demo'
+// Run A + B draaien op Florians echte testdata; de verse scenario's (C/C2)
+// hebben die niet nodig en slaan de migratieruns over.
+const doeMigratie = doeAlles || doeBeheer || doeE || doeClaims
+const doeVers = doeAlles || doeImport
 
-if (!['alle', 'beheer', 'e', 'claims'].includes(SCENARIO)) {
-  console.error(`onbekend scenario "${SCENARIO}"; kies alle | beheer | e | claims`)
+if (!['alle', 'beheer', 'e', 'claims', 'import', 'demo'].includes(SCENARIO)) {
+  console.error(`onbekend scenario "${SCENARIO}"; kies alle | beheer | e | claims | import | demo`)
   process.exit(2)
 }
 // De testdata staat bewust buiten de repo (persoonlijke transacties).
-const ontbreekt = ['Dictionary.json', 'Transactions.csv'].filter(f => !fs.existsSync(path.join(DATA, f)))
+const ontbreekt = doeMigratie ? ['Dictionary.json', 'Transactions.csv'].filter(f => !fs.existsSync(path.join(DATA, f))) : []
 if (ontbreekt.length) {
   console.error(`Testdata ontbreekt in ${DATA}: ${ontbreekt.join(', ')}`)
   console.error('Zet FT_DATA_DIR naar de map met Dictionary.json en Transactions.csv.')
@@ -98,6 +110,7 @@ function ruimOp() {
   try { git('worktree', 'prune') } catch { /* niets aan te doen tijdens afbreken */ }
   fs.rmSync(UDD_UPGRADE, { recursive: true, force: true })
   fs.rmSync(UDD_FRESH, { recursive: true, force: true })
+  fs.rmSync(UDD_DEMO, { recursive: true, force: true })
 }
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { ruimOp(); process.exit(130) })
 
@@ -496,6 +509,116 @@ async function smokeImport(page, prefix, logs) {
   return { text, errors }
 }
 
+/* ---- Onboarding-wizard (vervangt de oude MigrationPage) ---- */
+// Welkom -> Aan de slag -> template -> Sla over -> <slotknop>
+async function doorlopOnboarding(page, prefix, slotknop, template = 'Standaard') {
+  const stappen = []
+  await page.waitForSelector('text=Aan de slag', { timeout: 15000 })
+  const welkom = await page.locator('#root').innerText()
+  await shot(page, `${prefix}-onb-1-welkom`)
+  stappen.push({
+    id: 'welkom',
+    pass: /Alles blijft op dit apparaat/.test(welkom) && /Backup terugzetten/.test(welkom),
+    bewijs: welkom.replace(/\n+/g, ' | ').slice(0, 120),
+  })
+
+  await page.locator('button', { hasText: /^Aan de slag$/ }).click()
+  await sleep(700)
+  const templates = await page.locator('button[aria-pressed]').allInnerTexts()
+  await page.locator('button[aria-pressed]', { hasText: new RegExp(`^${template}`) }).first().click()
+  await sleep(400)
+  await shot(page, `${prefix}-onb-2-categorieen`)
+  stappen.push({
+    id: 'templates',
+    pass: templates.length === 3 && templates.some(t => t.startsWith(template)),
+    bewijs: templates.map(t => t.split('\n')[0]).join(' / '),
+  })
+
+  await page.locator('button', { hasText: /^Volgende$/ }).click()
+  await sleep(600)
+  const budgetTekst = await page.locator('#root').innerText()
+  await shot(page, `${prefix}-onb-3-budgetten`)
+  await page.locator('button', { hasText: /^Sla over$/ }).click()
+  await sleep(600)
+  stappen.push({
+    id: 'budgetten',
+    pass: /Maandbudget/.test(budgetTekst) && (await page.locator('button', { hasText: /^Sla over$/ }).count()) === 0,
+    bewijs: 'budgetstap overgeslagen',
+  })
+
+  const keuzes = await page.locator('#root').innerText()
+  await shot(page, `${prefix}-onb-4-data`)
+  await page.locator('button', { hasText: new RegExp(`^${slotknop}`) }).click()
+  await sleep(2000)
+  stappen.push({
+    id: 'data',
+    pass: ['Bankbestand importeren', 'Probeer met voorbeelddata', 'Begin leeg'].every(k => keuzes.includes(k)),
+    bewijs: `gekozen: ${slotknop}`,
+  })
+  return { stappen }
+}
+
+/* ---- RUN C2: onboarding met voorbeelddata, daarna weer wissen ---- */
+async function demoFlow(page, logs, dialogs) {
+  const stappen = []
+  const stap = (id, titel, pass, bewijs) => {
+    stappen.push({ id, titel, pass, bewijs })
+    console.log(`   ${pass ? 'PASS' : 'FAIL'} ${id} ${titel}: ${bewijs}`)
+  }
+  const start = logs.length
+
+  const onboarding = await doorlopOnboarding(page, 'C2', 'Probeer met voorbeelddata')
+  stap('C2-1', 'onboarding doorlopen', onboarding.stappen.every(st => st.pass),
+    onboarding.stappen.map(st => `${st.id}=${st.pass ? 'ok' : 'FOUT'}`).join(' '))
+
+  await page.waitForSelector('div.grid.grid-cols-3', { timeout: 20000 })
+  await sleep(1200)
+  // De lopende maand kan pas net begonnen zijn; dan tellen we de vorige maand.
+  let cards = await page.evaluate(READ_CARDS)
+  let metBedrag = cards.filter(c => /[1-9]/.test(c.amount))
+  if (metBedrag.length === 0) {
+    await page.locator('button', { hasText: /^‹$/ }).first().click()
+    await sleep(900)
+    cards = await page.evaluate(READ_CARDS)
+    metBedrag = cards.filter(c => /[1-9]/.test(c.amount))
+  }
+  await shot(page, 'C2-dashboard')
+  const dump = await page.evaluate(DUMP)
+  stap('C2-2', 'dashboard toont tegels met bedragen',
+    metBedrag.length >= 3 && dump.transactionCount > 200,
+    `${dump.transactionCount} transacties, ${metBedrag.length}/${cards.length} tegels met bedrag (${metBedrag.slice(0, 3).map(c => `${c.label} ${c.amount}`).join(', ')})`)
+
+  await page.goto(`${BASE}declaraties`, { waitUntil: 'networkidle' })
+  await sleep(1200)
+  const claimsTekst = (await page.locator('#root').innerText()).replace(/\n+/g, ' | ')
+  await shot(page, 'C2-declaraties')
+  const openRijen = await page.locator('div.divide-y > button').count()
+  stap('C2-3', 'drie open declaraties', openRijen === 3 || /3×/.test(claimsTekst),
+    `${openRijen} rijen op het declaratiescherm; kop: ${claimsTekst.slice(0, 90)}`)
+
+  await page.goto(BASE, { waitUntil: 'networkidle' })
+  await sleep(900)
+  await nav(page, 4)
+  await sleep(1000)
+  const demoRegel = await page.locator('text=Voorbeelddata actief').count()
+  await shot(page, 'C2-instellingen')
+  stap('C2-4', 'gele demo-regel in Instellingen', demoRegel > 0, `${demoRegel} regel(s) "Voorbeelddata actief"`)
+
+  await page.locator('button', { hasText: 'Wis en begin opnieuw' }).click()
+  await sleep(1500)
+  const naWissen = await page.evaluate(DUMP)
+  await shot(page, 'C2-na-wissen')
+  stap('C2-5', 'wissen laat 0 transacties en de categorieen achter',
+    naWissen.transactionCount === 0 && naWissen.categories.length === dump.categories.length
+      && (await page.locator('text=Voorbeelddata actief').count()) === 0,
+    `${naWissen.transactionCount} transacties, ${naWissen.categories.length} categorieen, demo-regel weg`)
+
+  stap('C2-6', 'geen console-errors', logs.slice(start).filter(isError).length === 0,
+    JSON.stringify(logs.slice(start).filter(isError)).slice(0, 200))
+
+  return { stappen, dump, naWissen, dialogs, logs }
+}
+
 async function smokeAll(page, prefix, logs) {
   console.log(` -- smoke ${prefix}: charts --`)
   const charts = await smokeAllCharts(page, prefix, logs)
@@ -512,8 +635,9 @@ async function smokeAll(page, prefix, logs) {
 
 async function main() {
   /* ================= RUN A: BASE_REF ================= */
-  const report = { runA: {}, runB: {}, fresh: {} }
+  const report = { runA: {}, runB: {}, fresh: {}, demo: null }
 
+  if (doeMigratie) {
   console.log(`\n=== RUN A (${BASE_REF} @ ${shaBase.slice(0, 7)}, verse installatie + import) ===`)
   ROOT = DIST_BASE
   fs.rmSync(UDD_UPGRADE, { recursive: true, force: true })
@@ -607,10 +731,12 @@ async function main() {
     await ctx.close()
     console.log(`RUN B klaar. dbVersion=${dump.version} categorieen=${dump.categories.length} transacties=${dump.transactionCount}`)
   }
+  }
 
   /* ================= RUN C: verse installatie op TARGET_REF ================= */
-  if (doeAlles) {
-  console.log(`\n=== RUN C (${TARGET_REF} @ ${shaTarget.slice(0, 7)}, verse installatie, "Begin leeg") ===`)
+  if (doeVers) {
+  console.log(`\n=== RUN C (${TARGET_REF} @ ${shaTarget.slice(0, 7)}, onboarding -> "Begin leeg") ===`)
+  ROOT = DIST_TARGET
   fs.rmSync(UDD_FRESH, { recursive: true, force: true })
     const logs = [], dialogs = []
     const ctx = await newContext(UDD_FRESH)
@@ -618,20 +744,42 @@ async function main() {
     attachLogs(page, logs)
     attachDialogs(page, dialogs)
     await page.goto(BASE, { waitUntil: 'networkidle' })
-    await page.waitForSelector('text=Begin leeg', { timeout: 15000 })
-    await page.locator('button', { hasText: /^Begin leeg$/ }).click()
-    await sleep(1500)
+    const onboarding = await doorlopOnboarding(page, 'C', 'Begin leeg')
     await page.waitForSelector('div.grid.grid-cols-3', { timeout: 15000 })
     await shot(page, 'C-fresh-dashboard')
     const cards = await page.evaluate(READ_CARDS)
     const settings = await settingsFlow(page, 'C-fresh')
     await nav(page, 0); await sleep(700)
-    const smoke = await smokeAll(page, 'C', logs)
+    const smoke = doeAlles ? await smokeAll(page, 'C', logs) : null
     const dump = await page.evaluate(DUMP)
-    report.fresh = { dump, cards, settings, smoke, logs }
+
+    let importScenario = { stappen: [] }
+    if (doeImport) {
+      console.log(' -- scenario G: bankimport en kolommapper --')
+      importScenario = await scenarioImport({ page, OUT, logs })
+    }
+
+    report.fresh = { dump, cards, settings, smoke, onboarding, importScenario, logs }
     fs.writeFileSync(path.join(OUT, 'C-fresh-dump.json'), JSON.stringify(report.fresh, null, 2))
     await ctx.close()
     console.log(`RUN C klaar. dbVersion=${dump.version} categorieen=${dump.categories.length}`)
+  }
+
+  /* ================= RUN C2: verse installatie met voorbeelddata ================= */
+  if (doeDemo) {
+    console.log(`\n=== RUN C2 (${TARGET_REF} @ ${shaTarget.slice(0, 7)}, onboarding -> voorbeelddata) ===`)
+    ROOT = DIST_TARGET
+    fs.rmSync(UDD_DEMO, { recursive: true, force: true })
+    const logs = [], dialogs = []
+    const ctx = await newContext(UDD_DEMO)
+    const page = ctx.pages()[0] ?? await ctx.newPage()
+    attachLogs(page, logs)
+    attachDialogs(page, dialogs)
+    await page.goto(BASE, { waitUntil: 'networkidle' })
+    report.demo = await demoFlow(page, logs, dialogs)
+    fs.writeFileSync(path.join(OUT, 'C2-demo.json'), JSON.stringify(report.demo, null, 2))
+    await ctx.close()
+    console.log(`RUN C2 klaar. ${report.demo.stappen.filter(st => st.pass).length}/${report.demo.stappen.length} stappen PASS`)
   }
 
   /* ================= CHECKS ================= */
@@ -640,6 +788,7 @@ async function main() {
   const add = (id, pass, detail) => { checks.push({ id, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${id}: ${detail}`) }
   const FIELDS = ['key', 'label', 'icon', 'color', 'type', 'order', 'isFixed', 'archived', 'role', 'subs', 'budget']
 
+  if (doeMigratie) {
   console.log('\n=== CHECKS: migratie ===')
   {
     const aB = Object.fromEntries(A.categories.map(c => [c.key, c.budget ?? 0]))
@@ -679,6 +828,7 @@ async function main() {
   }
   add('e-console-B', report.runB.logs.filter(isError).length === 0,
     report.runB.logs.filter(isError).length ? JSON.stringify(report.runB.logs.filter(isError), null, 2) : 'geen errors/pageerrors in de hele run B')
+  }
 
   console.log('\n=== CHECKS: smoke ===')
   for (const [run, s] of [['B', report.runB.smoke], ['C', report.fresh.smoke]].filter(([, s]) => s)) {
@@ -707,7 +857,7 @@ async function main() {
   }
 
   console.log('\n=== CHECKS: scenario D (categorie-beheer) ===')
-  for (const st of report.runB.beheer) {
+  for (const st of report.runB.beheer ?? []) {
     add(`D${st.nr}-${st.titel.replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}`, st.pass, st.bewijs)
   }
   if (report.runB.chartsNa) {
@@ -729,7 +879,7 @@ async function main() {
   }
 
   console.log('\n=== CHECKS: scenario E ===')
-  for (const st of report.runB.e.stappen) {
+  for (const st of report.runB.e?.stappen ?? []) {
     if (st.id === 'E5-secties') continue
     add(`${st.id}-${st.titel.replace(/[^a-z0-9]+/gi, '-').slice(0, 44)}`, st.pass, st.bewijs)
   }
@@ -750,6 +900,28 @@ async function main() {
       report.fresh.logs.filter(isError).length ? JSON.stringify(report.fresh.logs.filter(isError), null, 2) : 'geen errors in de hele run C')
   }
 
+  if (report.fresh.onboarding) {
+    console.log('\n=== CHECKS: onboarding ===')
+    for (const st of report.fresh.onboarding.stappen) {
+      add(`onb-${st.id}`, st.pass, st.bewijs)
+    }
+  }
+
+  if (report.fresh.importScenario?.stappen?.length) {
+    console.log('\n=== CHECKS: scenario import ===')
+    for (const st of report.fresh.importScenario.stappen) {
+      add(`${st.id}-${st.titel.replace(/[^a-z0-9]+/gi, '-').slice(0, 44)}`, st.pass, st.bewijs)
+    }
+  }
+
+  if (report.demo) {
+    console.log('\n=== CHECKS: voorbeelddata (run C2) ===')
+    for (const st of report.demo.stappen) {
+      add(`${st.id}-${st.titel.replace(/[^a-z0-9]+/gi, '-').slice(0, 44)}`, st.pass, st.bewijs)
+    }
+    fs.writeFileSync(path.join(OUT, 'C2-demo.json'), JSON.stringify(report.demo, null, 2))
+  }
+
   fs.writeFileSync(path.join(OUT, 'checks.json'), JSON.stringify(checks, null, 2))
   fs.writeFileSync(path.join(OUT, 'console-logs.json'), JSON.stringify({ A: report.runA.logs, B: report.runB.logs, C: report.fresh.logs }, null, 2))
   fs.writeFileSync(path.join(OUT, 'categories-A-vs-B.json'), JSON.stringify({ A: A.categories, B: B.categories, fresh: C?.categories ?? [] }, null, 2))
@@ -767,13 +939,13 @@ async function main() {
 /* ================= driver: bouwen, draaien, altijd opruimen ================= */
 let shaBase, shaTarget, code = 1
 try {
-  shaBase = bouwWorktree('base', BASE_REF)
+  if (doeMigratie) shaBase = bouwWorktree('base', BASE_REF)
   shaTarget = bouwWorktree('target', TARGET_REF)
   const charts = leesCharts(path.join(WT, 'target'))
   CHART_IDS = Object.fromEntries(charts.map(c => [c.label, c.id]))
   VERWACHTE_TABS = charts.filter(c => c.defaultOn).length
   console.log(`grafieken in ${TARGET_REF}: ${charts.length} geregistreerd, ${VERWACHTE_TABS} standaard aan`)
-  if (shaBase === shaTarget) console.log('let op: BASE_REF en TARGET_REF wijzen naar dezelfde commit')
+  if (shaBase && shaBase === shaTarget) console.log('let op: BASE_REF en TARGET_REF wijzen naar dezelfde commit')
   code = await main()
 } catch (err) {
   console.error('\nE2E afgebroken:', err?.stack ?? err)

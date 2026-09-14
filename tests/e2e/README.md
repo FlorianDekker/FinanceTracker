@@ -9,7 +9,12 @@ in Chrome op dezelfde origin (`http://localhost:4173/FinanceTracker/`):
   Chrome-profiel, dus op dezelfde IndexedDB: dit test de echte Dexie-upgrade, alle
   vijftien charttabs, de transactie- en importpagina, het categorie-beheer
   (scenario D) en de sheets/swipes/backup/regels (scenario E).
-- **Run C** – verse installatie ("Begin leeg") op de `TARGET_REF`-build.
+- **Run C** – verse installatie op de `TARGET_REF`-build: de onboarding-wizard
+  (welkom → template Standaard → budgetten overslaan → "Begin leeg") en daarna
+  scenario G (bankimport + kolommapper, scenario-import.mjs).
+- **Run C2** – nog een verse installatie, nu met "Probeer met voorbeelddata":
+  dashboard, declaraties, de gele demo-regel in Instellingen en "Wis en begin
+  opnieuw".
 
 Aan het eind volgt een lijst met PASS/FAIL-checks; exit-code 1 zodra er één faalt.
 Screenshots en JSON-dumps komen in `tests/e2e/out/` (gitignored).
@@ -18,7 +23,8 @@ Screenshots en JSON-dumps komen in `tests/e2e/out/` (gitignored).
 
 - **Google Chrome** lokaal geïnstalleerd (`channel: 'chrome'`; Playwright
   downloadt bewust geen eigen browsers).
-- Een datamap met `Dictionary.json` en `Transactions.csv`. Standaard
+- Een datamap met `Dictionary.json` en `Transactions.csv` (alleen voor run A/B;
+  `--scenario=import` en `--scenario=demo` draaien zonder). Standaard
   `~/Documents/FinanceTracker-data`, anders `FT_DATA_DIR=<pad>`. Die data staat
   bewust buiten de repo; ontbreekt ze, dan stopt de test met een duidelijke fout.
 
@@ -29,6 +35,8 @@ TARGET_REF=v2/stap-7 npm run test:e2e            # main -> branch
 BASE_REF=v2/stap-6 TARGET_REF=v2/stap-7 npm run test:e2e
 npm run test:e2e:beheer                          # alleen scenario D
 npm run test:e2e:e                               # alleen scenario E
+npm run test:e2e:import                          # alleen run C + scenario G (geen eigen data nodig)
+npm run test:e2e:demo                            # alleen run C2 (voorbeelddata)
 ```
 
 De builds draaien in tijdelijke `git worktree --detach`-mappen onder
