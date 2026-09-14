@@ -35,7 +35,24 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // De pdf.js-worker is een .mjs van ~1,2 MB. Hij valt al buiten de
+        // globPatterns hierboven, maar dit maakt het expliciet: hem precachen
+        // zou de installatie meer dan verdubbelen, terwijl een PDF uitlezen
+        // toch de AI-dienst (en dus internet) nodig heeft.
+        globIgnores: ['**/pdf.worker*.mjs', '**/*.mjs'],
         navigateFallback: '/FinanceTracker/index.html',
+        runtimeCaching: [
+          {
+            // Na één keer gebruiken staat de worker wel in de cache, zodat het
+            // renderen van een PDF-pagina daarna ook offline werkt.
+            urlPattern: /pdf\.worker.*\.mjs$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'pdfjs-worker',
+              expiration: { maxEntries: 2, maxAgeSeconds: 60 * 60 * 24 * 90 },
+            },
+          },
+        ],
       },
     }),
   ],
