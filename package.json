@@ -12,6 +12,7 @@
     "test:e2e": "node tests/e2e/run.mjs",
     "test:e2e:beheer": "node tests/e2e/run.mjs --scenario=beheer",
     "test:e2e:e": "node tests/e2e/run.mjs --scenario=e",
+    "test:e2e:claims": "node tests/e2e/run.mjs --scenario=claims",
     "deploy": "npm run build && gh-pages -d dist"
   },
   "homepage": "https://floriandekker.github.io/FinanceTracker",

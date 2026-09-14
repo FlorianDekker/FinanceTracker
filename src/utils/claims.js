@@ -187,8 +187,10 @@ export function slugifyName(name) {
   return s || 'declaratie'
 }
 
+// De standaardnaam begint al met "Declaratie", dus niet nog een keer.
 export function claimBatchFileName(name) {
-  return `declaratie-${slugifyName(name)}.csv`
+  const slug = slugifyName(name)
+  return slug.startsWith('declaratie') ? `${slug}.csv` : `declaratie-${slug}.csv`
 }
 
 /* ------------------------------------------------------------------ *

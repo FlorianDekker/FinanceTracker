@@ -23,6 +23,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { beheerScenario } from './scenario-beheer.mjs'
 import { scenarioE } from './scenario-e.mjs'
+import { scenarioClaims } from './scenario-claims.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..')
@@ -44,9 +45,10 @@ const DIST_TARGET = path.join(WT, 'target', 'dist')
 const doeAlles = SCENARIO === 'alle'
 const doeBeheer = doeAlles || SCENARIO === 'beheer'
 const doeE = doeAlles || SCENARIO === 'e'
+const doeClaims = doeAlles || SCENARIO === 'claims'
 
-if (!['alle', 'beheer', 'e'].includes(SCENARIO)) {
-  console.error(`onbekend scenario "${SCENARIO}"; kies alle | beheer | e`)
+if (!['alle', 'beheer', 'e', 'claims'].includes(SCENARIO)) {
+  console.error(`onbekend scenario "${SCENARIO}"; kies alle | beheer | e | claims`)
   process.exit(2)
 }
 // De testdata staat bewust buiten de repo (persoonlijke transacties).
@@ -579,7 +581,15 @@ async function main() {
       dumpNa = await page.evaluate(DUMP)
     }
 
-    report.runB = { dump, dumpNa, dash, dashNa, charts, chartsNa, settings, smoke, beheer, e, dialogs, logs }
+    // Declaraties bewust ná D12: dit scenario voegt transacties toe en zou de
+    // eindstandcheck van het beheer-scenario anders verschuiven.
+    let claims = { stappen: [] }
+    if (doeClaims) {
+      console.log(' -- scenario F: declaraties indienen, koppelen en afkeuren --')
+      claims = await scenarioClaims({ page, OUT, logs, ensureMonth })
+    }
+
+    report.runB = { dump, dumpNa, dash, dashNa, charts, chartsNa, settings, smoke, beheer, e, claims, dialogs, logs }
     fs.writeFileSync(path.join(OUT, 'B-dump.json'), JSON.stringify(report.runB, null, 2))
     await ctx.close()
     console.log(`RUN B klaar. dbVersion=${dump.version} categorieen=${dump.categories.length} transacties=${dump.transactionCount}`)
@@ -711,6 +721,11 @@ async function main() {
     add(`${st.id}-${st.titel.replace(/[^a-z0-9]+/gi, '-').slice(0, 44)}`, st.pass, st.bewijs)
   }
 
+  console.log('\n=== CHECKS: scenario declaraties ===')
+  for (const st of report.runB.claims?.stappen ?? []) {
+    add(`${st.id}-${st.titel.replace(/[^a-z0-9]+/gi, '-').slice(0, 44)}`, st.pass, st.bewijs)
+  }
+
   console.log('\n=== CHECKS: verse installatie ===')
   if (C) {
     const gaps = C.categories.flatMap(r => FIELDS.filter(f => !(f in r)).map(f => `${r.key}.${f}`))
@@ -726,6 +741,7 @@ async function main() {
   fs.writeFileSync(path.join(OUT, 'categories-A-vs-B.json'), JSON.stringify({ A: A.categories, B: B.categories, fresh: C?.categories ?? [] }, null, 2))
   fs.writeFileSync(path.join(OUT, 'smoke.json'), JSON.stringify({ B: report.runB.smoke, C: report.fresh.smoke }, null, 2))
   fs.writeFileSync(path.join(OUT, 'scenario-e.json'), JSON.stringify(report.runB.e, null, 2))
+  fs.writeFileSync(path.join(OUT, 'scenario-claims.json'), JSON.stringify(report.runB.claims ?? {}, null, 2))
   fs.writeFileSync(path.join(OUT, 'beheer-scenario.json'), JSON.stringify({ stappen: report.runB.beheer, dialogs: report.runB.dialogs, dumpNa: report.runB.dumpNa }, null, 2))
 
   const failed = checks.filter(c => !c.pass)
