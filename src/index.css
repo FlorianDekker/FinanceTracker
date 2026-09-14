@@ -27,6 +27,7 @@
   --color-red: #EF4444;
   --color-red-dim: rgba(239, 68, 68, 0.08);
   --color-orange: #F59E0B;
+  --color-orange-dim: rgba(245, 158, 11, 0.1);
   --color-blue: #3B82F6;
 
   --chart-text: #1a1a2e;
@@ -63,6 +64,7 @@ html.dark {
   --color-red: #F87171;
   --color-red-dim: rgba(248, 113, 113, 0.1);
   --color-orange: #FBBF24;
+  --color-orange-dim: rgba(251, 191, 36, 0.12);
   --color-blue: #60A5FA;
 
   --chart-text: #f1f5f9;

@@ -17,6 +17,7 @@ const TABLE_LABELS = {
   settings: 'Instellingen',
   merchantHistory: 'Geleerde herkenningen',
   rules: 'Herkenningsregels',
+  claimBatches: 'Declaratie-batches',
 }
 
 function lastBackupText(at) {

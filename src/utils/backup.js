@@ -15,7 +15,7 @@ import { dedupKey } from './importHelpers'
  */
 
 export const BACKUP_APP = 'FinanceTracker'
-export const BACKUP_TABLES = ['transactions', 'categories', 'settings', 'merchantHistory', 'rules']
+export const BACKUP_TABLES = ['transactions', 'categories', 'settings', 'merchantHistory', 'rules', 'claimBatches']
 export const LAST_BACKUP_KEY = 'lastBackupAt'
 export const BACKUP_REMINDER_DAYS = 30
 
@@ -191,12 +191,25 @@ function normalizeRules(rows) {
     .filter(row => row.keywords.length && row.category)
 }
 
+// Backups van voor Fase 2 hebben geen claimBatches; die tabel is dan gewoon leeg.
+function normalizeClaimBatches(rows) {
+  return rows
+    .filter(row => row && (row.name || row.createdAt))
+    .map(row => ({
+      ...row,
+      name: String(row.name ?? ''),
+      status: ['open', 'submitted', 'closed'].includes(row.status) ? row.status : 'open',
+      createdAt: row.createdAt ?? Date.now(),
+    }))
+}
+
 function normalizeTables(tables) {
   const out = {}
   for (const name of BACKUP_TABLES) out[name] = Array.isArray(tables[name]) ? tables[name].filter(Boolean) : []
   out.categories = normalizeCategories(out.categories)
   out.settings = out.settings.filter(row => row?.key && !isSecretSettingKey(row.key))
   out.rules = normalizeRules(out.rules)
+  out.claimBatches = normalizeClaimBatches(out.claimBatches)
   return out
 }
 
@@ -209,6 +222,7 @@ function withoutId(row) {
 const transactionKey = tx => dedupKey(tx.date, tx.amount, tx.type, String(tx.note ?? ''))
 const historyKey = ev => `${ev.merchantKey}|${ev.timestamp}|${ev.category}`
 const ruleKey = rule => `${(rule.keywords ?? []).join(',')}|${rule.category}|${rule.subcategory ?? ''}`
+const batchKey = batch => `${batch.name ?? ''}|${batch.createdAt ?? ''}`
 
 // Voegt alleen rijen toe die er nog niet zijn (auto-increment tabellen).
 async function mergeRows(table, rows, keyOf) {
@@ -251,7 +265,31 @@ export async function restoreBackup(input, { mode = 'merge' } = {}) {
       return
     }
 
-    stats.transactions = await mergeRows(db.transactions, src.transactions, transactionKey)
+    // Declaratie-batches eerst: bij samenvoegen krijgen ze nieuwe id's, dus de
+    // claimBatchId van de binnenkomende transacties moet mee verhuizen.
+    const batchIdMap = new Map()
+    const existingBatches = await db.claimBatches.toArray()
+    const byBatchKey = new Map(existingBatches.map(b => [batchKey(b), b.id]))
+    const newBatches = []
+    for (const batch of src.claimBatches) {
+      const key = batchKey(batch)
+      if (byBatchKey.has(key)) {
+        batchIdMap.set(batch.id, byBatchKey.get(key))
+        continue
+      }
+      newBatches.push(batch)
+    }
+    for (const batch of newBatches) {
+      const newId = await db.claimBatches.add(withoutId(batch))
+      byBatchKey.set(batchKey(batch), newId)
+      batchIdMap.set(batch.id, newId)
+    }
+    stats.claimBatches = { added: newBatches.length, skipped: src.claimBatches.length - newBatches.length }
+
+    const incomingTransactions = src.transactions.map(tx => (
+      tx.claimBatchId == null ? tx : { ...tx, claimBatchId: batchIdMap.get(tx.claimBatchId) ?? null }
+    ))
+    stats.transactions = await mergeRows(db.transactions, incomingTransactions, transactionKey)
     stats.merchantHistory = await mergeRows(db.merchantHistory, src.merchantHistory, historyKey)
     stats.rules = await mergeRows(db.rules, src.rules, ruleKey)
 

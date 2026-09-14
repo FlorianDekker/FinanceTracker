@@ -17,6 +17,7 @@ export default {
         'red-dim': 'var(--color-red-dim)',
         muted: 'var(--color-muted)',
         orange: 'var(--color-orange)',
+        'orange-dim': 'var(--color-orange-dim)',
         blue: 'var(--color-blue)',
       },
       fontFamily: {

@@ -51,6 +51,18 @@ db.version(4).stores({
   rules: '++id, category',
 })
 
+// v5: declaraties. `claimStatus` is een string-index (IndexedDB indexeert geen
+// booleans); transacties zonder het veld blijven gewoon staan en gelden overal
+// als "geen declaratie" (zie src/utils/claims.js), dus een .upgrade() is niet nodig.
+db.version(5).stores({
+  transactions: '++id, date, category, type, claimStatus, [date+category]',
+  categories: 'key, order',
+  settings: 'key',
+  merchantHistory: '++id, merchantKey, baseKey, timestamp',
+  rules: '++id, category',
+  claimBatches: '++id, status',
+})
+
 // Bootstrap learning from existing transactions (runs once, lazy-loaded to avoid circular imports)
 db.on('ready', async () => {
   const { bootstrapFromHistory } = await import('../utils/merchantLearning')
