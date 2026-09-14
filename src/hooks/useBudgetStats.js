@@ -4,7 +4,7 @@ import { useCategories } from './useCategories'
 import { CATEGORY_MAP } from '../constants/categories'
 
 export function useBudgetStats(year, month) {
-  const categories = useCategories()
+  const { categories } = useCategories()
 
   const spentData = useLiveQuery(async () => {
     if (!year || !month) return {}

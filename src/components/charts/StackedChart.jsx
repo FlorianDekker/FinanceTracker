@@ -19,7 +19,7 @@ const now = new Date()
 
 export function StackedChart({ year }) {
   const data = useYearGrid(year)
-  const categories = useCategories()
+  const { categories } = useCategories()
 
   if (!data) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 

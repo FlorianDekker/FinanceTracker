@@ -23,7 +23,7 @@ const now = new Date()
 
 export function TrendsChart({ year }) {
   const data = useYearGrid(year)
-  const categories = useCategories()
+  const { categories } = useCategories()
   const [hidden, setHidden] = useState(new Set())
 
   if (!data) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>

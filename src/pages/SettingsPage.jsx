@@ -11,7 +11,7 @@ import { applyAccentColor } from '../utils/theme'
 import { ALL_CHARTS } from './ChartsPage'
 
 export function SettingsPage() {
-  const categories = useCategories()
+  const { categories } = useCategories()
   const [editingCat, setEditingCat] = useState(null)
   const [inputVal, setInputVal] = useState('')
   const [importStatus, setImportStatus] = useState(null)

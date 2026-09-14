@@ -9,6 +9,7 @@ import { ChartsPage } from './pages/ChartsPage'
 import { ImportPage } from './pages/ImportPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { MonthProvider } from './hooks/useMonth'
+import { CategoriesProvider } from './hooks/useCategories'
 import { applyAccentColor } from './utils/theme'
 
 export default function App() {
@@ -44,23 +45,29 @@ export default function App() {
   }
 
   if (!migrationDone) {
-    return <MigrationPage onDone={() => setMigrationDone(true)} />
+    return (
+      <CategoriesProvider>
+        <MigrationPage onDone={() => setMigrationDone(true)} />
+      </CategoriesProvider>
+    )
   }
 
   return (
     <BrowserRouter basename="/FinanceTracker">
-      <MonthProvider>
-        <div className="flex flex-col min-h-screen bg-bg" style={{ color: 'var(--color-text)' }}>
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/transactions" element={<TransactionsPage />} />
-            <Route path="/charts" element={<ChartsPage />} />
-            <Route path="/import" element={<ImportPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Routes>
-          <BottomNav />
-        </div>
-      </MonthProvider>
+      <CategoriesProvider>
+        <MonthProvider>
+          <div className="flex flex-col min-h-screen bg-bg" style={{ color: 'var(--color-text)' }}>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/transactions" element={<TransactionsPage />} />
+              <Route path="/charts" element={<ChartsPage />} />
+              <Route path="/import" element={<ImportPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
+            <BottomNav />
+          </div>
+        </MonthProvider>
+      </CategoriesProvider>
     </BrowserRouter>
   )
 }

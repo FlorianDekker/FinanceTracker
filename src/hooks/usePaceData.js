@@ -13,7 +13,7 @@ export async function setPaceExcluded(keys) {
 }
 
 export function usePaceData(year, month) {
-  const categories = useCategories()
+  const { categories } = useCategories()
 
   const data = useLiveQuery(async () => {
     if (!year || !month) return null

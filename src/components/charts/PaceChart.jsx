@@ -23,7 +23,7 @@ const RED = '#FF453A'
 
 export function PaceChart({ year, month }) {
   const data = usePaceData(year, month)
-  const categories = useCategories()
+  const { categories } = useCategories()
   const [showCats, setShowCats] = useState(false)
   const paceSetting = useLiveQuery(() => db.settings.get('paceExcluded'), [])
   const paceExcluded = new Set(paceSetting?.value ?? DEFAULT_PACE_EXCLUDED)

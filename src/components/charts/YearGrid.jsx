@@ -23,7 +23,7 @@ function heatColor(net, budget) {
 
 export function YearGrid({ year }) {
   const data = useYearGrid(year)
-  const categories = useCategories()
+  const { categories } = useCategories()
   const [selected, setSelected] = useState(null) // { cat, month (0-indexed) }
 
   if (!data) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
