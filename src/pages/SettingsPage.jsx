@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Sheet } from '../components/ui/Sheet'
 import { CategoryManagerSheet } from '../components/categories/CategoryManagerSheet'
+import { BackupCard } from '../components/settings/BackupCard'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'
 import { exportToCsv } from '../utils/importHelpers'
 import { euro } from '../utils/formatters'
@@ -16,6 +17,7 @@ export function SettingsPage() {
   const { categories } = useCategories()
   const [editingCat, setEditingCat] = useState(null)
   const [managerOpen, setManagerOpen] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [inputVal, setInputVal] = useState('')
   const [importStatus, setImportStatus] = useState(null)
   const totalTxCount = useLiveQuery(() => db.transactions.count(), [])
@@ -279,41 +281,62 @@ return (
         </div>
       </section>
 
-      {/* Data import / export */}
+      {/* Data: backup, restore en oude bestandsformaten */}
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Data</h2>
-        <div className="card divide-y divide-border overflow-hidden">
-          {/* Import transactions CSV */}
-          <label className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer">
-            <span className="text-xl">📄</span>
-            <div className="flex-1">
-              <div className="text-sm">Importeer Transactions.csv</div>
-              <div className="text-xs text-muted">Duplicaten worden overgeslagen</div>
-            </div>
-            <input type="file" accept=".csv,.txt" className="hidden" onChange={handleImportCsv} />
-          </label>
 
-          {/* Import Dictionary.json */}
-          <label className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer">
-            <span className="text-xl">📁</span>
-            <div className="flex-1">
-              <div className="text-sm">Importeer Dictionary.json</div>
-              <div className="text-xs text-muted">Laadt budgetten per categorie</div>
-            </div>
-            <input type="file" accept=".json" className="hidden" onChange={handleImportDict} />
-          </label>
+        <BackupCard onStatus={setImportStatus} />
 
-          {/* Export */}
-          <button onClick={handleExport} className="w-full flex items-center gap-3 px-4 py-3 text-left">
-            <span className="text-xl">📥</span>
-            <span className="text-sm">Exporteer transacties als CSV</span>
+        {/* Oude bestandsformaten staan ingeklapt: backup/restore is de normale weg */}
+        <div className="card overflow-hidden mt-3">
+          <button
+            onClick={() => setAdvancedOpen(o => !o)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left"
+            aria-expanded={advancedOpen}
+          >
+            <span className="text-xl">🧰</span>
+            <div className="flex-1">
+              <div className="text-sm">Geavanceerd (oude bestanden)</div>
+              <div className="text-xs text-muted">CSV-import/-export en Dictionary.json</div>
+            </div>
+            <span className="text-sm text-muted">{advancedOpen ? '⌃' : '⌄'}</span>
           </button>
 
-          {/* Clear */}
-          <button onClick={handleClearData} className="w-full flex items-center gap-3 px-4 py-3 text-left text-red">
-            <span className="text-xl">🗑️</span>
-            <span className="text-sm">Wis alle transacties</span>
-          </button>
+          {advancedOpen && (
+            <div className="divide-y divide-border" style={{ borderTop: '1px solid var(--color-border)' }}>
+              {/* Import transactions CSV */}
+              <label className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer">
+                <span className="text-xl">📄</span>
+                <div className="flex-1">
+                  <div className="text-sm">Importeer Transactions.csv</div>
+                  <div className="text-xs text-muted">Duplicaten worden overgeslagen</div>
+                </div>
+                <input type="file" accept=".csv,.txt" className="hidden" onChange={handleImportCsv} />
+              </label>
+
+              {/* Import Dictionary.json */}
+              <label className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer">
+                <span className="text-xl">📁</span>
+                <div className="flex-1">
+                  <div className="text-sm">Importeer Dictionary.json</div>
+                  <div className="text-xs text-muted">Laadt budgetten per categorie</div>
+                </div>
+                <input type="file" accept=".json" className="hidden" onChange={handleImportDict} />
+              </label>
+
+              {/* Export */}
+              <button onClick={handleExport} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <span className="text-xl">📥</span>
+                <span className="text-sm">Exporteer transacties als CSV</span>
+              </button>
+
+              {/* Clear */}
+              <button onClick={handleClearData} className="w-full flex items-center gap-3 px-4 py-3 text-left text-red">
+                <span className="text-xl">🗑️</span>
+                <span className="text-sm">Wis alle transacties</span>
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
