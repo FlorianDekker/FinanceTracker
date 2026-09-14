@@ -19,8 +19,9 @@ export default defineConfig({
       manifest: {
         name: 'Budget Tracker',
         short_name: 'Budget',
-        description: 'Persoonlijk financieel dashboard',
-        theme_color: '#111111',
+        lang: 'nl',
+        description: 'Budget-app: importeer je bankafschriften, categoriseer automatisch en houd je budgetten bij',
+        theme_color: '#1E3A5F',
         background_color: '#111111',
         display: 'standalone',
         orientation: 'portrait',
