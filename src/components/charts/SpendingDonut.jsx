@@ -6,6 +6,7 @@ import { useCategories } from '../../hooks/useCategories'
 import { useBudgetStats } from '../../hooks/useBudgetStats'
 import { euro, fmtDate } from '../../utils/formatters'
 import { TransactionListSheet } from '../transactions/TransactionListSheet'
+import { DetailChart } from './DetailChart'
 import { db } from '../../db/db'
 import { countsInTotals } from '../../utils/claims'
 import { chartColors, tooltipTheme } from '../../utils/theme'
@@ -13,7 +14,36 @@ import { chartColors, tooltipTheme } from '../../utils/theme'
 ChartJS.register(ArcElement, Tooltip)
 
 
+/**
+ * Verdeling van de maand. Donut en de uitgeklapte lijst (DetailChart) zijn
+ * twee vensters op dezelfde maanddata; ze zaten eerder als twee losse tabs in
+ * de tabbalk en zitten nu achter een schakelaar.
+ */
 export function SpendingDonut({ year, month }) {
+  const [view, setView] = useState('donut')
+  return (
+    <div>
+      <div className="flex justify-center mb-3">
+        <div className="flex rounded-full p-0.5" style={{ background: 'var(--color-surface-2)' }}>
+          {[['donut', 'Donut'], ['lijst', 'Lijst']].map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-5 py-1 rounded-full text-xs font-semibold transition-all duration-200 ${view === v ? 'btn-accent' : 'text-muted'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {view === 'lijst'
+        ? <DetailChart year={year} month={month} />
+        : <DonutView year={year} month={month} />}
+    </div>
+  )
+}
+
+function DonutView({ year, month }) {
   const stats = useBudgetStats(year, month)
   const { colors } = useCategories()
   const [selectedCat, setSelectedCat] = useState(null)

@@ -14,7 +14,6 @@ import { AverageChart } from './AverageChart'
 import { ForecastChart } from './ForecastChart'
 import { RecordsChart } from './RecordsChart'
 import { SubcategoryChart } from './SubcategoryChart'
-import { DetailChart } from './DetailChart'
 import { SubTrendsChart } from './SubTrendsChart'
 import { CalendarChart } from './CalendarChart'
 import { StreaksChart } from './StreaksChart'
@@ -38,7 +37,6 @@ export const ALL_CHARTS = [
   { id: 'vergelijk',      label: 'Vergelijk',      usesMonth: true,  Component: CompareChart },
   { id: 'forecast',       label: 'Forecast',       usesMonth: true,  Component: ForecastChart },
   { id: 'subcategorie',   label: 'Subcategorieën', usesMonth: true,  Component: SubcategoryChart },
-  { id: 'detail',         label: 'Detail',         usesMonth: true,  Component: DetailChart },
   { id: 'subtrends',      label: 'Sub trends',     usesMonth: false, Component: SubTrendsChart },
   { id: 'gemiddeld',      label: 'Gemiddeld',      usesMonth: false, Component: AverageChart },
   { id: 'records',        label: 'Records',        usesMonth: false, Component: RecordsChart },
