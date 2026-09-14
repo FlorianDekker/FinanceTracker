@@ -7,7 +7,7 @@ import { CategoryManagerSheet } from '../components/categories/CategoryManagerSh
 import { BackupCard } from '../components/settings/BackupCard'
 import { RulesSheet } from '../components/settings/RulesSheet'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'
-import { useClaimExpiryMonths, setClaimExpiryMonths, useOutstandingClaims } from '../hooks/useClaims'
+import { useClaimExpiryMonths, setClaimExpiryMonths, useOutstandingClaims, useVoorschotCount, convertVoorschotToClaims } from '../hooks/useClaims'
 import { exportToCsv } from '../utils/importHelpers'
 import { euro } from '../utils/formatters'
 import { db } from '../db/db'
@@ -32,6 +32,7 @@ export function SettingsPage() {
   const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
   const claimExpiryMonths = useClaimExpiryMonths()
   const claims = useOutstandingClaims()
+  const voorschotCount = useVoorschotCount()
 
   const defaultOrder = ALL_CHARTS.map(c => c.id)
   const chartOrder = chartConfig?.order ?? defaultOrder
@@ -172,6 +173,18 @@ export function SettingsPage() {
     setImportStatus({ success: 'Alle transacties verwijderd.' })
   }
 
+  // Eenmalige opruimactie: de oude werkwijze (alles op categorie Voorschot)
+  // omzetten naar echte declaraties. De categorie blijft staan, zodat Florian
+  // ze daarna per stuk kan hercategoriseren.
+  async function handleConvertVoorschot() {
+    if (!window.confirm(
+      `${voorschotCount} uitgaven in Voorschot omzetten naar open declaraties? ` +
+      'Ze tellen daarna niet meer mee in je budget totdat ze zijn afgehandeld.'
+    )) return
+    const n = await convertVoorschotToClaims()
+    setImportStatus({ success: `${n} uitgaven staan nu als open declaratie klaar.` })
+  }
+
   const expenseCats = categories.filter(c => c.type === 'expense')
 return (
     <PageWrapper title="Instellingen">
@@ -295,6 +308,23 @@ return (
             </div>
             <span className="text-sm text-muted">{euro(claims.total)} ({claims.count}) ›</span>
           </Link>
+          {voorschotCount > 0 && (
+            <button
+              onClick={handleConvertVoorschot}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left"
+              style={{ borderTop: '1px solid var(--color-border)' }}
+            >
+              <span className="text-xl">🔁</span>
+              <div className="flex-1">
+                <div className="text-sm">Zet Voorschot-uitgaven om naar declaraties</div>
+                <div className="text-xs text-muted">
+                  {voorschotCount} {voorschotCount === 1 ? 'uitgave staat' : 'uitgaven staan'} nog in Voorschot zonder declaratiestatus
+                </div>
+              </div>
+              <span className="text-sm text-muted">›</span>
+            </button>
+          )}
+
           <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
             <span className="text-xl">⏳</span>
             <div className="flex-1">
