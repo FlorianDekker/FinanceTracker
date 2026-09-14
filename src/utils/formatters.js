@@ -44,6 +44,14 @@ export function fmtDate(d) {
   return `${parseInt(p[2])} ${MONTHS[parseInt(p[1]) - 1]}`
 }
 
+// Een tijdstempel (Date.now()) als "12 sep". Bewust lokale tijd: toISOString()
+// zou 's avonds een dag terugvallen.
+export function fmtTimestamp(ts) {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  return fmtDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+}
+
 export function fmtMonthYear(year, month) {
   return `${MONTHS[month - 1]} ${year}`
 }

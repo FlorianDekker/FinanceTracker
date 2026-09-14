@@ -16,6 +16,7 @@ import { isOpenClaim } from '../../utils/claims'
  * @param showIcon      categorie-icoon per rij
  * @param renderLabel   (tx, cat) => bovenste regel; standaard note of categorie
  * @param renderMeta    (tx, cat) => onderste regel; standaard datum · categorie
+ * @param footer        vaste balk onderaan de sheet (bijv. een actieknop)
  * @param signOf        (tx) => '+' | '-'; standaard op basis van het type
  * @param toneOf        (tx) => 'text-green' | 'text-red'; idem
  */
@@ -26,6 +27,7 @@ export function TransactionListSheet({
   subtitle,
   leading = null,
   accent = null,
+  footer = null,
   maxHeight = '70vh',
   transactions,
   emptyText = 'Geen transacties',
@@ -52,6 +54,7 @@ export function TransactionListSheet({
         subtitle={subtitle}
         leading={leading}
         accent={accent}
+        footer={footer}
         maxHeight={maxHeight}
       >
         {transactions == null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}

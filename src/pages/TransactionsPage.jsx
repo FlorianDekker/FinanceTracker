@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { PageWrapper } from '../components/layout/PageWrapper'
@@ -108,6 +108,13 @@ export function TransactionsPage() {
           {claimsOnly && (
             <span className="text-[11px] self-center" style={{ color: 'var(--color-muted)' }}>alle maanden</span>
           )}
+          <Link
+            to="/declaraties"
+            className="text-[11px] font-semibold self-center ml-auto"
+            style={{ color: 'var(--color-accent)' }}
+          >
+            Beheer ›
+          </Link>
         </div>
       </div>
 

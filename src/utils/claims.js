@@ -124,3 +124,158 @@ export function outstandingClaims(txs) {
   }
   return { total, count }
 }
+
+/* ------------------------------------------------------------------ *
+ * Batches: een bundel declaraties die je in één keer indient.          *
+ *   open       nog aan het samenstellen (bestaat in de praktijk niet;  *
+ *              een batch ontstaat pas bij het indienen)                *
+ *   submitted  ingediend bij werk, wacht op de bulkbetaling            *
+ *   closed     uitbetaald en afgehandeld                               *
+ * ------------------------------------------------------------------ */
+
+export const BATCH_STATUS_LABELS = {
+  open: 'Concept',
+  submitted: 'Ingediend',
+  closed: 'Afgehandeld',
+}
+
+/** Twee decimalen, zodat 0,1 + 0,2 nooit als verschil opduikt. */
+export function round2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100
+}
+
+/** Bedragen gelden als gelijk zodra ze binnen een cent van elkaar liggen. */
+export function amountsMatch(a, b) {
+  return Math.abs(round2(a) - round2(b)) <= 0.01
+}
+
+export function sumAmount(txs) {
+  return round2((txs ?? []).reduce((s, tx) => s + (tx?.amount ?? 0), 0))
+}
+
+/** Is deze open declaratie over de termijn heen (dus niet meer in te dienen)? */
+export function isExpired(tx, expiryMonths = DEFAULT_CLAIM_EXPIRY_MONTHS, now = new Date()) {
+  if (claimStatusOf(tx) !== 'open') return false
+  const limit = Math.max(1, Number(expiryMonths) || DEFAULT_CLAIM_EXPIRY_MONTHS)
+  return claimAgeMonths(tx, now) >= limit
+}
+
+/** Korte leeftijd voor in een lijst: "deze maand", "1 mnd", "4 mnd". */
+export function claimAgeLabel(tx, now = new Date()) {
+  const months = claimAgeMonths(tx, now)
+  return months === 0 ? 'deze maand' : `${months} mnd`
+}
+
+const MONTH_NAMES_LONG = [
+  'januari', 'februari', 'maart', 'april', 'mei', 'juni',
+  'juli', 'augustus', 'september', 'oktober', 'november', 'december',
+]
+
+/** Standaardnaam van een nieuwe batch: "Declaratie september 2026". */
+export function defaultBatchName(now = new Date()) {
+  const d = now instanceof Date ? now : new Date(now)
+  return `Declaratie ${MONTH_NAMES_LONG[d.getMonth()]} ${d.getFullYear()}`
+}
+
+/** Bestandsnaam-veilige variant van een batchnaam. */
+export function slugifyName(name) {
+  const s = String(name ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return s || 'declaratie'
+}
+
+export function claimBatchFileName(name) {
+  return `declaratie-${slugifyName(name)}.csv`
+}
+
+/* ------------------------------------------------------------------ *
+ * CSV voor werk                                                        *
+ * ------------------------------------------------------------------ */
+
+// Nederlands Excel verwacht puntkomma's, een decimale komma en een BOM,
+// anders worden accenten en bedragen verkeerd ingelezen.
+const BOM = '\uFEFF'
+
+function csvCell(value) {
+  const s = String(value ?? '')
+  return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+function csvAmount(n) {
+  return round2(n).toFixed(2).replace('.', ',')
+}
+
+/**
+ * @param items   transacties van de batch
+ * @param catMap  { key: { label, subs } } uit useCategories, voor leesbare namen
+ */
+export function claimBatchCsv(items, catMap = {}) {
+  const header = ['datum', 'omschrijving', 'categorie', 'subcategorie', 'bedrag']
+  const rows = (items ?? []).map(tx => {
+    const cat = catMap[tx.category]
+    const sub = cat?.subs?.find(s => s.key === tx.subcategory)
+    return [
+      tx.date ?? '',
+      tx.note ?? '',
+      cat?.label ?? tx.category ?? '',
+      sub?.label ?? '',
+      csvAmount(tx.amount),
+    ]
+  })
+  return BOM + [header, ...rows].map(r => r.map(csvCell).join(';')).join('\r\n') + '\r\n'
+}
+
+/* ------------------------------------------------------------------ *
+ * Cijfers voor het staafdiagram                                        *
+ * ------------------------------------------------------------------ */
+
+/**
+ * Per maand: wat heb je voorgeschoten (gemarkeerde afschrijvingen) en wat heb
+ * je terugontvangen (uitbetalingen). Beide op transactiedatum.
+ */
+export function claimMonthlySeries(txs, { months = 12, now = new Date() } = {}) {
+  const ref = now instanceof Date ? now : new Date(now)
+  const buckets = []
+  const index = new Map()
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(ref.getFullYear(), ref.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const row = { key, year: d.getFullYear(), month: d.getMonth() + 1, advanced: 0, received: 0 }
+    buckets.push(row)
+    index.set(key, row)
+  }
+  for (const tx of txs ?? []) {
+    const row = index.get(String(tx?.date ?? '').slice(0, 7))
+    if (!row) continue
+    if (isPayout(tx)) row.received += tx.amount ?? 0
+    else if (isClaim(tx) && tx.type === 'debit') row.advanced += tx.amount ?? 0
+  }
+  for (const row of buckets) {
+    row.advanced = round2(row.advanced)
+    row.received = round2(row.received)
+  }
+  return buckets
+}
+
+/**
+ * Gemiddeld aantal dagen tussen de uitgave en de bulkbetaling waarmee die
+ * declaratie werd afgerekend. `null` zolang er nog niets is uitbetaald.
+ */
+export function averageLeadDays(txs, batches) {
+  const paidAt = new Map((batches ?? []).filter(b => b?.paidAt).map(b => [b.id, b.paidAt]))
+  let total = 0
+  let count = 0
+  for (const tx of txs ?? []) {
+    if (claimStatusOf(tx) !== 'paid') continue
+    const at = paidAt.get(tx.claimBatchId)
+    if (!at) continue
+    const start = Date.parse(`${String(tx.date).slice(0, 10)}T00:00:00`)
+    if (!Number.isFinite(start)) continue
+    total += Math.max(0, (at - start) / 86400000)
+    count += 1
+  }
+  return count ? Math.round(total / count) : null
+}

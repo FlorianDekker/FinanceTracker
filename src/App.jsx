@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { TransactionsPage } from './pages/TransactionsPage'
 import { ChartsPage } from './pages/ChartsPage'
 import { ImportPage } from './pages/ImportPage'
+import { ClaimsPage } from './pages/ClaimsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { MonthProvider } from './hooks/useMonth'
 import { CategoriesProvider } from './hooks/useCategories'
@@ -62,6 +63,7 @@ export default function App() {
               <Route path="/transactions" element={<TransactionsPage />} />
               <Route path="/charts" element={<ChartsPage />} />
               <Route path="/import" element={<ImportPage />} />
+              <Route path="/declaraties" element={<ClaimsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
             <BottomNav />

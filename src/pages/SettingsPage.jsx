@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { Link } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { Sheet } from '../components/ui/Sheet'
 import { CategoryManagerSheet } from '../components/categories/CategoryManagerSheet'
@@ -286,14 +287,14 @@ return (
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Declaraties</h2>
         <div className="card overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-3">
+          <Link to="/declaraties" className="flex items-center gap-3 px-4 py-3" style={{ color: 'var(--color-text)' }}>
             <span className="text-xl">💼</span>
             <div className="flex-1">
-              <div className="text-sm">Openstaand bij werk</div>
-              <div className="text-xs text-muted">Open en ingediende declaraties tellen niet mee in je budget</div>
+              <div className="text-sm">Declaraties beheren</div>
+              <div className="text-xs text-muted">Indienen, uitbetaling koppelen en afgekeurde kosten terugzetten</div>
             </div>
-            <span className="text-sm text-muted">{euro(claims.total)} ({claims.count})</span>
-          </div>
+            <span className="text-sm text-muted">{euro(claims.total)} ({claims.count}) ›</span>
+          </Link>
           <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
             <span className="text-xl">⏳</span>
             <div className="flex-1">

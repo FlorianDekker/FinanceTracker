@@ -175,11 +175,11 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Openstaande declaraties (het volledige overzicht komt in een latere stap) */}
+        {/* Openstaande declaraties */}
         {claims.count > 0 && (
           <div className="px-4 pb-1">
             <Link
-              to="/transactions?filter=claims"
+              to="/declaraties"
               className="card px-4 py-3 flex items-center gap-3"
               style={{ color: 'var(--color-text)' }}
             >
