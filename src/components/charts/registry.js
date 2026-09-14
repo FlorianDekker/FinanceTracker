@@ -19,6 +19,7 @@ import { SubTrendsChart } from './SubTrendsChart'
 import { CalendarChart } from './CalendarChart'
 import { StreaksChart } from './StreaksChart'
 import { SubscriptionsChart } from './SubscriptionsChart'
+import { BudgetDriftChart } from './BudgetDriftChart'
 
 /**
  * Alle beschikbare grafieken, in de volgorde waarin een nieuwe installatie ze
@@ -44,6 +45,7 @@ export const ALL_CHARTS = [
   { id: 'jaar',           label: 'Jaar',           usesMonth: false, Component: YearGrid },
   { id: 'trends',         label: 'Trends',         usesMonth: false, Component: TrendsChart },
   { id: 'abonnementen',   label: 'Vaste lasten',   usesMonth: false, Component: SubscriptionsChart },
+  { id: 'budgetdrift',    label: 'Budget-drift',   usesMonth: false, Component: BudgetDriftChart },
   { id: 'kalender',       label: 'Kalender',       usesMonth: true,  Component: CalendarChart, defaultOn: false },
   { id: 'streaks',        label: 'Streaks',        usesMonth: true,  Component: StreaksChart,  defaultOn: false },
 ]
