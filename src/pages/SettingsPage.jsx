@@ -6,6 +6,7 @@ import { Sheet } from '../components/ui/Sheet'
 import { CategoryManagerSheet } from '../components/categories/CategoryManagerSheet'
 import { BackupCard } from '../components/settings/BackupCard'
 import { RulesSheet } from '../components/settings/RulesSheet'
+import { AiReceiptsCard } from '../components/settings/AiReceiptsCard'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'
 import { useClaimExpiryMonths, setClaimExpiryMonths, useOutstandingClaims, useVoorschotCount, convertVoorschotToClaims } from '../hooks/useClaims'
 import { exportToCsv } from '../utils/importHelpers'
@@ -389,6 +390,9 @@ return (
           </div>
         </div>
       </section>
+
+      {/* AI & bonnetjes */}
+      <AiReceiptsCard onStatus={setImportStatus} />
 
       {/* Budget per category */}
       <section className="px-4 pt-4 pb-2">
