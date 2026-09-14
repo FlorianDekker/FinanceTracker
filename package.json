@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node tests/unit/run-all.mjs",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "test:e2e:beheer": "node tests/e2e/run.mjs --scenario=beheer",
+    "test:e2e:e": "node tests/e2e/run.mjs --scenario=e",
     "deploy": "npm run build && gh-pages -d dist"
   },
   "homepage": "https://floriandekker.github.io/FinanceTracker",
@@ -34,6 +37,7 @@
     "fake-indexeddb": "^6.2.5",
     "gh-pages": "^6.3.0",
     "globals": "^17.4.0",
+    "playwright": "^1.63.0",
     "postcss": "^8.5.8",
     "sucrase": "^3.35.1",
     "tailwindcss": "^3.4.19",

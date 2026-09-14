@@ -27,3 +27,8 @@ dist-ssr
 *.csv
 Transactions*.csv
 Dictionary*.json
+
+# Test-artefacten (screenshots, dumps, tijdelijke worktrees en Chrome-profielen)
+tests/e2e/out/
+tests/e2e/.wt/
+tests/e2e/profile-*/
