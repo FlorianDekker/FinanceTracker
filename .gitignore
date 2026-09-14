@@ -32,3 +32,9 @@ Dictionary*.json
 tests/e2e/out/
 tests/e2e/.wt/
 tests/e2e/profile-*/
+
+# API-sleutels (together.ai e.d.) - nooit committen
+*.key
+
+# Meetscript-artefacten (gerenderde bonpaginas)
+tests/receipts/.render/
