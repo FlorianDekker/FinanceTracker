@@ -8,6 +8,7 @@ import { recordEvent, bulkRecordEvents } from '../utils/merchantLearning'
 import { euro, fmtDate } from '../utils/formatters'
 import { useCategories } from '../hooks/useCategories'
 import { PageWrapper } from '../components/layout/PageWrapper'
+import { CategoryPicker } from '../components/categories/CategoryPicker'
 import { db } from '../db/db'
 
 // Velden die alleen in het reviewscherm leven en niet in de database horen.
@@ -171,14 +172,14 @@ export function ImportPage() {
           })}
         </div>
 
-        {editIdx !== null && (
-          <CategoryPicker
-            merchant={pending[editIdx].merchant}
-            remi={pending[editIdx].remi}
-            onSelect={(cat, sub) => handleCategoryChange(editIdx, cat, sub)}
-            onClose={() => setEditIdx(null)}
-          />
-        )}
+        <CategoryPicker
+          open={editIdx !== null}
+          title={editIdx !== null ? pending[editIdx].merchant : 'Kies categorie'}
+          subtitle={editIdx !== null ? pending[editIdx].remi : undefined}
+          value={editIdx !== null ? pending[editIdx] : undefined}
+          onSelect={(cat, sub) => handleCategoryChange(editIdx, cat, sub)}
+          onClose={() => setEditIdx(null)}
+        />
       </PageWrapper>
     )
   }
@@ -205,71 +206,5 @@ export function ImportPage() {
 
       </div>
     </PageWrapper>
-  )
-}
-
-function CategoryPicker({ merchant, remi, onSelect, onClose }) {
-  const { categories } = useCategories()
-  const [mainCat, setMainCat] = useState(null)
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="sticky top-0 border-b border-border" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
-          {merchant && (
-            <div className="px-4 pt-3 pb-2 border-b border-border/50">
-              <div className="text-sm font-medium">{merchant}</div>
-              {remi && <div className="text-xs text-muted mt-0.5">{remi}</div>}
-            </div>
-          )}
-          <div className="flex justify-between items-center px-4 py-3">
-            {mainCat ? (
-              <button onClick={() => setMainCat(null)} className="text-green text-sm">← Terug</button>
-            ) : (
-              <span className="font-semibold text-sm">Kies categorie</span>
-            )}
-            <button onClick={onClose} className="text-muted">✕</button>
-          </div>
-        </div>
-
-        {!mainCat ? (
-          <div className="divide-y divide-border">
-            {categories.map(cat => (
-              <button
-                key={cat.key}
-                onClick={() => {
-                  if (!cat.subs?.length) onSelect(cat.key, '')
-                  else setMainCat(cat)
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left"
-              >
-                <span className="text-xl w-7 text-center">{cat.icon}</span>
-                <span className="text-sm">{cat.label}</span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            <button
-              onClick={() => onSelect(mainCat.key, '')}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left"
-            >
-              <span className="text-xl w-7 text-center">{mainCat.icon}</span>
-              <span className="text-sm text-muted">Geen subcategorie</span>
-            </button>
-            {mainCat.subs.map(sub => (
-              <button
-                key={sub.key}
-                onClick={() => onSelect(mainCat.key, sub.key)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left pl-14"
-              >
-                <span className="text-sm">{sub.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
   )
 }
