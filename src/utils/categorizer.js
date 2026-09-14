@@ -1,8 +1,9 @@
 import { RULES } from '../constants/rules'
 import { predictCategory } from './merchantLearning'
 
-// Credits vanaf dit bedrag gelden als inkomen (salaris).
-// Staat hier als benoemde constante; wordt later een instelling per gebruiker.
+// Credits vanaf dit bedrag gelden als inkomen (salaris). Standaardwaarde;
+// per gebruiker instelbaar via de setting `salaryThreshold` en doorgegeven
+// als `options.salaryThreshold`.
 export const SALARY_THRESHOLD = 2000
 
 // Zonder catMap weten we niets over archivering: dan is elke sleutel geldig.
@@ -29,7 +30,7 @@ function findRule(rules, haystacks) {
   return null
 }
 
-function ruleResult(rule, amount, resolve) {
+function ruleResult(rule, resolve) {
   const target = ruleCategory(rule)
   const cat = resolve(target)
   const hit = cat === target
@@ -39,13 +40,12 @@ function ruleResult(rule, amount, resolve) {
     // Een regel die naar een verwijderde/gearchiveerde categorie wijst belandt in
     // de restbak; dat is geen betrouwbare suggestie meer, dus 'low' + matched:false.
     confidence: hit ? 'high' : 'low',
-    possiblySterre: !!rule.possiblySterre && amount < 150,
     needsManual: rule.needsManual ?? false,
     matched: hit,
   }
 }
 
-const unmatched = cat => ({ cat, sub: '', confidence: 'low', possiblySterre: false, needsManual: false, matched: false })
+const unmatched = cat => ({ cat, sub: '', confidence: 'low', needsManual: false, matched: false })
 
 // Sleutels die niet (meer) actief zijn belanden in de restbak.
 const makeResolve = (byRole, isActiveKey) => {
@@ -55,11 +55,11 @@ const makeResolve = (byRole, isActiveKey) => {
 
 // Credits lopen ook langs de regels (bijv. een gedeelde Spotify-betaling via
 // SEPA); daar telt het REMI-veld mee, bij afschrijvingen alleen de tegenpartij.
-function applyRules(rules, merchant, amount, type, remi, resolve) {
+function applyRules(rules, merchant, type, remi, resolve) {
   const m = String(merchant).toLowerCase()
   const r = String(remi).toLowerCase()
   const rule = findRule(rules, type === 'credit' ? [m, r] : [m])
-  return rule ? ruleResult(rule, amount, resolve) : null
+  return rule ? ruleResult(rule, resolve) : null
 }
 
 // Zet een `categorize`-resultaat om naar de vorm die de import-UI verwacht.
@@ -79,26 +79,27 @@ function asLearningResult({ matched, ...rest }) {
  * @param byRole  { uncategorized, transfer, income } — categorie-rijen of null.
  *                Code verwijst naar systeemrollen i.p.v. hardgecodeerde slugs;
  *                de string-fallbacks zijn het laatste vangnet.
- * @param options { isActiveKey?(key): boolean, rules?: gebruikersregels }
+ * @param options { isActiveKey?(key): boolean, rules?: gebruikersregels,
+ *                  salaryThreshold?: drempel waarboven een credit salaris is }
  */
 export function categorize(merchant, amount, type, remi = '', byRole = null, options = {}) {
-  const { isActiveKey = ALWAYS_ACTIVE, rules: userRules = [] } = options
+  const { isActiveKey = ALWAYS_ACTIVE, rules: userRules = [], salaryThreshold = SALARY_THRESHOLD } = options
   const resolve = makeResolve(byRole, isActiveKey)
 
   // Eigen herkenningsregels winnen altijd — ook van de salarisdrempel.
   if (userRules.length) {
-    const own = applyRules(userRules, merchant, amount, type, remi, resolve)
+    const own = applyRules(userRules, merchant, type, remi, resolve)
     if (own) return own
   }
 
-  if (type === 'credit' && amount >= SALARY_THRESHOLD) {
+  if (type === 'credit' && amount >= (Number(salaryThreshold) || SALARY_THRESHOLD)) {
     return {
       cat: resolve(byRole?.income?.key ?? 'salaris'),
-      sub: '', confidence: 'high', possiblySterre: false, needsManual: false, matched: true,
+      sub: '', confidence: 'high', needsManual: false, matched: true,
     }
   }
 
-  const rule = applyRules(RULES, merchant, amount, type, remi, resolve)
+  const rule = applyRules(RULES, merchant, type, remi, resolve)
   if (rule) return rule
 
   if (type === 'credit') return unmatched(resolve(byRole?.transfer?.key ?? 'bankoverschrijving'))
@@ -114,7 +115,7 @@ export async function categorizeWithLearning(merchant, amount, type, remi = '', 
   const { isActiveKey = ALWAYS_ACTIVE, rules: userRules = [] } = options
 
   if (userRules.length) {
-    const own = applyRules(userRules, merchant, amount, type, remi, makeResolve(byRole, isActiveKey))
+    const own = applyRules(userRules, merchant, type, remi, makeResolve(byRole, isActiveKey))
     if (own) return asLearningResult(own)
   }
 
@@ -128,7 +129,6 @@ export async function categorizeWithLearning(merchant, amount, type, remi = '', 
         sub: prediction.sub,
         confidence: 'high',
         confidencePct,
-        possiblySterre: false,
         needsManual: false,
         source: prediction.source,
         eventCount: prediction.eventCount,
@@ -141,7 +141,6 @@ export async function categorizeWithLearning(merchant, amount, type, remi = '', 
         sub: prediction.sub,
         confidence: 'low',
         confidencePct,
-        possiblySterre: false,
         needsManual: true,
         source: prediction.source,
         eventCount: prediction.eventCount,

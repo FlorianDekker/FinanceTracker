@@ -24,6 +24,8 @@ import { fileURLToPath } from 'node:url'
 import { beheerScenario } from './scenario-beheer.mjs'
 import { scenarioE } from './scenario-e.mjs'
 import { scenarioClaims } from './scenario-claims.mjs'
+// Alleen voor het verwachte aantal rijen bij een verse installatie (run C).
+import { DEFAULT_CATEGORIES } from '../../src/constants/categories.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..')
@@ -729,7 +731,8 @@ async function main() {
   console.log('\n=== CHECKS: verse installatie ===')
   if (C) {
     const gaps = C.categories.flatMap(r => FIELDS.filter(f => !(f in r)).map(f => `${r.key}.${f}`))
-    add('vers-16-rijen', C.categories.length === 16, `${C.categories.length} categorie-rijen (verwacht 16)`)
+    const verwachtVers = DEFAULT_CATEGORIES.length
+    add('vers-standaard-rijen', C.categories.length === verwachtVers, `${C.categories.length} categorie-rijen (verwacht ${verwachtVers} = DEFAULT_CATEGORIES)`)
     add('vers-velden', gaps.length === 0, gaps.length ? gaps.join(', ') : 'alle rijen volledig')
     add('vers-dashboard', report.fresh.cards.length > 0, `${report.fresh.cards.length} tegels gerenderd`)
     add('vers-console', report.fresh.logs.filter(isError).length === 0,

@@ -14,7 +14,19 @@ t('salaris via rol', () => {
   const r = categorize('WERKGEVER BV', 2500, 'credit', '', roles, { isActiveKey })
   assert.equal(r.cat, 'salaris'); assert.equal(r.confidence, 'high')
 })
-t('salarisdrempel is 2000', () => assert.equal(SALARY_THRESHOLD, 2000))
+t('salarisdrempel is standaard 2000', () => assert.equal(SALARY_THRESHOLD, 2000))
+t('salarisdrempel is instelbaar via options.salaryThreshold', () => {
+  const opt = { isActiveKey, salaryThreshold: 1200 }
+  assert.equal(categorize('WERKGEVER BV', 1500, 'credit', '', roles, opt).cat, 'salaris')
+  assert.equal(categorize('WERKGEVER BV', 1500, 'credit', '', roles, { isActiveKey }).cat, 'bankoverschrijving')
+  // Onzin-waarden vallen terug op de standaarddrempel
+  assert.equal(categorize('WERKGEVER BV', 2500, 'credit', '', roles, { isActiveKey, salaryThreshold: 0 }).cat, 'salaris')
+})
+t('possiblySterre bestaat niet meer in het resultaat', () => {
+  const r = categorize('Restaurant De Fictieve Lepel', 40, 'debit', '', roles, { isActiveKey })
+  assert.equal('possiblySterre' in r, false)
+  assert.equal('possiblySterre' in categorize('Onbekend', 5, 'debit'), false)
+})
 t('credit zonder regel -> transfer-rol', () => {
   assert.equal(categorize('Jan Jansen', 12, 'credit', '', roles, { isActiveKey }).cat, 'bankoverschrijving')
 })

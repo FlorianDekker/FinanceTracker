@@ -58,21 +58,10 @@ export const DEFAULT_CATEGORIES = [
     subs: [],
   },
   {
-    key: 'sterre',
-    label: 'Sterre',
-    icon: '🥰',
-    order: 5,
-    type: 'expense',
-    subs: [
-      { key: 'cadeaus_sterre', label: "Cadeau's Sterre" },
-      { key: 'dates_sterre', label: 'Dates Sterre' },
-    ],
-  },
-  {
     key: 'gezondheid_verzorging',
     label: 'Gezondheid & verzorging',
     icon: '💊',
-    order: 6,
+    order: 5,
     type: 'expense',
     subs: [
       { key: 'kapper', label: 'Kapper' },
@@ -84,7 +73,7 @@ export const DEFAULT_CATEGORIES = [
     key: 'vakantie',
     label: 'Vakantie',
     icon: '✈️',
-    order: 7,
+    order: 6,
     type: 'expense',
     subs: [],
   },
@@ -92,7 +81,7 @@ export const DEFAULT_CATEGORIES = [
     key: 'afspreken_vrienden',
     label: 'Afspreken vrienden',
     icon: '👬',
-    order: 8,
+    order: 7,
     type: 'expense',
     subs: [
       { key: 'cafe', label: 'Café' },
@@ -105,7 +94,7 @@ export const DEFAULT_CATEGORIES = [
     key: 'kleding',
     label: 'Kleding',
     icon: '👕',
-    order: 9,
+    order: 8,
     type: 'expense',
     subs: [],
   },
@@ -113,7 +102,7 @@ export const DEFAULT_CATEGORIES = [
     key: 'overige_kosten',
     label: 'Overige kosten',
     icon: '💸',
-    order: 10,
+    order: 9,
     type: 'expense',
     subs: [
       { key: 'boete', label: 'Boete' },
@@ -126,7 +115,7 @@ export const DEFAULT_CATEGORIES = [
     key: 'hobbys',
     label: "Hobby's",
     icon: '🎨',
-    order: 11,
+    order: 10,
     type: 'expense',
     subs: [
       { key: 'hobby_projecten', label: 'Hobby projecten' },
@@ -141,7 +130,7 @@ export const DEFAULT_CATEGORIES = [
     key: 'investeren',
     label: 'Investeren',
     icon: '📈',
-    order: 12,
+    order: 11,
     type: 'expense',
     subs: [],
   },
@@ -149,7 +138,7 @@ export const DEFAULT_CATEGORIES = [
     key: 'bankoverschrijving',
     label: 'Bankoverschrijving',
     icon: '🏦',
-    order: 13,
+    order: 12,
     type: 'transfer',
     subs: [],
   },
@@ -157,7 +146,7 @@ export const DEFAULT_CATEGORIES = [
     key: 'voorschot',
     label: 'Voorschot',
     icon: '🤝',
-    order: 15,
+    order: 14,
     type: 'transfer',
     subs: [],
   },
@@ -165,7 +154,7 @@ export const DEFAULT_CATEGORIES = [
     key: 'salaris',
     label: 'Salaris',
     icon: '💰',
-    order: 14,
+    order: 13,
     type: 'income',
     subs: [],
   },
@@ -190,7 +179,7 @@ const DEFAULT_COLORS = {
   boodschappen:         '#16A34A',
   reiskosten:           '#64D2FF',
   cadeaus_overig:       '#BF5AF2',
-  sterre:               '#FF375F',
+  sterre:               '#FF375F',   // legacy: niet meer geseed, wel voor bestaande data
   gezondheid_verzorging:'#34C759',
   vakantie:             '#0A84FF',
   afspreken_vrienden:   '#FF6B6B',
@@ -214,19 +203,34 @@ export const ROLE_BY_KEY = {
   salaris: 'income',
 }
 
+// Sleutels die ooit in DEFAULT_CATEGORIES stonden maar niet meer geseed worden.
+// Bestaande databases (en teruggezette backups) houden zo'n rij; zonder deze map
+// zou hij na een migratie met de kale sleutel als label in beeld komen.
+export const LEGACY_LABELS = {
+  sterre: {
+    label: 'Sterre',
+    icon: '🥰',
+    subs: [
+      { key: 'cadeaus_sterre', label: "Cadeau's Sterre" },
+      { key: 'dates_sterre', label: 'Dates Sterre' },
+    ],
+  },
+}
+
 // Bouwt een volledige categorie-rij (db-vorm) uit een (gedeeltelijke) definitie.
 export function makeCategoryRow(def, budget = 0) {
+  const legacy = LEGACY_LABELS[def.key] ?? {}
   return {
     key: def.key,
-    label: def.label ?? def.key,
-    icon: def.icon ?? DEFAULT_CATEGORY_ICON,
+    label: def.label ?? legacy.label ?? def.key,
+    icon: def.icon ?? legacy.icon ?? DEFAULT_CATEGORY_ICON,
     color: def.color ?? DEFAULT_COLORS[def.key] ?? DEFAULT_CATEGORY_COLOR,
     type: def.type ?? 'expense',
     order: def.order ?? 0,
     isFixed: def.isFixed ?? DEFAULT_FIXED_KEYS.has(def.key),
     archived: def.archived ?? false,
     role: def.role ?? ROLE_BY_KEY[def.key] ?? null,
-    subs: Array.isArray(def.subs) ? def.subs : [],
+    subs: Array.isArray(def.subs) ? def.subs : (legacy.subs ?? []),
     budget: Number(budget) || 0,
   }
 }
