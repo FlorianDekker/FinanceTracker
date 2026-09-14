@@ -17,6 +17,7 @@
 //   TARGET_REF=v2/stap-6 npm run test:e2e # main -> branch
 //   BASE_REF=v2/stap-5 TARGET_REF=v2/stap-6 npm run test:e2e
 //   npm run test:e2e:import               # alleen run C + scenario G
+//   npm run test:e2e:receipts             # alleen run R + scenario H (bonnetjes)
 //   npm run test:e2e:demo                 # alleen run C2
 import { chromium } from 'playwright'
 import http from 'node:http'
@@ -29,6 +30,7 @@ import { beheerScenario } from './scenario-beheer.mjs'
 import { scenarioE } from './scenario-e.mjs'
 import { scenarioClaims } from './scenario-claims.mjs'
 import { scenarioImport } from './scenario-import.mjs'
+import { scenarioReceipts } from './scenario-receipts.mjs'
 // Alleen voor het verwachte aantal rijen bij een verse installatie (run C).
 import { DEFAULT_CATEGORIES } from '../../src/constants/categories.js'
 
@@ -48,6 +50,7 @@ const BASE = `http://localhost:${PORT}/FinanceTracker/`
 const UDD_UPGRADE = path.join(HERE, 'profile-upgrade')
 const UDD_FRESH = path.join(HERE, 'profile-fresh')
 const UDD_DEMO = path.join(HERE, 'profile-demo')
+const UDD_RECEIPTS = path.join(HERE, 'profile-receipts')
 const DIST_BASE = path.join(WT, 'base', 'dist')
 const DIST_TARGET = path.join(WT, 'target', 'dist')
 const doeAlles = SCENARIO === 'alle'
@@ -56,13 +59,14 @@ const doeE = doeAlles || SCENARIO === 'e'
 const doeClaims = doeAlles || SCENARIO === 'claims'
 const doeImport = doeAlles || SCENARIO === 'import'
 const doeDemo = doeAlles || SCENARIO === 'demo'
+const doeBon = doeAlles || SCENARIO === 'bon'
 // Run A + B draaien op Florians echte testdata; de verse scenario's (C/C2)
 // hebben die niet nodig en slaan de migratieruns over.
 const doeMigratie = doeAlles || doeBeheer || doeE || doeClaims
 const doeVers = doeAlles || doeImport
 
-if (!['alle', 'beheer', 'e', 'claims', 'import', 'demo'].includes(SCENARIO)) {
-  console.error(`onbekend scenario "${SCENARIO}"; kies alle | beheer | e | claims | import | demo`)
+if (!['alle', 'beheer', 'e', 'claims', 'import', 'demo', 'bon'].includes(SCENARIO)) {
+  console.error(`onbekend scenario "${SCENARIO}"; kies alle | beheer | e | claims | import | demo | bon`)
   process.exit(2)
 }
 // De testdata staat bewust buiten de repo (persoonlijke transacties).
@@ -111,6 +115,7 @@ function ruimOp() {
   fs.rmSync(UDD_UPGRADE, { recursive: true, force: true })
   fs.rmSync(UDD_FRESH, { recursive: true, force: true })
   fs.rmSync(UDD_DEMO, { recursive: true, force: true })
+  fs.rmSync(UDD_RECEIPTS, { recursive: true, force: true })
 }
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { ruimOp(); process.exit(130) })
 
@@ -636,7 +641,7 @@ async function smokeAll(page, prefix, logs) {
 
 async function main() {
   /* ================= RUN A: BASE_REF ================= */
-  const report = { runA: {}, runB: {}, fresh: {}, demo: null }
+  const report = { runA: {}, runB: {}, fresh: {}, demo: null, receipts: null }
 
   if (doeMigratie) {
   console.log(`\n=== RUN A (${BASE_REF} @ ${shaBase.slice(0, 7)}, verse installatie + import) ===`)
@@ -783,6 +788,27 @@ async function main() {
     console.log(`RUN C2 klaar. ${report.demo.stappen.filter(st => st.pass).length}/${report.demo.stappen.length} stappen PASS`)
   }
 
+  /* ================= RUN R: verse installatie, bonnetjes ================= */
+  if (doeBon) {
+    console.log(`\n=== RUN R (${TARGET_REF} @ ${shaTarget.slice(0, 7)}, bonnetjes met een nagebootste AI-dienst) ===`)
+    ROOT = DIST_TARGET
+    fs.rmSync(UDD_RECEIPTS, { recursive: true, force: true })
+    const logs = [], dialogs = []
+    const ctx = await newContext(UDD_RECEIPTS)
+    const page = ctx.pages()[0] ?? await ctx.newPage()
+    attachLogs(page, logs)
+    attachDialogs(page, dialogs)
+    await page.goto(BASE, { waitUntil: 'networkidle' })
+    await doorlopOnboarding(page, 'H0', 'Begin leeg')
+    await page.waitForSelector('div.grid.grid-cols-3', { timeout: 15000 })
+    console.log(' -- scenario H: bonnetjes toevoegen, uitlezen, koppelen en corrigeren --')
+    const scenario = await scenarioReceipts({ page, OUT, logs, BASE, DATA })
+    report.receipts = { ...scenario, logs, dialogs }
+    fs.writeFileSync(path.join(OUT, 'scenario-receipts.json'), JSON.stringify(report.receipts, null, 2))
+    await ctx.close()
+    console.log(`RUN R klaar. ${scenario.stappen.filter(st => st.pass).length}/${scenario.stappen.length} stappen PASS`)
+  }
+
   /* ================= CHECKS ================= */
   const A = report.runA.dump, B = report.runB.dump, C = report.fresh.dump
   const checks = []
@@ -921,6 +947,15 @@ async function main() {
       add(`${st.id}-${st.titel.replace(/[^a-z0-9]+/gi, '-').slice(0, 44)}`, st.pass, st.bewijs)
     }
     fs.writeFileSync(path.join(OUT, 'C2-demo.json'), JSON.stringify(report.demo, null, 2))
+  }
+
+  if (report.receipts) {
+    console.log('\n=== CHECKS: scenario bonnetjes (run R) ===')
+    for (const st of report.receipts.stappen) {
+      add(`${st.id}-${st.titel.replace(/[^a-z0-9]+/gi, '-').slice(0, 44)}`, st.pass, st.bewijs)
+    }
+    add('H-console', report.receipts.logs.filter(isError).length === 0,
+      report.receipts.logs.filter(isError).length ? JSON.stringify(report.receipts.logs.filter(isError), null, 2) : 'geen errors in de hele run R')
   }
 
   fs.writeFileSync(path.join(OUT, 'checks.json'), JSON.stringify(checks, null, 2))

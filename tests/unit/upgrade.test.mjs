@@ -16,8 +16,8 @@ console.log('  ok   oude v2-database aangemaakt')
 const { db } = await import(`${SRC}/db/db.js`)
 const B = await import(`${SRC}/utils/backup.js`)
 await db.open()
-assert.equal(db.verno, 5)
-console.log('  ok   upgradeketen v2 -> v5 draait, verno = 5')
+assert.equal(db.verno, 6)
+console.log('  ok   upgradeketen v2 -> v6 draait, verno = 6')
 
 const woning = await db.categories.get('woning')
 assert.equal(woning.budget, 800, 'budget behouden')
@@ -27,7 +27,10 @@ assert.equal(await db.transactions.count(), 1)
 assert.ok(db.rules, 'rules-tabel bestaat')
 assert.ok(db.claimBatches, 'claimBatches-tabel bestaat')
 assert.equal(await db.claimBatches.count(), 0)
-console.log('  ok   v3-migratie behield budgetten, v4 voegde rules toe, v5 claimBatches')
+assert.ok(db.receipts, 'receipts-tabel bestaat')
+assert.ok(db.receiptItems, 'receiptItems-tabel bestaat')
+assert.equal(await db.receipts.count(), 0)
+console.log('  ok   v3 behield budgetten, v4 voegde rules toe, v5 claimBatches, v6 bonnetjes')
 
 // 'sterre' zit niet meer in DEFAULT_CATEGORIES, maar Florians bestaande rij moet
 // de migratie overleven via de extras-tak — inclusief een net label en icoon.
@@ -42,7 +45,7 @@ assert.deepEqual(sterre.subs.map(s => s.key), ['cadeaus_sterre', 'dates_sterre']
 console.log('  ok   legacy-categorie sterre behouden met label, icoon en budget')
 
 const backup = await B.createBackup()
-assert.equal(backup.schemaVersion, 5)
+assert.equal(backup.schemaVersion, 6)
 assert.equal(backup.tables.rules.length, 0)
 assert.equal(backup.tables.claimBatches.length, 0)
 console.log('  ok   backup van de gemigreerde database')
