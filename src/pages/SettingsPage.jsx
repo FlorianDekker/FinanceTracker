@@ -14,6 +14,7 @@ import { db } from '../db/db'
 import { parseTransactionsCsv } from '../utils/parsers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
 import { applyAccentColor } from '../utils/theme'
+import { SALARY_THRESHOLD } from '../utils/categorizer'
 import { ALL_CHARTS, mergeChartConfig } from '../components/charts/registry'
 import { beschrijfStat } from '../utils/chartStats'
 
@@ -28,6 +29,8 @@ export function SettingsPage() {
   const totalTxCount = useLiveQuery(() => db.transactions.count(), [])
   const rulesCount = useLiveQuery(() => db.rules.count(), [])
   const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? false), [])
+  const salaryThreshold = useLiveQuery(
+    () => db.settings.get('salaryThreshold').then(r => Number(r?.value) || SALARY_THRESHOLD), [])
   const theme = useLiveQuery(() => db.settings.get('theme').then(r => r?.value ?? 'light'), [])
   const accentColor = useLiveQuery(() => db.settings.get('accentColor').then(r => r?.value ?? '#1E3A5F'), [])
   const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
@@ -74,6 +77,13 @@ export function SettingsPage() {
     { color: '#BE185D', label: 'Roze' },
     { color: '#64748B', label: 'Slate' },
   ]
+
+  // Bijschrijvingen vanaf dit bedrag gelden bij het importeren als inkomen.
+  async function saveSalaryThreshold(value) {
+    const val = Math.round(parseFloat(String(value).replace(',', '.')))
+    if (!Number.isFinite(val) || val <= 0) return
+    await db.settings.put({ key: 'salaryThreshold', value: val })
+  }
 
   async function toggleConfidence() {
     const current = showConfidence ?? false
@@ -472,6 +482,30 @@ return (
               <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${showConfidence ? 'translate-x-5' : 'translate-x-0.5'}`} />
             </div>
           </button>
+
+          {/* Salarisdrempel */}
+          <div className="flex items-center gap-3 px-4 py-3">
+            <span className="text-xl">💰</span>
+            <div className="flex-1">
+              <div className="text-sm">Bijschrijving vanaf € telt als salaris</div>
+              <div className="text-xs text-muted">Grote bedragen die binnenkomen worden bij het importeren inkomen</div>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-muted">€</span>
+              <input
+                type="number"
+                min="1"
+                step="50"
+                inputMode="numeric"
+                key={salaryThreshold}
+                defaultValue={salaryThreshold ?? SALARY_THRESHOLD}
+                onBlur={e => saveSalaryThreshold(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()}
+                className="w-20 rounded-lg px-2 py-1 text-sm text-right"
+                style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+              />
+            </div>
+          </div>
         </div>
       </section>
 

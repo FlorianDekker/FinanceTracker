@@ -82,7 +82,14 @@ export function parseABNExport(text) {
     const merchant = extractMerchant(cols.slice(7))
 
     if (!date || amount <= 0) continue
-    results.push({ date, merchant: merchant || 'Onbekend', amount, type })
+    const row = { date, merchant: merchant || 'Onbekend', amount, type }
+    // Kolom 0 = rekeningnummer, kolom 5 = saldo na de mutatie. Beide worden
+    // opgeslagen (rekeningfilter en saldo-verloop); de rest blijft ongewijzigd.
+    const account = cols[0].trim()
+    if (account) row.account = account
+    const balance = parseABNAmount(cols[5].trim())
+    if (Number.isFinite(balance) && cols[5].trim()) row.balance = balance
+    results.push(row)
   }
   return results
 }
@@ -149,6 +156,11 @@ export function parseABNExcelBuffer(buffer) {
 
     if (!date || amount <= 0) continue
     const row = { date, merchant: merchant || 'Onbekend', amount, type }
+    if (acct) row.account = acct
+    // Kolom 5 = endsaldo; Excel levert een getal, oudere exports een string.
+    const rawBalance = cols[5]
+    const balance = typeof rawBalance === 'number' ? rawBalance : parseABNAmount(String(rawBalance ?? ''))
+    if (Number.isFinite(balance) && String(rawBalance ?? '').trim() !== '') row.balance = balance
     if (remi && !/OV-chipkaart/i.test(remi)) {
       // Strip Tikkie ID prefix and trailing IBAN noise
       let cleanRemi = remi.replace(/^Tikkie ID \d+,\s*/i, '')

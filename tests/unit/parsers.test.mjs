@@ -17,9 +17,17 @@ const ABN_TAB = [
 t('ABN tab-export: 2 rijen, datum/bedrag/type/merchant', () => {
   const rows = P.parseABNExport(ABN_TAB)
   assert.equal(rows.length, 2)
-  assert.deepEqual(rows[0], { date: '2026-09-01', merchant: 'Bakkerij Zon', amount: 49.75, type: 'debit' })
-  assert.deepEqual(rows[1], { date: '2026-09-03', merchant: 'J. Voorbeeld', amount: 200, type: 'credit' })
+  const kern = ({ date, merchant, amount, type }) => ({ date, merchant, amount, type })
+  assert.deepEqual(kern(rows[0]), { date: '2026-09-01', merchant: 'Bakkerij Zon', amount: 49.75, type: 'debit' })
+  assert.deepEqual(kern(rows[1]), { date: '2026-09-03', merchant: 'J. Voorbeeld', amount: 200, type: 'credit' })
   assert.equal('remi' in rows[0], false, 'tab-export levert geen remi (ongewijzigd gedrag)')
+})
+
+t('ABN tab-export levert ook rekening en saldo (voor de saldo-grafiek)', () => {
+  const rows = P.parseABNExport(ABN_TAB)
+  assert.equal(rows[0].account, '123456789')
+  assert.equal(rows[0].balance, 950.25, 'endsaldo uit kolom 6')
+  assert.equal(rows[1].balance, 1150.25)
 })
 
 t('ABN extractMerchant blijft hetzelfde', () => {
