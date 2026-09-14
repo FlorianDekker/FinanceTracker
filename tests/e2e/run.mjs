@@ -548,7 +548,7 @@ async function doorlopOnboarding(page, prefix, slotknop, template = 'Standaard')
 
   const keuzes = await page.locator('#root').innerText()
   await shot(page, `${prefix}-onb-4-data`)
-  await page.locator('button', { hasText: new RegExp(`^${slotknop}`) }).click()
+  await page.locator('button', { hasText: slotknop }).first().click()
   await sleep(2000)
   stappen.push({
     id: 'data',
@@ -592,9 +592,10 @@ async function demoFlow(page, logs, dialogs) {
   await sleep(1200)
   const claimsTekst = (await page.locator('#root').innerText()).replace(/\n+/g, ' | ')
   await shot(page, 'C2-declaraties')
-  const openRijen = await page.locator('div.divide-y > button').count()
-  stap('C2-3', 'drie open declaraties', openRijen === 3 || /3×/.test(claimsTekst),
-    `${openRijen} rijen op het declaratiescherm; kop: ${claimsTekst.slice(0, 90)}`)
+  const openRijen = await page.locator('button', { hasText: /zakelijke reis|Hotel Zakelijk/ }).count()
+  stap('C2-3', 'drie open declaraties',
+    openRijen === 3 && /3×/.test(claimsTekst) && /3 indienen/.test(claimsTekst),
+    `${openRijen} open rijen; kop: ${claimsTekst.slice(0, 90)}`)
 
   await page.goto(BASE, { waitUntil: 'networkidle' })
   await sleep(900)
@@ -923,12 +924,12 @@ async function main() {
   }
 
   fs.writeFileSync(path.join(OUT, 'checks.json'), JSON.stringify(checks, null, 2))
-  fs.writeFileSync(path.join(OUT, 'console-logs.json'), JSON.stringify({ A: report.runA.logs, B: report.runB.logs, C: report.fresh.logs }, null, 2))
-  fs.writeFileSync(path.join(OUT, 'categories-A-vs-B.json'), JSON.stringify({ A: A.categories, B: B.categories, fresh: C?.categories ?? [] }, null, 2))
-  fs.writeFileSync(path.join(OUT, 'smoke.json'), JSON.stringify({ B: report.runB.smoke, C: report.fresh.smoke }, null, 2))
-  fs.writeFileSync(path.join(OUT, 'scenario-e.json'), JSON.stringify(report.runB.e, null, 2))
+  fs.writeFileSync(path.join(OUT, 'console-logs.json'), JSON.stringify({ A: report.runA.logs ?? [], B: report.runB.logs ?? [], C: report.fresh.logs ?? [], demo: report.demo?.logs ?? [] }, null, 2))
+  fs.writeFileSync(path.join(OUT, 'categories-A-vs-B.json'), JSON.stringify({ A: A?.categories ?? [], B: B?.categories ?? [], fresh: C?.categories ?? [] }, null, 2))
+  fs.writeFileSync(path.join(OUT, 'smoke.json'), JSON.stringify({ B: report.runB.smoke ?? null, C: report.fresh.smoke ?? null }, null, 2))
+  fs.writeFileSync(path.join(OUT, 'scenario-e.json'), JSON.stringify(report.runB.e ?? {}, null, 2))
   fs.writeFileSync(path.join(OUT, 'scenario-claims.json'), JSON.stringify(report.runB.claims ?? {}, null, 2))
-  fs.writeFileSync(path.join(OUT, 'beheer-scenario.json'), JSON.stringify({ stappen: report.runB.beheer, dialogs: report.runB.dialogs, dumpNa: report.runB.dumpNa }, null, 2))
+  fs.writeFileSync(path.join(OUT, 'beheer-scenario.json'), JSON.stringify({ stappen: report.runB.beheer ?? [], dialogs: report.runB.dialogs ?? [], dumpNa: report.runB.dumpNa ?? null }, null, 2))
 
   const failed = checks.filter(c => !c.pass)
   console.log(`\n${checks.length - failed.length}/${checks.length} checks PASS${failed.length ? ` — FAIL: ${failed.map(f => f.id).join(', ')}` : ''}`)
