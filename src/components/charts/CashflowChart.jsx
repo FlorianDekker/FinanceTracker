@@ -7,12 +7,11 @@ import {
   Tooltip,
 } from 'chart.js'
 import { useState } from 'react'
-import { TransactionForm } from '../transactions/TransactionForm'
+import { TransactionListSheet } from '../transactions/TransactionListSheet'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCashflowData } from '../../hooks/useCashflowData'
-import { euro, euroCompact, fmtDate } from '../../utils/formatters'
+import { euro, euroCompact } from '../../utils/formatters'
 import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
-import { useSheetGestures } from '../../hooks/useSheetGestures'
 import { MONTHS, MONTHS_LONG } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
@@ -189,8 +188,6 @@ function CashflowSheet({ monthData, mode, onClose }) {
   const { catMap } = useCategories()
   const { year, month } = monthData
   const prefix = `${year}-${String(month).padStart(2, '0')}`
-  const sheetRef = useSheetGestures(onClose)
-  const [editing, setEditing] = useState(null)
 
   const txs = useLiveQuery(async () => {
     const all = await db.transactions.where('date').startsWith(prefix).toArray()
@@ -221,51 +218,25 @@ function CashflowSheet({ monthData, mode, onClose }) {
   const totalOut = debits.reduce((s, t) => s + t.amount, 0)
   const totalIn = credits.reduce((s, t) => s + t.amount, 0)
 
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="sticky top-0 z-10 rounded-t-3xl" style={{ background: 'var(--color-accent)' }}>
-          <div className="px-5 pt-2 pb-4 flex flex-col items-center justify-between" style={{ background: 'var(--color-accent)' }}>
-            <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
-            <div className="flex items-center justify-between w-full">
-              <div>
-                <div className="text-base font-bold text-white">{MONTHS_LONG[month - 1]} — {isIncome ? 'Inkomen' : 'Uitgaven'}</div>
-                {txs && isIncome && (
-                  <div className="text-xs text-white/70 mt-0.5">{euro(totalIn)} · {txs.length} transacties</div>
-                )}
-                {txs && !isIncome && (
-                  <div className="text-xs text-white/70 mt-0.5 flex gap-2">
-                    <span>-{euro(totalOut)} ({debits.length})</span>
-                    {credits.length > 0 && <span>+{euro(totalIn)} ({credits.length})</span>}
-                    <span>= {euro(totalOut - totalIn)}</span>
-                  </div>
-                )}
-              </div>
-              <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
-            </div>
-          </div>
-        </div>
+  const subtitle = !txs ? undefined : isIncome
+    ? `${euro(totalIn)} · ${txs.length} transacties`
+    : (
+      <span className="flex gap-2">
+        <span>-{euro(totalOut)} ({debits.length})</span>
+        {credits.length > 0 && <span>+{euro(totalIn)} ({credits.length})</span>}
+        <span>= {euro(totalOut - totalIn)}</span>
+      </span>
+    )
 
-        {txs === undefined && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
-        {txs?.length === 0 && <div className="text-center text-muted py-8 text-sm">Geen transacties</div>}
-        {txs?.map(tx => {
-          const cat = catMap[tx.category]
-          return (
-            <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 text-left" style={{ borderBottom: '1px solid var(--color-border)' }}>
-              <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💸'}</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm truncate">{tx.note || cat?.label || tx.category}</div>
-                <div className="text-xs text-muted">{fmtDate(tx.date)} · {cat?.label}</div>
-              </div>
-              <span className={`text-sm font-semibold shrink-0 tabular-nums ${isIncome || tx.type === 'credit' ? 'text-green' : 'text-red'}`}>
-                {isIncome || tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-      {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
-    </>
+  return (
+    <TransactionListSheet
+      onClose={onClose}
+      accent="var(--color-accent)"
+      title={`${MONTHS_LONG[month - 1]} — ${isIncome ? 'Inkomen' : 'Uitgaven'}`}
+      subtitle={subtitle}
+      transactions={txs ?? null}
+      signOf={tx => (isIncome || tx.type === 'credit' ? '+' : '-')}
+      toneOf={tx => (isIncome || tx.type === 'credit' ? 'text-green' : 'text-red')}
+    />
   )
 }

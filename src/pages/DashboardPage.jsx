@@ -6,10 +6,10 @@ import { useBudgetStats } from '../hooks/useBudgetStats'
 import { euro, euroParts, fmtDate } from '../utils/formatters'
 import { MONTHS_LONG } from '../constants/categories'
 import { useCategories } from '../hooks/useCategories'
-import { TransactionForm } from '../components/transactions/TransactionForm'
+import { TransactionListSheet } from '../components/transactions/TransactionListSheet'
 import { useMonth } from '../hooks/useMonth'
 import { useMonthSwipe } from '../hooks/useMonthSwipe'
-import { useSheetGestures } from '../hooks/useSheetGestures'
+import { Sheet } from '../components/ui/Sheet'
 import { db } from '../db/db'
 
 export function DashboardPage() {
@@ -286,9 +286,6 @@ function CategoryCard({ cat, onClick }) {
 function CategorySheet({ cat, year, month, onClose }) {
   const { colors } = useCategories()
   const prefix = `${year}-${String(month).padStart(2, '0')}`
-  const sheetRef = useSheetGestures(onClose)
-  const [editing, setEditing] = useState(null)
-  const txTouchStart = useRef(null)
 
   const txs = useLiveQuery(
     () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key).sortBy('date'),
@@ -297,142 +294,103 @@ function CategorySheet({ cat, year, month, onClose }) {
   const sorted = txs ? [...txs].reverse() : null
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[75vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        {/* Colored category header */}
-        <div className="sticky top-0 z-10 rounded-t-3xl" style={{ background: colors[cat.key] ?? '#8E8E93' }}>
-          <div className="px-5 pt-2 pb-4 flex flex-col" style={{ background: `linear-gradient(135deg, ${colors[cat.key] ?? '#8E8E93'}, ${colors[cat.key] ?? '#8E8E93'}CC)` }}>
-            <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{cat.icon}</span>
-                <div>
-                  <div className="text-base font-bold text-white">{cat.label}</div>
-                  {sorted && <div className="text-xs text-white/70">{sorted.length} transacties</div>}
-                </div>
-              </div>
-              <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
-            </div>
-          </div>
-        </div>
-
-        {sorted === null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
-        {sorted?.length === 0 && <div className="text-center text-muted py-8 text-sm">Geen transacties deze maand</div>}
-        {sorted?.map(tx => {
-          const sub = cat.subs?.find(s => s.key === tx.subcategory)
-          return (
-            <button
-              key={tx.id}
-              onTouchStart={e => { txTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
-              onTouchEnd={e => {
-                if (!txTouchStart.current) return
-                const s = txTouchStart.current; txTouchStart.current = null
-                if (Math.abs(e.changedTouches[0].clientX - s.x) < 8 && Math.abs(e.changedTouches[0].clientY - s.y) < 8) setEditing(tx)
-              }}
-              onTouchCancel={() => { txTouchStart.current = null }}
-              className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
-              style={{ borderBottom: '1px solid var(--color-border)' }}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{tx.note || cat.label}</div>
-                <div className="text-xs" style={{ color: 'var(--color-muted)' }}>{fmtDate(tx.date)}{sub ? ` · ${sub.label}` : ''}</div>
-              </div>
-              <span className={`text-sm font-bold shrink-0 tabular-nums ${tx.type === 'credit' ? 'text-green' : 'text-red'}`}>
-                {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-      {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
-    </>
+    <TransactionListSheet
+      onClose={onClose}
+      accent={colors[cat.key] ?? '#8E8E93'}
+      maxHeight="75vh"
+      leading={<span className="text-2xl">{cat.icon}</span>}
+      title={cat.label}
+      subtitle={sorted ? `${sorted.length} transacties` : undefined}
+      transactions={sorted}
+      emptyText="Geen transacties deze maand"
+      showIcon={false}
+      renderLabel={tx => tx.note || cat.label}
+      renderMeta={tx => {
+        const sub = cat.subs?.find(s => s.key === tx.subcategory)
+        return `${fmtDate(tx.date)}${sub ? ` · ${sub.label}` : ''}`
+      }}
+    />
   )
 }
 
 function ExpectedSheet({ unpaid, paid, total, onClose }) {
-  const sheetRef = useSheetGestures(onClose)
-
   return (
-    <>
-      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="px-5 pt-2 pb-4">
-          <div className="text-center mb-4">
-            <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
-              Verwachte vaste lasten
-            </div>
-            <div className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--color-text)' }}>
-              {euro(total)}
-            </div>
-            <div className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>
-              nog te verwachten deze maand
-            </div>
+    <Sheet open onClose={onClose} maxHeight="70vh">
+      <div className="px-5 pt-2 pb-4">
+        <div className="text-center mb-4">
+          <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--color-muted)' }}>
+            Verwachte vaste lasten
           </div>
-
-          {/* Unpaid recurring */}
-          {unpaid.length > 0 && (
-            <>
-              <div className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--color-red)' }}>
-                Nog niet betaald ({unpaid.length})
-              </div>
-              <div className="card overflow-hidden mb-4">
-                {unpaid.map((r, i) => (
-                  <div
-                    key={`${r.category}-${r.subcategory}-${i}`}
-                    className="flex items-center gap-3 px-4 py-3"
-                    style={i < unpaid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
-                  >
-                    <span className="text-lg">{r.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{r.label}</div>
-                      <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{r.note && r.note !== r.label ? r.note : `${r.monthCount} maanden`}</div>
-                    </div>
-                    <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-red)' }}>
-                      {euro(r.amount)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Paid recurring */}
-          {paid.length > 0 && (
-            <>
-              <div className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--color-green)' }}>
-                Betaald ({paid.length})
-              </div>
-              <div className="card overflow-hidden">
-                {paid.map((r, i) => (
-                  <div
-                    key={`${r.category}-${r.subcategory}-${i}`}
-                    className="flex items-center gap-3 px-4 py-3"
-                    style={i < paid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
-                  >
-                    <span className="text-lg">{r.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate" style={{ color: 'var(--color-muted)' }}>{r.label}</div>
-                      <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{r.note && r.note !== r.label ? r.note : `${r.monthCount} maanden`}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm tabular-nums" style={{ color: 'var(--color-muted)' }}>{euro(r.amount)}</span>
-                      <span className="text-green text-xs">✓</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {unpaid.length === 0 && paid.length === 0 && (
-            <div className="text-center text-muted py-8 text-sm">Geen terugkerende transacties gevonden</div>
-          )}
-          {unpaid.length === 0 && paid.length > 0 && (
-            <div className="text-center text-sm mt-3" style={{ color: 'var(--color-green)' }}>Alle vaste lasten zijn betaald deze maand</div>
-          )}
+          <div className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--color-text)' }}>
+            {euro(total)}
+          </div>
+          <div className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>
+            nog te verwachten deze maand
+          </div>
         </div>
+
+        {/* Unpaid recurring */}
+        {unpaid.length > 0 && (
+          <>
+            <div className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--color-red)' }}>
+              Nog niet betaald ({unpaid.length})
+            </div>
+            <div className="card overflow-hidden mb-4">
+              {unpaid.map((r, i) => (
+                <div
+                  key={`${r.category}-${r.subcategory}-${i}`}
+                  className="flex items-center gap-3 px-4 py-3"
+                  style={i < unpaid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
+                >
+                  <span className="text-lg">{r.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{r.label}</div>
+                    <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{r.note && r.note !== r.label ? r.note : `${r.monthCount} maanden`}</div>
+                  </div>
+                  <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-red)' }}>
+                    {euro(r.amount)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Paid recurring */}
+        {paid.length > 0 && (
+          <>
+            <div className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--color-green)' }}>
+              Betaald ({paid.length})
+            </div>
+            <div className="card overflow-hidden">
+              {paid.map((r, i) => (
+                <div
+                  key={`${r.category}-${r.subcategory}-${i}`}
+                  className="flex items-center gap-3 px-4 py-3"
+                  style={i < paid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
+                >
+                  <span className="text-lg">{r.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate" style={{ color: 'var(--color-muted)' }}>{r.label}</div>
+                    <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{r.note && r.note !== r.label ? r.note : `${r.monthCount} maanden`}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm tabular-nums" style={{ color: 'var(--color-muted)' }}>{euro(r.amount)}</span>
+                    <span className="text-green text-xs">✓</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {unpaid.length === 0 && paid.length === 0 && (
+          <div className="text-center text-muted py-8 text-sm">Geen terugkerende transacties gevonden</div>
+        )}
+        {unpaid.length === 0 && paid.length > 0 && (
+        <div className="text-center text-sm mt-3" style={{ color: 'var(--color-green)' }}>Alle vaste lasten zijn betaald deze maand</div>
+        )}
       </div>
-    </>
+    </Sheet>
   )
 }

@@ -5,8 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useCategories } from '../../hooks/useCategories'
 import { useBudgetStats } from '../../hooks/useBudgetStats'
 import { euro, fmtDate } from '../../utils/formatters'
-import { useSheetGestures } from '../../hooks/useSheetGestures'
-import { TransactionForm } from '../transactions/TransactionForm'
+import { TransactionListSheet } from '../transactions/TransactionListSheet'
 import { db } from '../../db/db'
 import { chartColors, tooltipTheme } from '../../utils/theme'
 
@@ -18,7 +17,6 @@ export function SpendingDonut({ year, month }) {
   const { colors } = useCategories()
   const [selectedCat, setSelectedCat] = useState(null)
   const chartRef = useRef(null)
-  const catsRef = useRef([])
 
   if (!stats.length) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
@@ -30,7 +28,6 @@ export function SpendingDonut({ year, month }) {
     .filter(c => c.key !== 'bankoverschrijving' && c.spent < 0)
     .sort((a, b) => a.spent - b.spent)
 
-  catsRef.current = cats
   const total = cats.reduce((s, c) => s + c.spent, 0)
 
   if (cats.length === 0) return (
@@ -44,6 +41,10 @@ export function SpendingDonut({ year, month }) {
       backgroundColor: cats.map(c => colors[c.key] ?? '#8E8E93'),
       borderWidth: 0,
       hoverOffset: 8,
+      // De label-plugin heeft icoon en sleutel nodig; via de dataset blijft dat
+      // synchroon met wat er getekend wordt (chart.js krijgt bij elke render
+      // nieuwe data) zonder een ref tijdens de render te muteren.
+      cats,
     }],
   }
 
@@ -73,7 +74,7 @@ export function SpendingDonut({ year, month }) {
       const { ctx } = chart
       const meta = chart.getDatasetMeta(0)
       if (!meta.data.length) return
-      const currentCats = catsRef.current
+      const currentCats = chart.data.datasets[0]?.cats ?? []
       const currentTotal = currentCats.reduce((s, c) => s + c.spent, 0)
 
       // Only label segments that are big enough (>5%)
@@ -236,8 +237,6 @@ export function SpendingDonut({ year, month }) {
 
 function CategoryTransactionSheet({ cat, year, month, color, onClose }) {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
-  const sheetRef = useSheetGestures(onClose)
-  const [editing, setEditing] = useState(null)
 
   const txs = useLiveQuery(
     () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key).sortBy('date'),
@@ -247,40 +246,17 @@ function CategoryTransactionSheet({ cat, year, month, color, onClose }) {
   const totalSpent = sorted?.reduce((s, t) => s + (t.type === 'debit' ? t.amount : -t.amount), 0) ?? 0
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-40 rounded-t-3xl max-h-[70vh] overflow-y-auto pb-24 animate-slide-up" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="sticky top-0 z-10 rounded-t-3xl" style={{ background: color }}>
-          <div className="px-5 pt-2 pb-4 flex flex-col items-center justify-between" style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}>
-            <div className="w-9 h-1 rounded-full mx-auto mb-3" style={{ background: 'rgba(255,255,255,0.35)' }} />
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{cat.icon}</span>
-                <div>
-                  <div className="text-base font-bold text-white">{cat.label}</div>
-                  {sorted && <div className="text-xs text-white/70">{euro(Math.abs(totalSpent))} · {sorted.length} transacties</div>}
-                </div>
-              </div>
-              <button onClick={onClose} className="text-white/80 text-lg font-medium w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>✕</button>
-            </div>
-          </div>
-        </div>
-
-        {sorted === null && <div className="text-center text-muted py-8 text-sm">Laden…</div>}
-        {sorted?.length === 0 && <div className="text-center text-muted py-8 text-sm">Geen transacties deze maand</div>}
-        {sorted?.map(tx => (
-          <button key={tx.id} onClick={() => setEditing(tx)} className="w-full flex items-center gap-3 px-4 py-3 text-left" style={{ borderBottom: '1px solid var(--color-border)' }}>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm truncate">{tx.note || cat.label}</div>
-              <div className="text-xs text-muted">{fmtDate(tx.date)}</div>
-            </div>
-            <span className={`text-sm font-semibold shrink-0 tabular-nums ${tx.type === 'credit' ? 'text-green' : 'text-red'}`}>
-              {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
-            </span>
-          </button>
-        ))}
-      </div>
-      {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
-    </>
+    <TransactionListSheet
+      onClose={onClose}
+      accent={color}
+      leading={<span className="text-2xl">{cat.icon}</span>}
+      title={cat.label}
+      subtitle={sorted ? `${euro(Math.abs(totalSpent))} · ${sorted.length} transacties` : undefined}
+      transactions={sorted}
+      emptyText="Geen transacties deze maand"
+      showIcon={false}
+      renderLabel={tx => tx.note || cat.label}
+      renderMeta={tx => fmtDate(tx.date)}
+    />
   )
 }

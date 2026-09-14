@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { addTransaction, updateTransaction, deleteTransaction } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
 import { today } from '../../utils/formatters'
-import { useSheetGestures } from '../../hooks/useSheetGestures'
+import { Sheet } from '../ui/Sheet'
 import { recordEvent } from '../../utils/merchantLearning'
 import { CategoryPicker, CategoryIcon } from '../categories/CategoryPicker'
 
@@ -16,7 +16,6 @@ export function TransactionForm({ onClose, existing }) {
   const [note, setNote] = useState(existing?.note ?? '')
   const [saving, setSaving] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const sheetRef = useSheetGestures(onClose)
 
   const selectedCat = catMap[category]
   const selectedSub = selectedCat?.subs?.find(s => s.key === subcategory)
@@ -54,16 +53,13 @@ export function TransactionForm({ onClose, existing }) {
 
   return (
     <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30 z-50 animate-fade-in" onClick={onClose} />
-
-      {/* Sheet */}
-      <div ref={sheetRef} className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl p-4 pb-24 max-h-[90vh] overflow-y-auto animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base font-semibold">{existing ? 'Bewerken' : 'Transactie toevoegen'}</h2>
-          <button onClick={onClose} className="text-muted text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>
-        </div>
-
+      <Sheet
+        open
+        onClose={onClose}
+        title={existing ? 'Bewerken' : 'Transactie toevoegen'}
+        maxHeight="90vh"
+        bodyClassName="p-4"
+      >
         <div className="space-y-3">
           {/* Date */}
           <label className="block">
@@ -167,7 +163,7 @@ export function TransactionForm({ onClose, existing }) {
             </button>
           )}
         </div>
-      </div>
+      </Sheet>
 
       <CategoryPicker
         open={pickerOpen}

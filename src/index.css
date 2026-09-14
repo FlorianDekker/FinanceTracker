@@ -123,6 +123,11 @@ body {
   margin: 10px auto 6px;
 }
 
+/* Greepje op een gekleurde sheetkop */
+.sheet-handle-on-accent::before {
+  background: rgba(255, 255, 255, 0.35);
+}
+
 /* ─── Accent button ───────────────────────────────── */
 
 .btn-accent {
