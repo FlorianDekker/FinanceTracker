@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import { countsInTotals } from '../utils/claims'
 import { useCategories } from './useCategories'
 
 export async function setDailyIncludeVoorschot(value) {
@@ -13,7 +14,7 @@ export function useDailySpending(year, month) {
     if (!year || !month || loading) return null
     const prefix = `${year}-${String(month).padStart(2, '0')}`
     const [txs, setting] = await Promise.all([
-      db.transactions.where('date').startsWith(prefix).toArray(),
+      db.transactions.where('date').startsWith(prefix).filter(countsInTotals).toArray(),
       db.settings.get('dailyIncludeVoorschot'),
     ])
     const includeVoorschot = setting?.value ?? false

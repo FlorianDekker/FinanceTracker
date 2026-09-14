@@ -11,6 +11,7 @@ import {
 } from 'chart.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
+import { countsInTotals } from '../../utils/claims'
 import { euro, euroCompact } from '../../utils/formatters'
 import { MONTHS } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
@@ -50,7 +51,7 @@ export function SubTrendsChart() {
   const currentMonth = now.getMonth()
 
   const txs = useLiveQuery(
-    () => db.transactions.where('date').startsWith(`${year}-`).toArray(),
+    () => db.transactions.where('date').startsWith(`${year}-`).filter(countsInTotals).toArray(),
     [year]
   )
 

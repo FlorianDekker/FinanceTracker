@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import { countsInTotals } from '../utils/claims'
 import { useCategories } from './useCategories'
 
 const EXCL_SUBCATEGORY = 'belasting'
@@ -33,7 +34,7 @@ export function usePaceData(year, month) {
     const prefix = `${year}-${String(month).padStart(2, '0')}`
 
     const [txs, setting] = await Promise.all([
-      db.transactions.where('date').startsWith(prefix).toArray(),
+      db.transactions.where('date').startsWith(prefix).filter(countsInTotals).toArray(),
       db.settings.get('paceExcluded'),
     ])
 

@@ -7,6 +7,7 @@ import { useBudgetStats } from '../../hooks/useBudgetStats'
 import { euro, fmtDate } from '../../utils/formatters'
 import { TransactionListSheet } from '../transactions/TransactionListSheet'
 import { db } from '../../db/db'
+import { countsInTotals } from '../../utils/claims'
 import { chartColors, tooltipTheme } from '../../utils/theme'
 
 ChartJS.register(ArcElement, Tooltip)
@@ -239,7 +240,7 @@ function CategoryTransactionSheet({ cat, year, month, color, onClose }) {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
 
   const txs = useLiveQuery(
-    () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key).sortBy('date'),
+    () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key && countsInTotals(t)).sortBy('date'),
     [prefix, cat.key]
   )
   const sorted = txs ? [...txs].reverse() : null

@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { CategoryRow } from '../components/dashboard/CategoryRow'
@@ -11,6 +12,8 @@ import { useMonth } from '../hooks/useMonth'
 import { useMonthSwipe } from '../hooks/useMonthSwipe'
 import { Sheet } from '../components/ui/Sheet'
 import { db } from '../db/db'
+import { countsInTotals } from '../utils/claims'
+import { useOutstandingClaims } from '../hooks/useClaims'
 
 export function DashboardPage() {
   const { year, month, animDir, isCurrentMonth, goMonth, goToNow } = useMonth()
@@ -22,6 +25,7 @@ export function DashboardPage() {
   const catTouchStart = useRef(null)
 
   const stats = useBudgetStats(year, month)
+  const claims = useOutstandingClaims()
   const expenseStats = stats.filter(c => c.type === 'expense')
   const voorschotStat = stats.find(c => c.key === 'voorschot')
   const totalBudget = expenseStats.reduce((s, c) => s + c.budget, 0)
@@ -33,7 +37,7 @@ export function DashboardPage() {
   const RECURRING_CATS = new Set(['woning', 'abonnementen'])
   const currentPrefix = `${year}-${String(month).padStart(2, '0')}`
 
-  const allTxs = useLiveQuery(() => db.transactions.toArray(), [])
+  const allTxs = useLiveQuery(() => db.transactions.filter(countsInTotals).toArray(), [])
 
   const recurringData = (() => {
     if (!allTxs) return []
@@ -171,6 +175,27 @@ export function DashboardPage() {
           </div>
         </div>
 
+        {/* Openstaande declaraties (het volledige overzicht komt in een latere stap) */}
+        {claims.count > 0 && (
+          <div className="px-4 pb-1">
+            <Link
+              to="/transactions?filter=claims"
+              className="card px-4 py-3 flex items-center gap-3"
+              style={{ color: 'var(--color-text)' }}
+            >
+              <span className="text-xl">💼</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">Declaraties open</div>
+                <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
+                  {claims.count} {claims.count === 1 ? 'transactie' : 'transacties'} · telt niet mee in je budget
+                </div>
+              </div>
+              <span className="text-sm font-bold tabular-nums">{euro(claims.total)}</span>
+              <span style={{ color: 'var(--color-muted)' }}>›</span>
+            </Link>
+          </div>
+        )}
+
         {view === 'cards' ? (
           <div className="px-4 pb-6 pt-2">
             <div className="grid grid-cols-3 gap-3">
@@ -288,7 +313,7 @@ function CategorySheet({ cat, year, month, onClose }) {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
 
   const txs = useLiveQuery(
-    () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key).sortBy('date'),
+    () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key && countsInTotals(t)).sortBy('date'),
     [prefix, cat.key]
   )
   const sorted = txs ? [...txs].reverse() : null

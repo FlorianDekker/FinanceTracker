@@ -1,11 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
+import { countsInTotals } from '../../utils/claims'
 import { euro, fmtDate } from '../../utils/formatters'
 import { MONTHS_LONG } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 
 export function RecordsChart() {
-  const txs = useLiveQuery(() => db.transactions.toArray(), [])
+  const txs = useLiveQuery(() => db.transactions.filter(countsInTotals).toArray(), [])
   const { catMap } = useCategories()
 
   if (!txs) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>

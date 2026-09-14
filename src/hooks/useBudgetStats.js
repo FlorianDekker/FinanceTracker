@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import { countsInTotals } from '../utils/claims'
 import { useCategories } from './useCategories'
 
 export function useBudgetStats(year, month) {
@@ -14,6 +15,7 @@ export function useBudgetStats(year, month) {
     const yearPrefix = `${year}-`
     const allYearTxs = await db.transactions
       .where('date').startsWith(yearPrefix)
+      .filter(countsInTotals)     // lopende declaraties en hun uitbetaling tellen niet mee
       .toArray()
 
     const spent = {}

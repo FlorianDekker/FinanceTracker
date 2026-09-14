@@ -3,6 +3,7 @@ import { Doughnut } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
+import { isCountedExpense } from '../../utils/claims'
 import { euro } from '../../utils/formatters'
 import { useCategories } from '../../hooks/useCategories'
 import { chartColors, tooltipTheme } from '../../utils/theme'
@@ -31,7 +32,7 @@ export function SubcategoryChart({ year, month }) {
 
   const txs = useLiveQuery(
     () => db.transactions.where('date').startsWith(prefix)
-      .filter(t => t.type === 'debit' && t.category === activeCat)
+      .filter(t => isCountedExpense(t) && t.category === activeCat)
       .toArray(),
     [prefix, activeCat]
   )

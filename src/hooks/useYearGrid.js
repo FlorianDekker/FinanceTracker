@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import { countsInTotals } from '../utils/claims'
 import { useCategories } from './useCategories'
 
 export function useYearGrid(year) {
@@ -14,7 +15,7 @@ export function useYearGrid(year) {
   return useLiveQuery(async () => {
     if (!year || loading) return null
     const yearPrefix = `${year}-`
-    const txs = await db.transactions.where('date').startsWith(yearPrefix).toArray()
+    const txs = await db.transactions.where('date').startsWith(yearPrefix).filter(countsInTotals).toArray()
 
     // Build spend[category][month] matrix
     const matrix = {}

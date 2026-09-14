@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
+import { countsInTotals } from '../../utils/claims'
 import { euro } from '../../utils/formatters'
 import { MONTHS } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
@@ -8,7 +9,7 @@ import { StatCard } from '../ui/StatCard'
 const now = new Date()
 
 export function AverageChart() {
-  const txs = useLiveQuery(() => db.transactions.toArray(), [])
+  const txs = useLiveQuery(() => db.transactions.filter(countsInTotals).toArray(), [])
   // Jaaroverzicht: gearchiveerde categorieen moeten zichtbaar blijven.
   const { allCategories, colors } = useCategories()
 

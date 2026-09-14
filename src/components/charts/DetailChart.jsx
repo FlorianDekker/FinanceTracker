@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
+import { isCountedExpense } from '../../utils/claims'
 import { euro } from '../../utils/formatters'
 import { useCategories } from '../../hooks/useCategories'
 import { StatCard } from '../ui/StatCard'
@@ -11,7 +12,7 @@ export function DetailChart({ year, month }) {
 
   const txs = useLiveQuery(
     () => db.transactions.where('date').startsWith(prefix)
-      .filter(t => t.type === 'debit' && t.category !== 'bankoverschrijving')
+      .filter(t => isCountedExpense(t) && t.category !== 'bankoverschrijving')
       .toArray(),
     [prefix]
   )

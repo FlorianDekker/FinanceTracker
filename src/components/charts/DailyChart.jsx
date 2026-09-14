@@ -14,6 +14,7 @@ import { euro, euroCompact, fmtDate } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
+import { isCountedExpense } from '../../utils/claims'
 import { StatCard } from '../ui/StatCard'
 
 ChartJS.register(BarElement, LinearScale, CategoryScale, Tooltip)
@@ -203,7 +204,7 @@ function DayTransactionSheet({ day, year, month, onClose }) {
   const txs = useLiveQuery(
     () => db.transactions
       .where('date').equals(dateStr)
-      .filter(t => t.type === 'debit' && catMap[t.category]?.type === 'expense')
+      .filter(t => isCountedExpense(t) && catMap[t.category]?.type === 'expense')
       .sortBy('amount'),
     [dateStr, catMap]
   )

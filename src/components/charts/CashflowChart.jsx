@@ -15,6 +15,7 @@ import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { MONTHS, MONTHS_LONG } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
+import { countsInTotals } from '../../utils/claims'
 import { StatCard } from '../ui/StatCard'
 
 ChartJS.register(BarElement, LinearScale, CategoryScale, Tooltip)
@@ -190,7 +191,7 @@ function CashflowSheet({ monthData, mode, onClose }) {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
 
   const txs = useLiveQuery(async () => {
-    const all = await db.transactions.where('date').startsWith(prefix).toArray()
+    const all = await db.transactions.where('date').startsWith(prefix).filter(countsInTotals).toArray()
     if (mode === 'income') {
       return all
         .filter(tx => {

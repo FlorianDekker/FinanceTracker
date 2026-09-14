@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
+import { isCountedIncome } from '../../utils/claims'
 import { euro, euroParts, fmtDate } from '../../utils/formatters'
 import { useCategories } from '../../hooks/useCategories'
 
@@ -10,7 +11,7 @@ export function IncomeChart({ year, month }) {
   const txs = useLiveQuery(
     () => db.transactions
       .where('date').startsWith(prefix)
-      .filter(t => t.type === 'credit' && t.category !== 'bankoverschrijving' && t.category !== 'voorschot')
+      .filter(t => isCountedIncome(t) && t.category !== 'bankoverschrijving' && t.category !== 'voorschot')
       .sortBy('amount'),
     [prefix]
   )

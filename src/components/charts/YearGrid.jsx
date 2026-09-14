@@ -6,6 +6,7 @@ import { TransactionListSheet } from '../transactions/TransactionListSheet'
 import { MONTHS, MONTHS_LONG } from '../../constants/categories'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
+import { countsInTotals } from '../../utils/claims'
 
 const now = new Date()
 
@@ -148,7 +149,7 @@ function YearGridSheet({ cat, year, month, onClose }) {
   const prefix = `${year}-${String(month).padStart(2, '0')}`
 
   const txs = useLiveQuery(
-    () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key).sortBy('date'),
+    () => db.transactions.where('date').startsWith(prefix).filter(t => t.category === cat.key && countsInTotals(t)).sortBy('date'),
     [prefix, cat.key]
   )
   const sorted = txs ? [...txs].reverse() : null

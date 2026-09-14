@@ -8,6 +8,7 @@ import {
 } from 'chart.js'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
+import { isCountedExpense } from '../../utils/claims'
 import { euro, euroCompact } from '../../utils/formatters'
 import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { StatCard } from '../ui/StatCard'
@@ -21,7 +22,7 @@ export function WeekdayChart({ year, month }) {
   const txs = useLiveQuery(
     () => db.transactions
       .where('date').startsWith(prefix)
-      .filter(t => t.type === 'debit' && t.category !== 'bankoverschrijving')
+      .filter(t => isCountedExpense(t) && t.category !== 'bankoverschrijving')
       .toArray(),
     [prefix]
   )

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import { countsInTotals } from '../utils/claims'
 import { useCategories } from './useCategories'
 
 const EARNED_INCOME_KEYWORDS = ['salaris', 'salary', 'loon', 'overige_kosten']
@@ -21,7 +22,7 @@ export function useCashflowData() {
     const results = []
     for (const { year, month } of months) {
       const prefix = `${year}-${String(month).padStart(2, '0')}`
-      const txs = await db.transactions.where('date').startsWith(prefix).toArray()
+      const txs = await db.transactions.where('date').startsWith(prefix).filter(countsInTotals).toArray()
 
       let income = 0
       let expenses = 0

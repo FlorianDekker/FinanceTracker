@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
+import { countsInTotals } from '../../utils/claims'
 import { euro, fmtDate } from '../../utils/formatters'
 import { TransactionListSheet } from '../transactions/TransactionListSheet'
 import { StatCard } from '../ui/StatCard'
@@ -11,7 +12,7 @@ export function CalendarChart({ year, month }) {
 
   const data = useLiveQuery(async () => {
     const prefix = `${year}-${String(month).padStart(2, '0')}`
-    const txs = await db.transactions.where('date').startsWith(prefix).toArray()
+    const txs = await db.transactions.where('date').startsWith(prefix).filter(countsInTotals).toArray()
 
     const daysInMonth = new Date(year, month, 0).getDate()
     const spent = Array(daysInMonth + 1).fill(0)
@@ -123,7 +124,7 @@ function DaySheet({ day, year, month, onClose }) {
 
   const txs = useLiveQuery(
     () => db.transactions.where('date').equals(dateStr)
-      .filter(t => t.category !== 'bankoverschrijving')
+      .filter(t => t.category !== 'bankoverschrijving' && countsInTotals(t))
       .sortBy('amount'),
     [dateStr]
   )
