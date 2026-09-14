@@ -1,5 +1,5 @@
 // Het eigen CSV-formaat van de app: date,amount,type,category,subcategory,note.
-// Gebruikt door de legacy-import (MigrationPage) en de CSV-restore in Instellingen.
+// Gebruikt door de legacy-import en de CSV-restore in Instellingen -> Geavanceerd.
 
 export function parseCsvLine(line) {
   const out = []

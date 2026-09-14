@@ -20,7 +20,7 @@ const EMPTY_SET = new Set()
 const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0)
 
 /* ------------------------------------------------------------------ *
- * Losse mutators (werken ook buiten de provider, bijv. MigrationPage)  *
+ * Losse mutators (werken ook buiten de provider, bijv. de onboarding)   *
  * ------------------------------------------------------------------ */
 
 // Zorgt dat elke standaardcategorie als volledige rij in de db staat, zonder

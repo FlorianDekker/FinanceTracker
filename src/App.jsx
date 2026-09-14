@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { db } from './db/db'
 import { BottomNav } from './components/layout/BottomNav'
-import { MigrationPage } from './pages/MigrationPage'
+import { OnboardingPage } from './pages/OnboardingPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { TransactionsPage } from './pages/TransactionsPage'
 import { ChartsPage } from './pages/ChartsPage'
@@ -12,6 +12,8 @@ import { SettingsPage } from './pages/SettingsPage'
 import { MonthProvider } from './hooks/useMonth'
 import { CategoriesProvider } from './hooks/useCategories'
 import { applyAccentColor } from './utils/theme'
+
+const BASENAME = '/FinanceTracker'
 
 export default function App() {
   const [migrationDone, setMigrationDone] = useState(null)
@@ -46,15 +48,22 @@ export default function App() {
   }
 
   if (!migrationDone) {
+    // Koos de gebruiker "Bankbestand importeren", dan start de app meteen op
+    // /import. De router leest de locatie bij het mounten, dus zetten we die
+    // vóór de eerste render van BrowserRouter.
+    const done = next => {
+      if (next === 'import') window.history.replaceState({}, '', `${BASENAME}/import`)
+      setMigrationDone(true)
+    }
     return (
       <CategoriesProvider>
-        <MigrationPage onDone={() => setMigrationDone(true)} />
+        <OnboardingPage onDone={done} />
       </CategoriesProvider>
     )
   }
 
   return (
-    <BrowserRouter basename="/FinanceTracker">
+    <BrowserRouter basename={BASENAME}>
       <CategoriesProvider>
         <MonthProvider>
           <div className="flex flex-col min-h-screen bg-bg" style={{ color: 'var(--color-text)' }}>
