@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { PaceChart } from '../components/charts/PaceChart'
@@ -18,6 +18,7 @@ import { DetailChart } from '../components/charts/DetailChart'
 import { SubTrendsChart } from '../components/charts/SubTrendsChart'
 import { MONTHS_LONG } from '../constants/categories'
 import { useMonth } from '../hooks/useMonth'
+import { useMonthSwipe } from '../hooks/useMonthSwipe'
 import { db } from '../db/db'
 
 // All available charts
@@ -43,7 +44,7 @@ const DEFAULT_ORDER = ALL_CHARTS.map(c => c.id)
 const CHART_MAP = Object.fromEntries(ALL_CHARTS.map(c => [c.id, c]))
 
 export function ChartsPage() {
-  const { year, month, animDir: monthAnimDir, isCurrentMonth, goMonth, goToNow } = useMonth()
+  const { year, month, isCurrentMonth, goMonth, goToNow } = useMonth()
   const [active, setActive] = useState(0)
   const [tabAnimDir, setTabAnimDir] = useState(null)
   const tabAnimating = useRef(false)
@@ -84,66 +85,25 @@ export function ChartsPage() {
     }
   }
 
-  useEffect(() => {
-    const el = pageRef.current
-    if (!el) return
-    let startX = null, startY = null, horizontal = null, startTarget = null, startedFromEdge = false
-    const screenW = window.innerWidth
-    const EDGE_ZONE = 40
-
-    const onStart = e => {
-      const x = e.touches[0].clientX
-      const y = e.touches[0].clientY
-      startX = x
-      startY = y
-      startTarget = e.target
-      startedFromEdge = x < EDGE_ZONE || x > screenW - EDGE_ZONE
-      horizontal = null
-    }
-    const onMove = e => {
-      if (startX === null) return
-      const dx = Math.abs(e.touches[0].clientX - startX)
-      const dy = Math.abs(e.touches[0].clientY - startY)
-      if (horizontal === null && (dx > 5 || dy > 5)) horizontal = dx > dy
-      if (horizontal) e.preventDefault()
-    }
-    const onEnd = e => {
-      if (startX === null) return
-      const dx = e.changedTouches[0].clientX - startX
-      const dy = Math.abs(e.changedTouches[0].clientY - startY)
-      const target = startTarget
-      startX = null
-      startTarget = null
-      if (!horizontal || Math.abs(dx) < 50 || dy > Math.abs(dx)) return
-
-      if (startedFromEdge) {
-        const cur = activeRef.current
-        if (dx < 0 && cur < visibleCharts.length - 1) goTo(cur + 1)
-        else if (dx > 0 && cur > 0) goTo(cur - 1)
-        return
+  // Swipe: vanaf de randen altijd van tab wisselen, midden in een grafiek van
+  // maand (als die chart een maand gebruikt), daarbuiten weer van tab.
+  useMonthSwipe(pageRef, {
+    threshold: 50,
+    lockSlop: 5,
+    edgeGuard: 0,
+    edgeZone: 40,
+    onSwipe: (dir, { target, startedFromEdge }) => {
+      const cur = activeRef.current
+      const stepTab = () => {
+        if (dir === 'next' && cur < visibleCharts.length - 1) goTo(cur + 1)
+        else if (dir === 'prev' && cur > 0) goTo(cur - 1)
       }
-
+      if (startedFromEdge) { stepTab(); return }
       const inChartArea = target?.closest?.('[data-chart-area]')
-      const currentChart = visibleCharts[activeRef.current]
-
-      if (inChartArea && currentChart?.usesMonth) {
-        goMonth(dx < 0 ? 'next' : 'prev')
-      } else {
-        const cur = activeRef.current
-        if (dx < 0 && cur < visibleCharts.length - 1) goTo(cur + 1)
-        else if (dx > 0 && cur > 0) goTo(cur - 1)
-      }
-    }
-
-    el.addEventListener('touchstart', onStart, { passive: true })
-    el.addEventListener('touchmove', onMove, { passive: false })
-    el.addEventListener('touchend', onEnd, { passive: true })
-    return () => {
-      el.removeEventListener('touchstart', onStart)
-      el.removeEventListener('touchmove', onMove)
-      el.removeEventListener('touchend', onEnd)
-    }
-  }, [visibleCharts.length])
+      if (inChartArea && visibleCharts[cur]?.usesMonth) goMonth(dir)
+      else stepTab()
+    },
+  })
 
   const slideClass = tabAnimDir === 'left'
     ? 'animate-slide-in-left'

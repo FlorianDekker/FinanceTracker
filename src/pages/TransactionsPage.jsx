@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { PageWrapper } from '../components/layout/PageWrapper'
@@ -7,6 +7,7 @@ import { euro, fmtDate } from '../utils/formatters'
 import { MONTHS_LONG } from '../constants/categories'
 import { useCategories } from '../hooks/useCategories'
 import { useMonth } from '../hooks/useMonth'
+import { useMonthSwipe } from '../hooks/useMonthSwipe'
 
 export function TransactionsPage() {
   const { year, month, animDir, isCurrentMonth, goMonth, goToNow } = useMonth()
@@ -34,46 +35,7 @@ export function TransactionsPage() {
     )
   })
 
-  useEffect(() => {
-    const el = listRef.current
-    if (!el) return
-    let startX = null, startY = null, horizontal = null
-
-    const onStart = e => {
-      const x = e.touches[0].clientX
-      if (x < 24) { startX = null; return }
-      startX = x
-      startY = e.touches[0].clientY
-      horizontal = null
-    }
-    const onMove = e => {
-      if (startX === null) return
-      const dx = Math.abs(e.touches[0].clientX - startX)
-      const dy = Math.abs(e.touches[0].clientY - startY)
-      if (horizontal === null) {
-        if (dx < 6 && dy < 6) return  // ambiguous — let browser scroll freely
-        horizontal = dx > dy
-      }
-      if (horizontal) e.preventDefault()
-    }
-    const onEnd = e => {
-      if (startX === null || !horizontal) { startX = null; return }
-      const dx = e.changedTouches[0].clientX - startX
-      const dy = Math.abs(e.changedTouches[0].clientY - startY)
-      startX = null
-      if (Math.abs(dx) < 60 || dy > Math.abs(dx)) return
-      goMonth(dx < 0 ? 'next' : 'prev')
-    }
-
-    el.addEventListener('touchstart', onStart, { passive: true })
-    el.addEventListener('touchmove', onMove, { passive: false })
-    el.addEventListener('touchend', onEnd, { passive: true })
-    return () => {
-      el.removeEventListener('touchstart', onStart)
-      el.removeEventListener('touchmove', onMove)
-      el.removeEventListener('touchend', onEnd)
-    }
-  }, [])
+  useMonthSwipe(listRef)
 
   const slideClass = animDir === 'left'
     ? 'animate-slide-in-left'
