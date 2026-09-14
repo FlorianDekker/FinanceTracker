@@ -14,7 +14,7 @@ import { db } from '../db/db'
 import { parseTransactionsCsv } from '../utils/parsers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
 import { applyAccentColor } from '../utils/theme'
-import { ALL_CHARTS } from './ChartsPage'
+import { ALL_CHARTS, mergeChartConfig } from '../components/charts/registry'
 
 export function SettingsPage() {
   const { categories } = useCategories()
@@ -34,9 +34,12 @@ export function SettingsPage() {
   const claims = useOutstandingClaims()
   const voorschotCount = useVoorschotCount()
 
-  const defaultOrder = ALL_CHARTS.map(c => c.id)
-  const chartOrder = chartConfig?.order ?? defaultOrder
-  const chartEnabled = new Set(chartConfig?.enabled ?? defaultOrder)
+  // Zelfde samenvoeging als de Grafieken-pagina: onbekende ids eruit, nieuwe
+  // grafieken achteraan erbij. Zonder dit blijven nieuwe grafieken onzichtbaar
+  // zodra er ooit een chartConfig is opgeslagen.
+  const merged = mergeChartConfig(chartConfig)
+  const chartOrder = merged.order
+  const chartEnabled = new Set(merged.enabled)
 
   async function toggleChart(id) {
     const next = new Set(chartEnabled)

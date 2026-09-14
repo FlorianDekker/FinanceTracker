@@ -1,47 +1,11 @@
 import { useState, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
-import { PaceChart } from '../components/charts/PaceChart'
-import { CashflowChart } from '../components/charts/CashflowChart'
-import { YearGrid } from '../components/charts/YearGrid'
-import { SpendingDonut } from '../components/charts/SpendingDonut'
-import { DailyChart } from '../components/charts/DailyChart'
-import { TrendsChart } from '../components/charts/TrendsChart'
-import { TopSpendingChart } from '../components/charts/TopSpendingChart'
-import { WeekdayChart } from '../components/charts/WeekdayChart'
-import { CompareChart } from '../components/charts/CompareChart'
-import { AverageChart } from '../components/charts/AverageChart'
-import { ForecastChart } from '../components/charts/ForecastChart'
-import { RecordsChart } from '../components/charts/RecordsChart'
-import { SubcategoryChart } from '../components/charts/SubcategoryChart'
-import { DetailChart } from '../components/charts/DetailChart'
-import { SubTrendsChart } from '../components/charts/SubTrendsChart'
+import { CHART_MAP, mergeChartConfig } from '../components/charts/registry'
 import { MONTHS_LONG } from '../constants/categories'
 import { useMonth } from '../hooks/useMonth'
 import { useMonthSwipe } from '../hooks/useMonthSwipe'
 import { db } from '../db/db'
-
-// All available charts
-export const ALL_CHARTS = [
-  { id: 'budgettempo',    label: 'Budgettempo',    usesMonth: true,  Component: PaceChart },
-  { id: 'spaarpercentage', label: 'Spaarpercentage', usesMonth: false, Component: CashflowChart },
-  { id: 'verdeling',      label: 'Verdeling',      usesMonth: true,  Component: SpendingDonut },
-  { id: 'dagelijks',      label: 'Dagelijks',      usesMonth: true,  Component: DailyChart },
-  { id: 'top',            label: 'Top',            usesMonth: true,  Component: TopSpendingChart },
-  { id: 'weekdag',        label: 'Weekdag',        usesMonth: true,  Component: WeekdayChart },
-  { id: 'vergelijk',      label: 'Vergelijk',      usesMonth: true,  Component: CompareChart },
-  { id: 'forecast',       label: 'Forecast',       usesMonth: true,  Component: ForecastChart },
-  { id: 'subcategorie',   label: 'Subcategorieën', usesMonth: true,  Component: SubcategoryChart },
-  { id: 'detail',         label: 'Detail',         usesMonth: true,  Component: DetailChart },
-  { id: 'subtrends',      label: 'Sub trends',     usesMonth: false, Component: SubTrendsChart },
-  { id: 'gemiddeld',      label: 'Gemiddeld',      usesMonth: false, Component: AverageChart },
-  { id: 'records',        label: 'Records',        usesMonth: false, Component: RecordsChart },
-  { id: 'jaar',           label: 'Jaar',           usesMonth: false, Component: YearGrid },
-  { id: 'trends',         label: 'Trends',         usesMonth: false, Component: TrendsChart },
-]
-
-const DEFAULT_ORDER = ALL_CHARTS.map(c => c.id)
-const CHART_MAP = Object.fromEntries(ALL_CHARTS.map(c => [c.id, c]))
 
 export function ChartsPage() {
   const { year, month, isCurrentMonth, goMonth, goToNow } = useMonth()
@@ -55,8 +19,7 @@ export function ChartsPage() {
 
   // Load chart config from settings
   const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
-  const enabledIds = chartConfig?.enabled ?? DEFAULT_ORDER
-  const orderIds = chartConfig?.order ?? DEFAULT_ORDER
+  const { order: orderIds, enabled: enabledIds } = mergeChartConfig(chartConfig)
 
   // Build visible tabs in order
   const visibleCharts = orderIds.filter(id => enabledIds.includes(id) && CHART_MAP[id]).map(id => CHART_MAP[id])
