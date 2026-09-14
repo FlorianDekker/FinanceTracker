@@ -142,7 +142,9 @@ function leesCharts(dir) {
 /* ---------------- static server met verwisselbare root ---------------- */
 let ROOT = DIST_BASE
 const MIME = {
-  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
+  // .mjs hoort er expliciet bij: de pdf.js-worker is een .mjs en Chrome weigert
+  // een worker die als application/octet-stream binnenkomt.
+  '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
   '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
 }

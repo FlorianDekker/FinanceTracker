@@ -57,6 +57,7 @@ const DUMP_BON = async () => {
       id: r.id, transactionId: r.transactionId, status: r.status, merchant: r.merchant,
       merchantKey: r.merchantKey, date: r.date, time: r.time, total: r.total, model: r.model,
       pages: (r.pages ?? []).length, heeftThumb: !!r.thumb, items: r.items ?? [], source: r.source,
+      heeftPdf: !!r.pdf, rawTextLen: (r.rawText ?? '').length,
     })),
     receiptItems: receiptItems.map(i => ({ id: i.id, receiptId: i.receiptId, nameKey: i.nameKey, group: i.group, price: i.price, date: i.date, transactionId: i.transactionId })),
     transactions: transactions.map(t => ({ id: t.id, date: t.date, amount: t.amount, note: t.note, receiptId: t.receiptId ?? null })),
@@ -133,6 +134,7 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
       model: body?.model,
       denkenUit: body?.chat_template_kwargs?.enable_thinking === false,
       beelden: (Array.isArray(body?.messages?.[1]?.content) ? body.messages[1].content : []).filter(c => c.type === 'image_url').length,
+      tekstDelen: (Array.isArray(body?.messages?.[1]?.content) ? body.messages[1].content : []).filter(c => c.type === 'text').length,
       auth: (route.request().headers().authorization ?? '').slice(0, 12),
     })
     return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(API_ANTWOORD) })
@@ -306,6 +308,32 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
       `toggle aanwezig=${toggle}; schemaVersion=${backup.schemaVersion}, includesImages=${backup.includesImages}, ` +
       `receipts=${backup.tables.receipts.length} (items=${bon?.items?.length}, pages-veld=${'pages' in (bon ?? {})}), ` +
       `receiptItems=${backup.tables.receiptItems.length}, sleutel in backup=${geheim}; errors=${errsSinds(i).length}`, s)
+  }
+
+  /* ================= H8: een AH-PDF uit Bestanden ================= */
+  const pdfSample = path.join(DATA, 'samples', 'ah_bon_2026-09-10.pdf')
+  if (fs.existsSync(pdfSample)) {
+    const i = logs.length
+    await page.goto(`${BASE}bon`, { waitUntil: 'networkidle' })
+    await sleep(900)
+    await page.locator('button', { hasText: 'Bon toevoegen' }).first().click(); await sleep(800)
+    // Een PDF gaat meteen door: renderen, tekst uitlezen en dan de AI-aanroep.
+    await top().locator('input[type=file][accept="image/*,application/pdf"]').setInputFiles(pdfSample)
+    await page.waitForSelector('text=Koppel aan transactie', { timeout: 40000 })
+    await sleep(600)
+
+    const dump = await page.evaluate(DUMP_BON)
+    const bon = dump.receipts.find(r => r.source === 'pdf')
+    const laatste = aanroepen[aanroepen.length - 1]
+    const s = await shot('pdf-uitgelezen')
+    stap('H8', 'AH-PDF: pagina gerenderd, tekst uitgelezen en allebei meegestuurd',
+      !!bon && bon.pages === 1 && bon.heeftPdf && bon.heeftThumb && bon.rawTextLen > 200
+      && laatste?.beelden === 1 && laatste?.tekstDelen === 2 && errsSinds(i).length === 0,
+      `bon={source:${bon?.source}, pages:${bon?.pages}, pdf bewaard:${bon?.heeftPdf}, thumb:${bon?.heeftThumb}, ` +
+      `rawText:${bon?.rawTextLen} tekens, regels:${bon?.items?.length}}; aanroep=${JSON.stringify(laatste)}; ` +
+      `errors=${errsSinds(i).length}`, s)
+  } else {
+    stap('H8', 'AH-PDF overgeslagen', true, `voorbeeldbestand ontbreekt: ${pdfSample}`)
   }
 
   await page.unroute('**/chat/completions')
