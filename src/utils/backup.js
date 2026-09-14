@@ -1,6 +1,7 @@
 import { db } from '../db/db'
 import { defaultCategoryDef, makeCategoryRow } from '../constants/categories'
 import { dedupKey } from './importHelpers'
+import { downloadFile } from './download'
 
 /**
  * Volledige backup/restore van de lokale database.
@@ -70,30 +71,10 @@ export async function downloadBackup() {
   const backup = await createBackup()
   const json = JSON.stringify(backup, null, 2)
   const fileName = backupFileName()
-  let method = 'download'
 
-  if (typeof File !== 'undefined' && typeof navigator !== 'undefined' && navigator.canShare) {
-    const file = new File([json], fileName, { type: 'application/json' })
-    if (navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: fileName })
-        method = 'share'
-      } catch (err) {
-        // Gebruiker heeft het deelmenu weggetikt: niets opslaan, niets downloaden.
-        if (err?.name === 'AbortError') return { cancelled: true, fileName }
-        method = 'download'
-      }
-    }
-  }
-
-  if (method === 'download') {
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = fileName
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  const { method } = await downloadFile(new Blob([json], { type: 'application/json' }), fileName)
+  // Deelmenu weggetikt: niets opslaan, niets downloaden, geen nieuwe backupdatum.
+  if (method === 'cancelled') return { cancelled: true, fileName }
 
   const at = Date.now()
   await db.settings.put({ key: LAST_BACKUP_KEY, value: at })

@@ -2,13 +2,17 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { ClaimsChart } from '../components/claims/ClaimsChart'
+import { SubmitClaimSheet } from '../components/claims/SubmitClaimSheet'
 import { ClaimItemSheet } from '../components/claims/ClaimItemSheet'
 import { BatchSheet } from '../components/claims/BatchSheet'
 import { useCategories } from '../hooks/useCategories'
 import { useAllClaims, useClaimBatches, useClaimExpiryMonths } from '../hooks/useClaims'
 import { euro, euroParts, fmtDate, fmtTimestamp } from '../utils/formatters'
+import { downloadFile } from '../utils/download'
 import {
   claimAgeLabel,
+  claimBatchCsv,
+  claimBatchFileName,
   claimStatusOf,
   isExpired,
   isExpiringSoon,
@@ -31,6 +35,10 @@ export function ClaimsPage() {
   const [tab, setTab] = useState('open')
   const [detail, setDetail] = useState(null)     // losse declaratie
   const [batchDetail, setBatchDetail] = useState(null)
+  const [submitOpen, setSubmitOpen] = useState(false)
+  // Standaard staat alles aangevinkt; we onthouden dus wat je juist NIET
+  // meestuurt. Nieuwe open declaraties zijn daardoor meteen geselecteerd.
+  const [unselected, setUnselected] = useState(() => new Set())
 
   const groups = useMemo(() => {
     const list = claims ?? []
@@ -64,6 +72,27 @@ export function ClaimsPage() {
     },
     { label: 'Dit jaar terug', value: sumAmount(groups.payoutsThisYear), sub: `${groups.payoutsThisYear.length}×` },
   ]
+
+  const selected = groups.open.filter(tx => !unselected.has(tx.id))
+  const selectedTotal = sumAmount(selected)
+
+  function toggleSelected(id) {
+    setUnselected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function exportBatch(batch, items) {
+    const csv = claimBatchCsv(items, catMap)
+    await downloadFile(
+      new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+      claimBatchFileName(batch.name),
+      { title: batch.name },
+    )
+  }
 
   const loading = claims == null || batches == null
 
@@ -116,6 +145,8 @@ export function ClaimsPage() {
           catMap={catMap}
           expiryMonths={expiryMonths}
           onSelect={setDetail}
+          unselected={unselected}
+          onToggle={toggleSelected}
         />
       )}
 
@@ -130,6 +161,7 @@ export function ClaimsPage() {
               batch={batch}
               items={groups.byBatch[batch.id] ?? []}
               onOpen={() => setBatchDetail(batch)}
+              onExport={items => exportBatch(batch, items)}
             />
           ))}
         </div>
@@ -169,6 +201,27 @@ export function ClaimsPage() {
         </div>
       )}
 
+      {!loading && tab === 'open' && selected.length > 0 && (
+        <div
+          className="fixed left-0 right-0 px-4 z-40"
+          style={{ bottom: 'calc(4.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          <button
+            onClick={() => setSubmitOpen(true)}
+            className="w-full btn-accent rounded-2xl py-3.5 text-base shadow-lg"
+          >
+            {selected.length} indienen · {euro(selectedTotal)}
+          </button>
+        </div>
+      )}
+
+      {submitOpen && (
+        <SubmitClaimSheet
+          items={selected}
+          onClose={() => setSubmitOpen(false)}
+          onSubmitted={() => { setUnselected(new Set()); setTab('submitted') }}
+        />
+      )}
       {detail && <ClaimItemSheet tx={detail} onClose={() => setDetail(null)} />}
       {batchDetail && <BatchSheet batch={batchDetail} onClose={() => setBatchDetail(null)} />}
     </PageWrapper>
@@ -179,7 +232,7 @@ export function ClaimsPage() {
  * Lijsten                                                              *
  * ------------------------------------------------------------------ */
 
-function OpenList({ items, catMap, expiryMonths, onSelect }) {
+function OpenList({ items, catMap, expiryMonths, onSelect, unselected, onToggle }) {
   if (!items.length) {
     return (
       <p className="text-center text-muted py-10 text-sm px-6">
@@ -191,30 +244,58 @@ function OpenList({ items, catMap, expiryMonths, onSelect }) {
     <div className="px-4 pt-3">
       <div className="card overflow-hidden divide-y divide-border">
         {items.map(tx => (
-          <ClaimRow key={tx.id} tx={tx} catMap={catMap} expiryMonths={expiryMonths} onSelect={onSelect} />
+          <ClaimRow
+            key={tx.id}
+            tx={tx}
+            catMap={catMap}
+            expiryMonths={expiryMonths}
+            onSelect={onSelect}
+            checked={!unselected.has(tx.id)}
+            onToggle={() => onToggle(tx.id)}
+          />
         ))}
       </div>
     </div>
   )
 }
 
-function ClaimRow({ tx, catMap, expiryMonths, onSelect }) {
+function ClaimRow({ tx, catMap, expiryMonths, onSelect, checked, onToggle }) {
   const cat = catMap[tx.category]
   const expired = expiryMonths != null && isExpired(tx, expiryMonths)
   const soon = !expired && expiryMonths != null && isExpiringSoon(tx, expiryMonths)
   return (
-    <button onClick={() => onSelect(tx)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
-      <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💼'}</span>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{tx.note || cat?.label || tx.category}</div>
-        <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
-          <span className="truncate">{fmtDate(tx.date)} · {claimAgeLabel(tx)}</span>
-          {expired && <ExpiryBadge tone="red">verlopen</ExpiryBadge>}
-          {soon && <ExpiryBadge tone="orange">verloopt binnenkort</ExpiryBadge>}
+    <div className="w-full flex items-center gap-2 pl-2 pr-4">
+      {onToggle && (
+        <button
+          onClick={onToggle}
+          role="checkbox"
+          aria-checked={checked}
+          aria-label={`${tx.note || cat?.label || tx.category} selecteren`}
+          className="shrink-0 w-9 h-9 flex items-center justify-center"
+        >
+          <span
+            className="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[13px] text-white"
+            style={checked
+              ? { background: 'var(--color-accent)' }
+              : { border: '1.5px solid var(--color-border)' }}
+          >
+            {checked ? '✓' : ''}
+          </span>
+        </button>
+      )}
+      <button onClick={() => onSelect(tx)} className="flex-1 min-w-0 flex items-center gap-3 py-3 text-left">
+        <span className="text-xl w-7 text-center shrink-0">{cat?.icon ?? '💼'}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium truncate">{tx.note || cat?.label || tx.category}</div>
+          <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
+            <span className="truncate">{fmtDate(tx.date)} · {claimAgeLabel(tx)}</span>
+            {expired && <ExpiryBadge tone="red">verlopen</ExpiryBadge>}
+            {soon && <ExpiryBadge tone="orange">verloopt binnenkort</ExpiryBadge>}
+          </div>
         </div>
-      </div>
-      <span className="text-sm font-semibold shrink-0 tabular-nums">{euro(tx.amount)}</span>
-    </button>
+        <span className="text-sm font-semibold shrink-0 tabular-nums">{euro(tx.amount)}</span>
+      </button>
+    </div>
   )
 }
 
@@ -228,7 +309,7 @@ function ExpiryBadge({ tone, children }) {
   )
 }
 
-function BatchCard({ batch, items, onOpen }) {
+function BatchCard({ batch, items, onOpen, onExport }) {
   const rejected = items.filter(tx => claimStatusOf(tx) === 'rejected')
   const closed = batch.status === 'closed'
   return (
@@ -254,6 +335,18 @@ function BatchCard({ batch, items, onOpen }) {
         </div>
         <span style={{ color: 'var(--color-muted)' }}>›</span>
       </button>
+
+      {!closed && onExport && (
+        <div className="flex gap-2 px-4 pb-3">
+          <button
+            onClick={() => onExport(items)}
+            className="flex-1 rounded-xl py-2 text-xs font-semibold"
+            style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+          >
+            Exporteer CSV
+          </button>
+        </div>
+      )}
     </div>
   )
 }
