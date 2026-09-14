@@ -31,6 +31,7 @@ export function ImportPage() {
   const [editIdx, setEditIdx] = useState(null)
   const [error, setError] = useState(null)
   const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? false), [])
+  const userRules = useLiveQuery(() => db.rules.toArray(), [], [])
 
   // De classificatie loopt async over honderden rijen; stabiele referenties
   // voorkomen dat elke render een nieuwe context maakt en handleFile opnieuw
@@ -48,8 +49,8 @@ export function ImportPage() {
 
   // catMap is tijdens het laden leeg; dan zou alles naar de restbak vallen.
   const classifyOptions = useMemo(
-    () => ({ isActiveKey: Object.keys(catMap).length ? isActiveKey : undefined }),
-    [catMap, isActiveKey]
+    () => ({ isActiveKey: Object.keys(catMap).length ? isActiveKey : undefined, rules: userRules }),
+    [catMap, isActiveKey, userRules]
   )
 
   const handleFile = useCallback(async e => {

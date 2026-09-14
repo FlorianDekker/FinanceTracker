@@ -10,12 +10,12 @@ import { dedupKey } from './importHelpers'
  *     app: 'FinanceTracker',
  *     schemaVersion: <Dexie-versie waarmee geexporteerd is>,
  *     exportedAt: <ISO-datum>,
- *     tables: { transactions: [...], categories: [...], settings: [...], merchantHistory: [...] }
+ *     tables: { transactions: [...], categories: [...], settings: [...], merchantHistory: [...], rules: [...] }
  *   }
  */
 
 export const BACKUP_APP = 'FinanceTracker'
-export const BACKUP_TABLES = ['transactions', 'categories', 'settings', 'merchantHistory']
+export const BACKUP_TABLES = ['transactions', 'categories', 'settings', 'merchantHistory', 'rules']
 export const LAST_BACKUP_KEY = 'lastBackupAt'
 export const BACKUP_REMINDER_DAYS = 30
 
@@ -177,11 +177,26 @@ function normalizeCategories(rows) {
     })
 }
 
+function normalizeRules(rows) {
+  return rows
+    .map(row => ({
+      ...row,
+      keywords: (Array.isArray(row.keywords) ? row.keywords : [])
+        .map(kw => String(kw ?? '').trim().toLowerCase())
+        .filter(Boolean),
+      category: String(row.category ?? ''),
+      subcategory: String(row.subcategory ?? ''),
+      createdAt: row.createdAt ?? Date.now(),
+    }))
+    .filter(row => row.keywords.length && row.category)
+}
+
 function normalizeTables(tables) {
   const out = {}
   for (const name of BACKUP_TABLES) out[name] = Array.isArray(tables[name]) ? tables[name].filter(Boolean) : []
   out.categories = normalizeCategories(out.categories)
   out.settings = out.settings.filter(row => row?.key && !isSecretSettingKey(row.key))
+  out.rules = normalizeRules(out.rules)
   return out
 }
 
@@ -193,6 +208,7 @@ function withoutId(row) {
 
 const transactionKey = tx => dedupKey(tx.date, tx.amount, tx.type, String(tx.note ?? ''))
 const historyKey = ev => `${ev.merchantKey}|${ev.timestamp}|${ev.category}`
+const ruleKey = rule => `${(rule.keywords ?? []).join(',')}|${rule.category}|${rule.subcategory ?? ''}`
 
 // Voegt alleen rijen toe die er nog niet zijn (auto-increment tabellen).
 async function mergeRows(table, rows, keyOf) {
@@ -233,6 +249,7 @@ export async function restoreBackup(input, { mode = 'merge' } = {}) {
 
     stats.transactions = await mergeRows(db.transactions, src.transactions, transactionKey)
     stats.merchantHistory = await mergeRows(db.merchantHistory, src.merchantHistory, historyKey)
+    stats.rules = await mergeRows(db.rules, src.rules, ruleKey)
 
     // Categorieen: de bestaande rij wint, ontbrekende sleutels worden toegevoegd.
     const haveCats = new Set((await db.categories.toArray()).map(c => c.key))

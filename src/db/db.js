@@ -41,6 +41,16 @@ db.version(3).stores({
   await table.bulkPut([...rows, ...extras])
 })
 
+// v4: eigen herkenningsregels. Een .stores() herhaalt altijd alle tabellen;
+// er verandert niets aan bestaande data, dus een .upgrade() is niet nodig.
+db.version(4).stores({
+  transactions: '++id, date, category, type, [date+category]',
+  categories: 'key, order',
+  settings: 'key',
+  merchantHistory: '++id, merchantKey, baseKey, timestamp',
+  rules: '++id, category',
+})
+
 // Bootstrap learning from existing transactions (runs once, lazy-loaded to avoid circular imports)
 db.on('ready', async () => {
   const { bootstrapFromHistory } = await import('../utils/merchantLearning')

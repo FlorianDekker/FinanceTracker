@@ -4,6 +4,7 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { Sheet } from '../components/ui/Sheet'
 import { CategoryManagerSheet } from '../components/categories/CategoryManagerSheet'
 import { BackupCard } from '../components/settings/BackupCard'
+import { RulesSheet } from '../components/settings/RulesSheet'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'
 import { exportToCsv } from '../utils/importHelpers'
 import { euro } from '../utils/formatters'
@@ -18,9 +19,11 @@ export function SettingsPage() {
   const [editingCat, setEditingCat] = useState(null)
   const [managerOpen, setManagerOpen] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [rulesOpen, setRulesOpen] = useState(false)
   const [inputVal, setInputVal] = useState('')
   const [importStatus, setImportStatus] = useState(null)
   const totalTxCount = useLiveQuery(() => db.transactions.count(), [])
+  const rulesCount = useLiveQuery(() => db.rules.count(), [])
   const showConfidence = useLiveQuery(() => db.settings.get('showConfidence').then(r => r?.value ?? false), [])
   const theme = useLiveQuery(() => db.settings.get('theme').then(r => r?.value ?? 'light'), [])
   const accentColor = useLiveQuery(() => db.settings.get('accentColor').then(r => r?.value ?? '#1E3A5F'), [])
@@ -264,6 +267,15 @@ return (
             </div>
             <span className="text-sm text-muted">{categories.length} ›</span>
           </button>
+
+          <button onClick={() => setRulesOpen(true)} className="w-full flex items-center gap-3 px-4 py-3 text-left" style={{ borderTop: '1px solid var(--color-border)' }}>
+            <span className="text-xl">🔎</span>
+            <div className="flex-1">
+              <div className="text-sm">Herkenningsregels</div>
+              <div className="text-xs text-muted">Eigen trefwoorden die bij het importeren voorgaan</div>
+            </div>
+            <span className="text-sm text-muted">{rulesCount ?? '…'} ›</span>
+          </button>
         </div>
       </section>
 
@@ -394,6 +406,7 @@ return (
         </div>
       </section>
       <CategoryManagerSheet open={managerOpen} onClose={() => setManagerOpen(false)} />
+      <RulesSheet open={rulesOpen} onClose={() => setRulesOpen(false)} />
       {editingCat && <BudgetEditSheet cat={editingCat} inputVal={inputVal} setInputVal={setInputVal} onSave={saveEdit} onAdjust={adjust} onClose={() => setEditingCat(null)} />}
     </PageWrapper>
   )
