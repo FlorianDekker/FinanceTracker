@@ -15,6 +15,7 @@ import { parseTransactionsCsv } from '../utils/parsers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
 import { applyAccentColor } from '../utils/theme'
 import { SALARY_THRESHOLD } from '../utils/categorizer'
+import { loadDemoData, clearDemoData, DEMO_MODE_KEY } from '../utils/demoData'
 import { ALL_CHARTS, mergeChartConfig } from '../components/charts/registry'
 import { beschrijfStat } from '../utils/chartStats'
 
@@ -35,6 +36,7 @@ export function SettingsPage() {
   const accentColor = useLiveQuery(() => db.settings.get('accentColor').then(r => r?.value ?? '#1E3A5F'), [])
   const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
   const chartStats = useLiveQuery(() => db.settings.get('chartStats').then(r => r?.value ?? {}), [])
+  const demoMode = useLiveQuery(() => db.settings.get(DEMO_MODE_KEY).then(r => r?.value === true), [])
   const claimExpiryMonths = useClaimExpiryMonths()
   const claims = useOutstandingClaims()
   const voorschotCount = useVoorschotCount()
@@ -180,6 +182,24 @@ export function SettingsPage() {
       setImportStatus({ error: `Fout: ${err.message}` })
     }
     e.target.value = ''
+  }
+
+  // Voorbeelddata: alleen te laden als de app nog leeg is, zodat niemand per
+  // ongeluk verzonnen transacties door zijn eigen cijfers mengt.
+  async function handleLoadDemo() {
+    setImportStatus({ loading: true })
+    try {
+      const n = await loadDemoData()
+      setImportStatus({ success: `${n} voorbeeldtransacties geladen.` })
+    } catch (err) {
+      setImportStatus({ error: `Fout: ${err.message}` })
+    }
+  }
+
+  async function handleClearDemo() {
+    if (!window.confirm('Alle voorbeelddata wissen en opnieuw beginnen? Je categorieën en instellingen blijven staan.')) return
+    await clearDemoData()
+    setImportStatus({ success: 'Voorbeelddata gewist. Je kunt nu je eigen bankbestand importeren.' })
   }
 
   async function handleClearData() {
@@ -427,6 +447,17 @@ return (
                 <input type="file" accept=".json" className="hidden" onChange={handleImportDict} />
               </label>
 
+              {/* Voorbeelddata — alleen als de app nog leeg is */}
+              {totalTxCount === 0 && (
+                <button onClick={handleLoadDemo} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                  <span className="text-xl">🧪</span>
+                  <div className="flex-1">
+                    <div className="text-sm">Voorbeelddata laden</div>
+                    <div className="text-xs text-muted">Een half jaar verzonnen transacties om rond te kijken</div>
+                  </div>
+                </button>
+              )}
+
               {/* Export */}
               <button onClick={handleExport} className="w-full flex items-center gap-3 px-4 py-3 text-left">
                 <span className="text-xl">📥</span>
@@ -513,6 +544,20 @@ return (
       <section className="px-4 pt-4 pb-2">
         <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Over</h2>
         <div className="card divide-y divide-border overflow-hidden">
+          {demoMode && (
+            <button
+              onClick={handleClearDemo}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left"
+              style={{ background: 'rgba(255, 204, 0, 0.18)' }}
+            >
+              <span className="text-xl">🧪</span>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-orange">Voorbeelddata actief</div>
+                <div className="text-xs text-muted">Deze transacties zijn verzonnen</div>
+              </div>
+              <span className="text-sm text-orange">Wis en begin opnieuw ›</span>
+            </button>
+          )}
           <div className="px-4 py-3 text-sm text-muted space-y-1">
             <div>Versie {__APP_VERSION__}</div>
             <div>Gegevens opgeslagen op dit apparaat</div>
