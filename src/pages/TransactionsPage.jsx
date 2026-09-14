@@ -11,6 +11,7 @@ import { useMonth } from '../hooks/useMonth'
 import { useMonthSwipe } from '../hooks/useMonthSwipe'
 import { CLAIM_STATUSES, isOpenClaim } from '../utils/claims'
 import { ClaimBadge } from '../components/transactions/ClaimBadge'
+import { ReceiptViewer } from '../components/receipts/ReceiptViewer'
 
 export function TransactionsPage() {
   const { year, month, animDir, isCurrentMonth, goMonth, goToNow } = useMonth()
@@ -22,6 +23,7 @@ export function TransactionsPage() {
   const searchRef = useRef(null)
   const [editing, setEditing] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [viewerId, setViewerId] = useState(null)
   const listRef = useRef(null)
   const txTouchStart = useRef(null)
 
@@ -148,7 +150,24 @@ export function TransactionsPage() {
                 <div className="text-sm font-medium truncate">{tx.note || cat?.label || tx.category}</div>
                 <div className="text-xs text-muted flex items-center gap-1.5">
                   <span className="truncate">{fmtDate(tx.date)} · {cat?.label}</span>
-                  {tx.receiptId != null && <span title="Bon gekoppeld">🧾</span>}
+                  {tx.receiptId != null && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Bon bekijken"
+                      title="Bon bekijken"
+                      className="inline-block p-2 -m-2 leading-none shrink-0"
+                      onClick={e => { e.stopPropagation(); e.preventDefault(); setViewerId(tx.receiptId) }}
+                      onKeyDown={e => {
+                        if (e.key !== 'Enter' && e.key !== ' ') return
+                        e.stopPropagation(); e.preventDefault(); setViewerId(tx.receiptId)
+                      }}
+                      onTouchStart={e => e.stopPropagation()}
+                      onTouchEnd={e => e.stopPropagation()}
+                    >
+                      🧾
+                    </span>
+                  )}
                   <ClaimBadge tx={tx} />
                 </div>
               </div>
@@ -174,6 +193,7 @@ export function TransactionsPage() {
 
       {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
       {showAdd && <TransactionForm onClose={() => setShowAdd(false)} />}
+      {viewerId != null && <ReceiptViewer receiptId={viewerId} onClose={() => setViewerId(null)} />}
     </PageWrapper>
   )
 }

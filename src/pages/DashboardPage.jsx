@@ -30,6 +30,11 @@ export function DashboardPage() {
 
   const stats = useBudgetStats(year, month)
   const claims = useOutstandingClaims()
+  // Bonnen die aandacht vragen: mislukt uitgelezen of met een validatie-afwijking.
+  const receiptsAttention = useLiveQuery(
+    () => db.receipts.where('status').anyOf(['review', 'error']).count(),
+    [],
+  )
   const expenseStats = stats.filter(c => c.type === 'expense')
   const voorschotStat = stats.find(c => c.key === 'voorschot')
   const totalBudget = expenseStats.reduce((s, c) => s + c.budget, 0)
@@ -67,14 +72,24 @@ export function DashboardPage() {
         </div>
         <div className="flex justify-center relative">
           {/* Snelle ingang naar een bon: camera, bestand of klembord */}
-          <button
-            onClick={() => setCaptureOpen(true)}
-            aria-label="Bon toevoegen"
-            className="absolute right-0 top-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
-            style={{ background: 'var(--color-surface-2)' }}
-          >
-            📷
-          </button>
+          <div className="absolute right-0 top-0">
+            <button
+              onClick={() => setCaptureOpen(true)}
+              aria-label={receiptsAttention > 0 ? `Bon toevoegen — ${receiptsAttention} te controleren` : 'Bon toevoegen'}
+              className="relative w-9 h-9 rounded-full flex items-center justify-center text-base"
+              style={{ background: 'var(--color-surface-2)' }}
+            >
+              📷
+              {receiptsAttention > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 rounded-full flex items-center justify-center text-white font-bold"
+                  style={{ width: 16, height: 16, fontSize: 10, background: 'var(--color-red)' }}
+                >
+                  {receiptsAttention}
+                </span>
+              )}
+            </button>
+          </div>
           <div className="flex rounded-full p-0.5" style={{ background: 'var(--color-surface-2)' }}>
             {['cards', 'list'].map(v => (
               <button

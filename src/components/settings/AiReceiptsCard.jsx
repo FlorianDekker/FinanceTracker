@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../../db/db'
 import {
+  GROUP_OVERRIDES_SETTING,
   MODEL_OPTIONS,
   PROVIDER_PRESETS,
+  getGroupOverrides,
   receiptErrorMessage,
   setAiConfig,
   setStoreImages,
@@ -52,6 +56,8 @@ export function AiReceiptsCard({ onStatus }) {
   const ai = useAiConfig()
   const stats = useReceiptStats()
   const bewaarBeelden = useStoreImages()
+  const groupOverrides = useLiveQuery(getGroupOverrides, [], {})
+  const geleerdCount = Object.keys(groupOverrides ?? {}).length
   const [baseUrl, setBaseUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [toonKey, setToonKey] = useState(false)
@@ -100,6 +106,12 @@ export function AiReceiptsCard({ onStatus }) {
     const nieuw = !bewaarBeelden
     await setStoreImages(nieuw)
     onStatus?.({ success: nieuw ? 'Bon-afbeeldingen worden bewaard.' : 'Nieuwe bonnen bewaren alleen de uitgelezen regels.' })
+  }
+
+  async function wisGeleerdeGroepen() {
+    if (!window.confirm('Alle geleerde groepen wissen? De app volgt daarna weer de groep die het model voorstelt. Bestaande bonnen veranderen niet.')) return
+    await db.settings.put({ key: GROUP_OVERRIDES_SETTING, value: {} })
+    onStatus?.({ success: 'Geleerde groepen zijn gewist.' })
   }
 
   const vrij = opslag?.freeRatio == null ? null : Math.round(opslag.freeRatio * 100)
@@ -230,6 +242,24 @@ export function AiReceiptsCard({ onStatus }) {
             {stats?.count ?? 0} {(stats?.count ?? 0) === 1 ? 'bon' : 'bonnen'} · ≈ ${(stats?.estCost ?? 0).toFixed(4)} ·{' '}
             {(stats?.tokensIn ?? 0).toLocaleString('nl-NL')} in / {(stats?.tokensOut ?? 0).toLocaleString('nl-NL')} uit
           </span>
+        </div>
+
+        {/* Geleerde groepen */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <span className="flex-1 text-sm">
+            Groepen geleerd
+            <span className="block text-[11px] text-muted">
+              {geleerdCount === 0 ? 'nog niets onthouden' : `${geleerdCount} ${geleerdCount === 1 ? 'product' : 'producten'} onthouden`}
+            </span>
+          </span>
+          <button
+            onClick={wisGeleerdeGroepen}
+            disabled={geleerdCount === 0}
+            className="text-xs font-semibold rounded-full px-3 py-1.5 shrink-0 disabled:opacity-40"
+            style={{ background: 'var(--color-surface-2)' }}
+          >
+            Wis geleerde groepen
+          </button>
         </div>
 
         <Link to="/bon" className="flex items-center gap-3 px-4 py-3" style={{ color: 'var(--color-text)' }}>

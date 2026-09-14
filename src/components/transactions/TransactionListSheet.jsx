@@ -5,6 +5,7 @@ import { useCategories } from '../../hooks/useCategories'
 import { euro, fmtDate } from '../../utils/formatters'
 import { ClaimBadge } from './ClaimBadge'
 import { isOpenClaim } from '../../utils/claims'
+import { ReceiptViewer } from '../receipts/ReceiptViewer'
 
 /**
  * Eén sheet voor "hier zijn de transacties achter dit ding": een dag, een
@@ -39,6 +40,7 @@ export function TransactionListSheet({
 }) {
   const { catMap } = useCategories()
   const [editing, setEditing] = useState(null)
+  const [viewerId, setViewerId] = useState(null)
 
   const label = renderLabel ?? ((tx, cat) => tx.note || cat?.label || tx.category)
   const meta = renderMeta ?? ((tx, cat) => `${fmtDate(tx.date)} · ${cat?.label ?? ''}`)
@@ -73,6 +75,22 @@ export function TransactionListSheet({
                 <div className="text-sm truncate">{label(tx, cat)}</div>
                 <div className="text-xs text-muted flex items-center gap-1.5">
                   <span className="truncate">{meta(tx, cat)}</span>
+                  {tx.receiptId != null && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Bon bekijken"
+                      title="Bon bekijken"
+                      className="inline-block p-2 -m-2 leading-none shrink-0"
+                      onClick={e => { e.stopPropagation(); setViewerId(tx.receiptId) }}
+                      onKeyDown={e => {
+                        if (e.key !== 'Enter' && e.key !== ' ') return
+                        e.stopPropagation(); e.preventDefault(); setViewerId(tx.receiptId)
+                      }}
+                    >
+                      🧾
+                    </span>
+                  )}
                   <ClaimBadge tx={tx} />
                 </div>
               </div>
@@ -85,6 +103,7 @@ export function TransactionListSheet({
       </Sheet>
 
       {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
+      {viewerId != null && <ReceiptViewer receiptId={viewerId} onClose={() => setViewerId(null)} />}
     </>
   )
 }
