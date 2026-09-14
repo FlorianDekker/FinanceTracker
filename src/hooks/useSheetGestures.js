@@ -1,4 +1,41 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
+
+/* ------------------------------------------------------------------ *
+ * Sheet-stack: alleen de bovenste sheet mag touchmove afvangen.        *
+ * Zonder dit blokkeert een openstaande sheet het scrollen in een sheet *
+ * die er bovenop wordt geopend (bijv. de categoriekiezer op een form). *
+ * ------------------------------------------------------------------ */
+let sheetStack = []
+const stackListeners = new Set()
+
+function notifyStack() {
+  for (const listener of stackListeners) listener()
+}
+
+// Registreert deze sheet in de stack en vertelt of hij bovenaan ligt.
+function useIsTopSheet() {
+  const idRef = useRef(null)
+  if (idRef.current === null) idRef.current = Symbol('sheet')
+  const [, forceRender] = useState(0)
+
+  useEffect(() => {
+    const rerender = () => forceRender(n => n + 1)
+    stackListeners.add(rerender)
+    return () => stackListeners.delete(rerender)
+  }, [])
+
+  useEffect(() => {
+    const id = idRef.current
+    sheetStack = [...sheetStack, id]
+    notifyStack()
+    return () => {
+      sheetStack = sheetStack.filter(s => s !== id)
+      notifyStack()
+    }
+  }, [])
+
+  return sheetStack[sheetStack.length - 1] === idRef.current
+}
 
 /**
  * Hook for bottom sheet scroll-lock + swipe-down-to-close with live drag.
@@ -7,6 +44,7 @@ import { useEffect, useRef, useCallback } from 'react'
 export function useSheetGestures(onClose) {
   const sheetRef = useRef(null)
   const closingRef = useRef(false)
+  const isTop = useIsTopSheet()
 
   const animateClose = useCallback(() => {
     if (closingRef.current) return
@@ -40,6 +78,7 @@ export function useSheetGestures(onClose) {
   }, [])
 
   useEffect(() => {
+    if (!isTop) return
     let startY = 0
     let dragStartY = null
     let isDragging = false
@@ -119,7 +158,7 @@ export function useSheetGestures(onClose) {
       document.removeEventListener('touchmove', prevent)
       document.removeEventListener('touchend', onEnd)
     }
-  }, [animateClose])
+  }, [animateClose, isTop])
 
   return sheetRef
 }

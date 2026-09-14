@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
+import { Sheet } from '../components/ui/Sheet'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'
 import { exportToCsv } from '../utils/importHelpers'
 import { euro } from '../utils/formatters'
@@ -358,67 +359,46 @@ return (
 }
 
 function BudgetEditSheet({ cat, inputVal, setInputVal, onSave, onAdjust, onClose }) {
-  useEffect(() => {
-    // Lock body scroll position to prevent background from jumping
-    const scrollY = window.scrollY
-    document.body.style.position = 'fixed'
-    document.body.style.top = `-${scrollY}px`
-    document.body.style.left = '0'
-    document.body.style.right = '0'
-    return () => {
-      document.body.style.position = ''
-      document.body.style.top = ''
-      document.body.style.left = ''
-      document.body.style.right = ''
-      window.scrollTo(0, scrollY)
-    }
-  }, [])
-
   return (
-    <>
-      <div className="fixed inset-0 bg-black/30 z-40 animate-fade-in" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl pb-10 animate-slide-up sheet-handle" style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)' }}>
-        <div className="px-4 py-4 border-b border-border flex items-center gap-3">
-          <span className="text-2xl">{cat.icon}</span>
-          <span className="font-semibold">{cat.label}</span>
-          <button onClick={onClose} className="ml-auto text-muted text-lg">✕</button>
-        </div>
-
-        <div className="px-6 pt-6 pb-4">
-          <div className="text-xs text-muted mb-2 text-center">Maandbudget</div>
-          <div className="flex items-center bg-surface-2 rounded-2xl px-4 gap-2" style={{ height: '60px' }}>
-            <span className="text-2xl font-light text-muted leading-none">€</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={inputVal}
-              onChange={e => setInputVal(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && onSave()}
-              autoFocus
-              className="flex-1 bg-transparent font-bold text-white text-right outline-none tabular-nums h-full"
-              style={{ fontSize: '28px', lineHeight: '60px' }}
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-2 px-6 pb-5">
-          {[-100, -50, -10, +10, +50, +100].map(d => (
-            <button
-              key={d}
-              onClick={() => onAdjust(d)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${d < 0 ? 'bg-red/15 text-red' : 'bg-green/15 text-green'}`}
-            >
-              {d > 0 ? `+${d}` : d}
-            </button>
-          ))}
-        </div>
-
-        <div className="px-6">
-          <button onClick={onSave} className="w-full py-3.5 btn-accent rounded-2xl font-semibold text-base">
-            Opslaan
-          </button>
+    <Sheet
+      open
+      onClose={onClose}
+      title={cat.label}
+      leading={<span className="text-2xl">{cat.icon}</span>}
+      footer={
+        <button onClick={onSave} className="w-full py-3.5 btn-accent rounded-2xl font-semibold text-base">
+          Opslaan
+        </button>
+      }
+    >
+      <div className="px-6 pt-6 pb-4">
+        <div className="text-xs text-muted mb-2 text-center">Maandbudget</div>
+        <div className="flex items-center bg-surface-2 rounded-2xl px-4 gap-2" style={{ height: '60px' }}>
+          <span className="text-2xl font-light text-muted leading-none">€</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={inputVal}
+            onChange={e => setInputVal(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && onSave()}
+            autoFocus
+            className="flex-1 bg-transparent font-bold text-right outline-none tabular-nums h-full"
+            style={{ fontSize: '28px', lineHeight: '60px', color: 'var(--color-text)' }}
+          />
         </div>
       </div>
-    </>
+
+      <div className="flex gap-2 px-6 pb-5">
+        {[-100, -50, -10, +10, +50, +100].map(d => (
+          <button
+            key={d}
+            onClick={() => onAdjust(d)}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold ${d < 0 ? 'bg-red/15 text-red' : 'bg-green/15 text-green'}`}
+          >
+            {d > 0 ? `+${d}` : d}
+          </button>
+        ))}
+      </div>
+    </Sheet>
   )
 }
