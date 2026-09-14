@@ -9,6 +9,7 @@ import { MONTHS_LONG } from '../constants/categories'
 import { useCategories } from '../hooks/useCategories'
 import { TransactionListSheet } from '../components/transactions/TransactionListSheet'
 import { useMonth } from '../hooks/useMonth'
+import { useRecurring } from '../hooks/useRecurring'
 import { useMonthSwipe } from '../hooks/useMonthSwipe'
 import { Sheet } from '../components/ui/Sheet'
 import { db } from '../db/db'
@@ -17,7 +18,6 @@ import { useOutstandingClaims } from '../hooks/useClaims'
 
 export function DashboardPage() {
   const { year, month, animDir, isCurrentMonth, goMonth, goToNow } = useMonth()
-  const { catMap } = useCategories()
   const [selectedCat, setSelectedCat] = useState(null)
   const [showExpected, setShowExpected] = useState(false)
   const [view, setView] = useState('cards')
@@ -33,62 +33,10 @@ export function DashboardPage() {
   const totalRemaining = totalBudget - totalSpent
   const isOver = totalRemaining < 0
 
-  // Calculate expected spending from recurring transactions
-  const RECURRING_CATS = new Set(['woning', 'abonnementen'])
-  const currentPrefix = `${year}-${String(month).padStart(2, '0')}`
+  // Verwachte vaste lasten: dezelfde detectie als de grafiek "Vaste lasten".
+  const { open: unpaidRecurring, betaald: paidRecurring, openTotaal: unpaidFixed } =
+    useRecurring(`${year}-${String(month).padStart(2, '0')}`)
 
-  const allTxs = useLiveQuery(() => db.transactions.filter(countsInTotals).toArray(), [])
-
-  const recurringData = (() => {
-    if (!allTxs) return []
-    const recurringTxs = allTxs.filter(t => t.type === 'debit' && RECURRING_CATS.has(t.category))
-
-    // Group by subcategory when available, or by amount when not.
-    const groups = new Map()
-
-    for (const tx of recurringTxs) {
-      // Always include amount in key to separate e.g. "Huur €815" from "Huur €85"
-      const key = `${tx.category}|${tx.subcategory || '_none'}|${Math.round(tx.amount * 100)}`
-      const ym = tx.date.slice(0, 7)
-
-      if (!groups.has(key)) {
-        groups.set(key, { months: new Set(), amounts: [], latestNote: '', category: tx.category, subcategory: tx.subcategory || '' })
-      }
-      const g = groups.get(key)
-      g.months.add(ym)
-      g.amounts.push(tx.amount)
-      g.latestNote = tx.note || g.latestNote
-    }
-
-    const recurring = []
-    for (const [, g] of groups) {
-      if (g.months.size < 2) continue
-
-      const paidThisMonth = g.months.has(currentPrefix)
-      const sorted = [...g.amounts].sort((a, b) => a - b)
-      const median = sorted[Math.floor(sorted.length / 2)]
-
-      const cat = catMap[g.category]
-      const sub = cat?.subs?.find(s => s.key === g.subcategory)
-
-      recurring.push({
-        category: g.category,
-        subcategory: g.subcategory,
-        label: sub?.label || g.latestNote || cat?.label || g.category,
-        icon: cat?.icon ?? '📄',
-        amount: median,
-        paid: paidThisMonth,
-        note: g.latestNote,
-        monthCount: g.months.size,
-      })
-    }
-
-    return recurring.sort((a, b) => b.amount - a.amount)
-  })()
-
-  const unpaidRecurring = recurringData.filter(r => !r.paid)
-  const paidRecurring = recurringData.filter(r => r.paid)
-  const unpaidFixed = unpaidRecurring.reduce((s, r) => s + r.amount, 0)
   const totalExpected = totalSpent + unpaidFixed
 
   useMonthSwipe(listRef)
@@ -363,7 +311,7 @@ function ExpectedSheet({ unpaid, paid, total, onClose }) {
             <div className="card overflow-hidden mb-4">
               {unpaid.map((r, i) => (
                 <div
-                  key={`${r.category}-${r.subcategory}-${i}`}
+                  key={r.id}
                   className="flex items-center gap-3 px-4 py-3"
                   style={i < unpaid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
                 >
@@ -390,7 +338,7 @@ function ExpectedSheet({ unpaid, paid, total, onClose }) {
             <div className="card overflow-hidden">
               {paid.map((r, i) => (
                 <div
-                  key={`${r.category}-${r.subcategory}-${i}`}
+                  key={r.id}
                   className="flex items-center gap-3 px-4 py-3"
                   style={i < paid.length - 1 ? { borderBottom: '1px solid var(--color-border)' } : {}}
                 >
