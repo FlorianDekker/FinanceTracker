@@ -1,11 +1,15 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { CATEGORY_MAP } from '../constants/categories'
+import { useCategories } from './useCategories'
 
 const EARNED_INCOME_KEYWORDS = ['salaris', 'salary', 'loon', 'overige_kosten']
 
 export function useCashflowData() {
+  const { catMap, loading, getByRole } = useCategories()
+  const transferKey = getByRole('transfer')?.key
+
   const data = useLiveQuery(async () => {
+    if (loading) return null
     const now = new Date()
     const currentYear = now.getFullYear()
     const currentMonth = now.getMonth() + 1
@@ -23,10 +27,10 @@ export function useCashflowData() {
       let expenses = 0
 
       for (const tx of txs) {
-        if (tx.category === 'bankoverschrijving') continue
+        if (transferKey && tx.category === transferKey) continue
         if (tx.category === 'voorschot') continue
 
-        const catType = CATEGORY_MAP[tx.category]?.type
+        const catType = catMap[tx.category]?.type
         if (tx.type === 'credit') {
           if (catType === 'income') {
             income += tx.amount
@@ -47,7 +51,7 @@ export function useCashflowData() {
     }
 
     return results
-  }, [])
+  }, [catMap, loading, transferKey])
 
   return data ?? []
 }

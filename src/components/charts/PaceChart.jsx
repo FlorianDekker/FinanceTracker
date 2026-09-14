@@ -9,7 +9,7 @@ import {
   Tooltip,
 } from 'chart.js'
 import { useState } from 'react'
-import { usePaceData, setPaceExcluded, DEFAULT_PACE_EXCLUDED } from '../../hooks/usePaceData'
+import { usePaceData, setPaceExcluded, useDefaultPaceExcluded } from '../../hooks/usePaceData'
 import { euroCompact, euro, euroParts } from '../../utils/formatters'
 import { chartColors, tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -26,7 +26,8 @@ export function PaceChart({ year, month }) {
   const { categories } = useCategories()
   const [showCats, setShowCats] = useState(false)
   const paceSetting = useLiveQuery(() => db.settings.get('paceExcluded'), [])
-  const paceExcluded = new Set(paceSetting?.value ?? DEFAULT_PACE_EXCLUDED)
+  const defaultPaceExcluded = useDefaultPaceExcluded()
+  const paceExcluded = new Set(paceSetting?.value ?? defaultPaceExcluded)
   const expenseCats = categories.filter(c => c.type === 'expense')
 
   async function togglePaceCategory(key) {
@@ -69,8 +70,6 @@ export function PaceChart({ year, month }) {
       ctx.restore()
     },
   }
-
-  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#1E3A5F'
 
   const chartData = {
     labels,

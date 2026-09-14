@@ -1,14 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { CATEGORY_MAP } from '../constants/categories'
+import { useCategories } from './useCategories'
 
 export async function setDailyIncludeVoorschot(value) {
   await db.settings.put({ key: 'dailyIncludeVoorschot', value })
 }
 
 export function useDailySpending(year, month) {
+  const { catMap, loading } = useCategories()
+
   return useLiveQuery(async () => {
-    if (!year || !month) return null
+    if (!year || !month || loading) return null
     const prefix = `${year}-${String(month).padStart(2, '0')}`
     const [txs, setting] = await Promise.all([
       db.transactions.where('date').startsWith(prefix).toArray(),
@@ -25,7 +27,7 @@ export function useDailySpending(year, month) {
     const daily = Array(daysInMonth + 1).fill(0)
     for (const tx of txs) {
       if (tx.type !== 'debit') continue
-      const catType = CATEGORY_MAP[tx.category]?.type
+      const catType = catMap[tx.category]?.type
       if (catType !== 'expense' && !(includeVoorschot && tx.category === 'voorschot')) continue
       const day = parseInt(tx.date.slice(8, 10), 10)
       if (day >= 1 && day <= daysInMonth) daily[day] += tx.amount
@@ -34,8 +36,8 @@ export function useDailySpending(year, month) {
     const spentDays = daily.slice(1, todayDay + 1).filter(v => v > 0).length
     const total = daily.slice(1, todayDay + 1).reduce((s, v) => s + v, 0)
     const average = spentDays > 0 ? total / todayDay : 0
-    const totalTransactions = txs.filter(t => t.type === 'debit' && (CATEGORY_MAP[t.category]?.type === 'expense' || (includeVoorschot && t.category === 'voorschot'))).length
+    const totalTransactions = txs.filter(t => t.type === 'debit' && (catMap[t.category]?.type === 'expense' || (includeVoorschot && t.category === 'voorschot'))).length
 
     return { daily: daily.slice(1), daysInMonth, todayDay, average, total, includeVoorschot, totalTransactions }
-  }, [year, month])
+  }, [year, month, catMap, loading])
 }

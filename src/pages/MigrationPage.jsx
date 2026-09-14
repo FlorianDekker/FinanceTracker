@@ -6,7 +6,6 @@ import { db } from '../db/db'
 
 export function MigrationPage({ onDone }) {
   const [status, setStatus] = useState({ dict: null, csv: null })
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   async function handleDictFile(e) {

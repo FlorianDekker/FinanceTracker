@@ -1,21 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { useCategories } from './useCategories'
-import { CATEGORY_MAP } from '../constants/categories'
 
 export function useBudgetStats(year, month) {
-  const { categories } = useCategories()
+  const { categories, catMap, getByRole } = useCategories()
+  const transferKey = getByRole('transfer')?.key
 
   const spentData = useLiveQuery(async () => {
     if (!year || !month) return {}
     const prefix = `${year}-${String(month).padStart(2, '0')}`
 
-    // Get current month debits
-    const txs = await db.transactions
-      .where('date').startsWith(prefix)
-      .toArray()
-
-    // Get all debits before current month (same year)
+    // Alle transacties van dit jaar (huidige maand + eerdere maanden)
     const yearPrefix = `${year}-`
     const allYearTxs = await db.transactions
       .where('date').startsWith(yearPrefix)
@@ -25,11 +20,11 @@ export function useBudgetStats(year, month) {
     const spentBefore = {}
 
     for (const tx of allYearTxs) {
-      const catType = CATEGORY_MAP[tx.category]?.type
+      const catType = catMap[tx.category]?.type
       // Skip income credits (salary) — they're not spending
       if (tx.type === 'credit' && catType === 'income') continue
-      // Skip bankoverschrijving entirely
-      if (tx.category === 'bankoverschrijving') continue
+      // Skip de overboekingscategorie (rol 'transfer') volledig
+      if (transferKey && tx.category === transferKey) continue
       const amount = tx.type === 'credit' ? -tx.amount : tx.amount
       const m = Number(tx.date.slice(5, 7))
       if (tx.date.startsWith(prefix)) {
@@ -40,7 +35,7 @@ export function useBudgetStats(year, month) {
     }
 
     return { spent, spentBefore }
-  }, [year, month])
+  }, [year, month, catMap, transferKey])
 
   if (!spentData || !categories.length) return []
 

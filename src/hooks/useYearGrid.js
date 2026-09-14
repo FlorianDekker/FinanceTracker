@@ -1,16 +1,18 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { EXPENSE_CATEGORIES } from '../constants/categories'
+import { useCategories } from './useCategories'
 
 export function useYearGrid(year) {
+  const { expenseCategories, loading } = useCategories()
+
   return useLiveQuery(async () => {
-    if (!year) return null
+    if (!year || loading) return null
     const yearPrefix = `${year}-`
     const txs = await db.transactions.where('date').startsWith(yearPrefix).toArray()
 
     // Build spend[category][month] matrix
     const matrix = {}
-    for (const cat of EXPENSE_CATEGORIES) {
+    for (const cat of expenseCategories) {
       matrix[cat.key] = Array(12).fill(0)
     }
 
@@ -27,5 +29,5 @@ export function useYearGrid(year) {
     }
 
     return { matrix, monthTotals }
-  }, [year])
+  }, [year, expenseCategories, loading])
 }

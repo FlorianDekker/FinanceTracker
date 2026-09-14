@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'

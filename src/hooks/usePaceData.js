@@ -1,19 +1,32 @@
+import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { useCategories } from './useCategories'
-import { FIXED_CATEGORIES, CATEGORY_MAP } from '../constants/categories'
 
-const EXCL_CATEGORY = 'overige_kosten'
 const EXCL_SUBCATEGORY = 'belasting'
 
-export const DEFAULT_PACE_EXCLUDED = [...FIXED_CATEGORIES, 'overige_kosten', 'investeren']
+// Standaard uitgesloten van het budgettempo: vaste lasten + de restbak + investeren.
+export function buildDefaultPaceExcluded(fixedKeys, uncategorizedKey) {
+  return [...fixedKeys, uncategorizedKey, 'investeren'].filter(Boolean)
+}
+
+export function useDefaultPaceExcluded() {
+  const { fixedKeys, getByRole } = useCategories()
+  const uncategorizedKey = getByRole('uncategorized')?.key ?? 'overige_kosten'
+  return useMemo(
+    () => buildDefaultPaceExcluded(fixedKeys, uncategorizedKey),
+    [fixedKeys, uncategorizedKey],
+  )
+}
 
 export async function setPaceExcluded(keys) {
   await db.settings.put({ key: 'paceExcluded', value: keys })
 }
 
 export function usePaceData(year, month) {
-  const { categories } = useCategories()
+  const { categories, catMap, getByRole } = useCategories()
+  const uncategorizedKey = getByRole('uncategorized')?.key ?? 'overige_kosten'
+  const defaultExcluded = useDefaultPaceExcluded()
 
   const data = useLiveQuery(async () => {
     if (!year || !month) return null
@@ -24,9 +37,9 @@ export function usePaceData(year, month) {
       db.settings.get('paceExcluded'),
     ])
 
-    const excluded = new Set(setting?.value ?? DEFAULT_PACE_EXCLUDED)
+    const excluded = new Set(setting?.value ?? defaultExcluded)
     return { txs, excluded }
-  }, [year, month])
+  }, [year, month, defaultExcluded])
 
   if (!data || !categories.length) return null
 
@@ -48,11 +61,11 @@ export function usePaceData(year, month) {
 
   for (const tx of txs) {
     if (tx.type !== 'debit') continue
-    if (CATEGORY_MAP[tx.category]?.type !== 'expense') continue
+    if (catMap[tx.category]?.type !== 'expense') continue
     if (excluded.has(tx.category)) continue
     const cat = tx.category ?? ''
     const sub = (tx.subcategory ?? '').toLowerCase()
-    if (cat === EXCL_CATEGORY && sub.includes(EXCL_SUBCATEGORY)) continue
+    if (cat === uncategorizedKey && sub.includes(EXCL_SUBCATEGORY)) continue
 
     const day = parseInt(tx.date.slice(8, 10), 10)
     if (day >= 1 && day <= daysInMonth) spendingByDay[day] += tx.amount
