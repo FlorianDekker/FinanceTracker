@@ -15,6 +15,8 @@ async function t(name, fn) {
 const { db } = await import(`${SRC}/db/db.js`)
 const C = await import(`${SRC}/utils/claims.js`)
 const CL = await import(`${SRC}/hooks/useClaims.js`)
+const { categorizeWithLearning } = await import(`${SRC}/utils/categorizer.js`)
+const { recordEvent } = await import(`${SRC}/utils/merchantLearning.js`)
 const B = await import(`${SRC}/utils/backup.js`)
 const { buildDefaultCategoryRows } = await import(`${SRC}/constants/categories.js`)
 
@@ -189,6 +191,125 @@ await t('de CSV is puntkomma-gescheiden met BOM en decimale komma', async () => 
   assert.equal(regels[2], '2026-05-12;"Lunch; met klant";Boodschappen;;12,50', 'puntkomma in tekst wordt aangehaald')
   assert.equal(C.claimBatchFileName('Declaratie juni 2026'), 'declaratie-juni-2026.csv')
   assert.equal(C.claimBatchFileName('Q3 reiskosten'), 'declaratie-q3-reiskosten.csv')
+})
+
+/* ---------------- categorie wijzigen op een lopend item ---------------- */
+
+await t('de categorie van een ingediende declaratie wijzigen laat de status staan', async () => {
+  const id = await db.transactions.add(claim('Hotel Zwolle', 95, '2026-09-08'))
+  const bid = await CL.submitClaimBatch({ name: 'Declaratie hotel', transactionIds: [id] })
+  const voor = await db.transactions.get(id)
+  await CL.changeClaimCategory(voor, 'vakantie', '')
+
+  const na = await db.transactions.get(id)
+  assert.equal(na.category, 'vakantie')
+  assert.equal(na.subcategory, '')
+  assert.equal(na.claimStatus, 'submitted', 'de declaratie blijft ingediend')
+  assert.equal(na.claimBatchId, bid)
+  assert.equal((await db.claimBatches.get(bid)).expectedTotal, 95, 'het batchtotaal verandert niet')
+
+  const ev = (await db.merchantHistory.where('baseKey').equals('hotelzwolle').toArray()).at(-1)
+  assert.equal(ev?.category, 'vakantie')
+  assert.equal(ev?.wasCorrection, true, 'de wijziging gaat als correctie naar de learning')
+  assert.equal(ev?.previousCategory, 'reiskosten')
+})
+
+/* ---------------- voorstel bij afkeuren ---------------- */
+
+const voorschotTx = (note, amount, date) => ({
+  date, amount, type: 'debit', category: 'voorschot', subcategory: '', note,
+})
+
+await t('suggestRejectCategory: een vage categorie krijgt het voorstel, een echte niet', () => {
+  const ctx = { uncategorizedKey: 'overige_kosten' }
+  const ns = { category: 'voorschot', subcategory: '', note: 'NS Utrecht' }
+
+  assert.deepEqual(
+    C.suggestRejectCategory(ns, { ...ctx, suggestion: { cat: 'reiskosten', sub: 'trein' } }),
+    { category: 'reiskosten', subcategory: 'trein', isSuggestion: true })
+
+  // Voorspellingen naar voorschot of de restbak negeren we: dan zou de app zijn
+  // eigen verlegenheidscategorie bevestigen.
+  assert.deepEqual(
+    C.suggestRejectCategory(ns, { ...ctx, suggestion: { cat: 'voorschot', sub: '' } }),
+    { category: 'voorschot', subcategory: '', isSuggestion: false })
+  assert.deepEqual(
+    C.suggestRejectCategory(ns, { ...ctx, suggestion: { cat: 'overige_kosten', sub: '' } }),
+    { category: 'voorschot', subcategory: '', isSuggestion: false })
+  assert.deepEqual(
+    C.suggestRejectCategory(ns, { ...ctx, suggestion: null }),
+    { category: 'voorschot', subcategory: '', isSuggestion: false })
+
+  // Een uitgave die al een echte categorie heeft, houdt die gewoon.
+  assert.deepEqual(
+    C.suggestRejectCategory({ category: 'boodschappen', subcategory: '' },
+      { ...ctx, suggestion: { cat: 'reiskosten', sub: '' } }),
+    { category: 'boodschappen', subcategory: '', isSuggestion: false })
+
+  assert.equal(C.isVagueCategory('', {}), true)
+  assert.equal(C.isVagueCategory('reiskosten', { uncategorizedKey: 'overige_kosten' }), false)
+})
+
+await t('het voorstel negeert geleerde voorschot-historie en valt terug op de regels', async () => {
+  // Zoals Florians situatie: alles stond jarenlang op Voorschot.
+  for (let i = 0; i < 4; i++) recordEvent('NS Utrecht', 'voorschot', '', 30, 'debit', null, null)
+  await recordEvent('Tikkie Jan', 'voorschot', '', 25, 'debit', null, null)
+
+  const cats = await db.categories.toArray()
+  const actief = new Set(cats.filter(c => !c.archived).map(c => c.key))
+  const byRole = {
+    uncategorized: cats.find(c => c.key === 'overige_kosten'),
+    transfer: cats.find(c => c.key === 'bankoverschrijving'),
+    income: cats.find(c => c.key === 'salaris'),
+  }
+  // Precies de filter uit useRejectSuggestions: bestaand, niet gearchiveerd en
+  // niet vaag (dus geen voorschot en geen restbak).
+  const isActiveKey = key => actief.has(key) && !C.isVagueCategory(key, { uncategorizedKey: 'overige_kosten' })
+  const opties = { rules: [], isActiveKey }
+
+  const zonderFilter = await categorizeWithLearning('NS Utrecht', 30, 'debit', '', byRole, {})
+  assert.equal(zonderFilter.cat, 'voorschot', 'ongefilterd zou de app zichzelf napraten')
+
+  const ns = await categorizeWithLearning('NS Utrecht', 30, 'debit', '', byRole, opties)
+  assert.equal(ns.cat, 'reiskosten', 'de ingebouwde regel ns -> reiskosten wint')
+  assert.deepEqual(
+    C.suggestRejectCategory(voorschotTx('NS Utrecht', 30, '2026-09-10'),
+      { suggestion: ns, uncategorizedKey: 'overige_kosten' }),
+    { category: 'reiskosten', subcategory: '', isSuggestion: true })
+
+  const tikkie = await categorizeWithLearning('Tikkie Jan', 25, 'debit', '', byRole, opties)
+  assert.equal(tikkie.cat, 'overige_kosten', 'zonder regel belandt hij in de restbak')
+  assert.deepEqual(
+    C.suggestRejectCategory(voorschotTx('Tikkie Jan', 25, '2026-09-10'),
+      { suggestion: tikkie, uncategorizedKey: 'overige_kosten' }),
+    { category: 'voorschot', subcategory: '', isSuggestion: false },
+    'geen bruikbaar voorstel: hij blijft staan waar hij staat')
+})
+
+/* ---------------- eenmalige omzetting van Voorschot ---------------- */
+
+await t('de omzetting zet Voorschot-uitgaven op open en laat de categorie staan', async () => {
+  const nsId = await db.transactions.add(voorschotTx('NS Utrecht', 30, '2026-09-11'))
+  const tikkieId = await db.transactions.add(voorschotTx('Tikkie Jan', 25, '2026-09-12'))
+  // Een bijschrijving en een al gemarkeerde uitgave doen niet mee.
+  await db.transactions.add({ ...voorschotTx('Terug van Jan', 25, '2026-09-12'), type: 'credit' })
+  await db.transactions.add({ ...voorschotTx('Al gemarkeerd', 10, '2026-09-12'), claimStatus: 'open' })
+
+  const n = await CL.convertVoorschotToClaims()
+  assert.equal(n, 2, 'alleen de twee ongemarkeerde afschrijvingen')
+
+  const [ns, tikkie] = await db.transactions.bulkGet([nsId, tikkieId])
+  assert.deepEqual([ns.claimStatus, tikkie.claimStatus], ['open', 'open'])
+  assert.deepEqual([ns.category, tikkie.category], ['voorschot', 'voorschot'],
+    'de categorie blijft staan tot je hem afkeurt of wijzigt')
+  assert.equal(await CL.convertVoorschotToClaims(), 0, 'een tweede keer valt er niets meer om te zetten')
+
+  // En dan de vervolgstap: "niet declareren" met het voorstel bevestigen.
+  await CL.rejectClaims([{ tx: ns, category: 'reiskosten', subcategory: '' }])
+  const na = await db.transactions.get(nsId)
+  assert.equal(na.claimStatus, 'rejected')
+  assert.equal(na.category, 'reiskosten')
+  assert.equal((await db.transactions.get(tikkieId)).category, 'voorschot', 'Tikkie blijft ongemoeid')
 })
 
 /* ---------------- backup: claimBatchId wordt hermapt ---------------- */

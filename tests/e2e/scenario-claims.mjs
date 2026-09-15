@@ -247,5 +247,74 @@ export async function scenarioClaims({ page, OUT, logs, ensureMonth }) {
       `kaart="${tekst}"; detail="${detail}"; errors=${errsSinds(i).length}`, s)
   }
 
+  /* ========== F9: categorie wijzigen op een open declaratie ========== */
+  {
+    const i = logs.length
+    await nieuweTransactie({ bedrag: '12', categorie: 'Reiskosten', omschrijving: 'Taxi station', declaratie: true })
+    await nav(1)
+    await page.locator('a[href*="declaraties"]').first().click(); await sleep(1200)
+    await page.locator('div.card button', { hasText: 'Taxi station' }).first().click(); await sleep(900)
+    const voor = (await top().innerText()).replace(/\n+/g, ' | ')
+    const sA = await shot('item-categorie-rij')
+
+    await top().locator('button', { hasText: 'wijzigen' }).first().click(); await sleep(900)
+    await top().locator('button', { has: page.locator('span:text-is("Boodschappen")') }).first().click(); await sleep(800)
+    await top().locator('button', { hasText: 'Geen subcategorie' }).click(); await sleep(1200)
+    const na = (await top().innerText()).replace(/\n+/g, ' | ')
+    const sB = await shot('item-categorie-gewijzigd')
+    await sluitAlles()
+
+    const dump = await page.evaluate(DUMP_CLAIMS)
+    const taxi = dump.claims.find(c => c.note === 'Taxi station')
+    stap('F9', 'categorie van een open declaratie wijzigen via de detail-sheet',
+      /Categorie/.test(voor) && /Reiskosten/.test(voor) && /Boodschappen/.test(na)
+      && taxi?.category === 'boodschappen' && taxi?.claimStatus === 'open' && errsSinds(i).length === 0,
+      `sheet vooraf="${voor.slice(0, 140)}"; na de keuze="${na.slice(0, 140)}"; item=${JSON.stringify(taxi)}; errors=${errsSinds(i).length}`,
+      sA + ', ' + sB)
+  }
+
+  /* ========== F10: Voorschot omzetten + voorstel bij afkeuren ========== */
+  {
+    const i = logs.length
+    await nieuweTransactie({ bedrag: '18', categorie: 'Voorschot', omschrijving: 'NS Utrecht' })
+    await nieuweTransactie({ bedrag: '15', categorie: 'Voorschot', omschrijving: 'Tikkie Jan' })
+
+    // Instellingen -> de eenmalige omzetting (de bevestiging wordt automatisch geaccepteerd)
+    await nav(4)
+    const kaart = await page.locator('h2:text-is("Declaraties")').locator('xpath=following-sibling::div').first().innerText()
+    const sA = await shot('instellingen-omzetting')
+    await page.locator('button', { hasText: 'Zet Voorschot-uitgaven om naar declaraties' }).click(); await sleep(1500)
+    const toast = await page.locator('div.mx-4.mt-4').first().innerText().catch(() => '')
+    const naOmzetting = await page.evaluate(DUMP_CLAIMS)
+    const omgezet = naOmzetting.claims.filter(c => ['NS Utrecht', 'Tikkie Jan'].includes(c.note))
+    const sB = await shot('na-omzetting')
+
+    // "Niet declareren" op de NS-rit: de app stelt Reiskosten voor
+    await nav(1)
+    await page.locator('a[href*="declaraties"]').first().click(); await sleep(1200)
+    await page.locator('div.card button', { hasText: 'NS Utrecht' }).first().click(); await sleep(900)
+    await top().locator('button', { hasText: 'Niet declareren' }).click(); await sleep(1200)
+    const voorstel = (await top().innerText()).replace(/\n+/g, ' | ')
+    const sC = await shot('afkeuren-voorstel')
+    await top().locator('button', { hasText: /^Bevestigen$/ }).click(); await sleep(1500)
+    await sluitAlles()
+
+    const dump = await page.evaluate(DUMP_CLAIMS)
+    const ns = dump.claims.find(c => c.note === 'NS Utrecht')
+    const tikkie = dump.claims.find(c => c.note === 'Tikkie Jan')
+    const sD = await shot('na-afkeuren-voorstel')
+
+    stap('F10', 'Voorschot omzetten en bij afkeuren de échte categorie voorgesteld krijgen',
+      omgezet.length === 2 && omgezet.every(c => c.claimStatus === 'open' && c.category === 'voorschot')
+      && /Tip: gebruik voor nieuwe werkkosten/.test(kaart)
+      && /voorstel/.test(voorstel) && /Reiskosten/.test(voorstel)
+      && ns?.claimStatus === 'rejected' && ns?.category === 'reiskosten'
+      && tikkie?.claimStatus === 'open' && tikkie?.category === 'voorschot' && errsSinds(i).length === 0,
+      `instellingenkaart="${kaart.replace(/\n+/g, ' | ').slice(0, 220)}"; toast="${toast.replace(/\n+/g, ' ').slice(0, 90)}"; ` +
+      `na omzetting=${JSON.stringify(omgezet)}; afkeursheet="${voorstel.slice(0, 160)}"; ` +
+      `ns=${JSON.stringify(ns)}; tikkie=${JSON.stringify(tikkie)}; errors=${errsSinds(i).length}`,
+      [sA, sB, sC, sD].join(', '))
+  }
+
   return { stappen }
 }
