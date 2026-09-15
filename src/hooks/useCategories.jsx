@@ -47,8 +47,23 @@ export async function setCategoryBudget(key, budget) {
 
 // Seed vanuit Dictionary.json: merget uitsluitend budgetten, overschrijft geen rijen.
 export async function seedCategories(dictJson) {
-  const raw = typeof dictJson === 'string' ? JSON.parse(dictJson) : dictJson
-  const catsObj = raw?.categories ?? raw ?? {}
+  let raw
+  try {
+    raw = typeof dictJson === 'string' ? JSON.parse(dictJson) : dictJson
+  } catch {
+    throw new Error('Dit bestand is geen geldige JSON.')
+  }
+  // Een backup-bestand van de app hoort niet hier: dat zou elke hoofdsleutel
+  // ("app", "tables", …) als categorie aanmaken.
+  if (raw?.app === 'FinanceTracker' || raw?.tables) {
+    throw new Error('Dit is een backup-bestand van de app. Gebruik Instellingen → Data → "Backup terugzetten…" (samenvoegen of vervangen).')
+  }
+  const catsObj = raw?.categories
+  const isDict = catsObj && typeof catsObj === 'object' && !Array.isArray(catsObj)
+    && Object.values(catsObj).every(v => v && typeof v === 'object' && !Array.isArray(v))
+  if (!isDict) {
+    throw new Error('Dit is geen Dictionary.json (verwacht: { "categories": { "<key>": { "budget": … } } }).')
+  }
   await ensureDefaultCategories()
   await db.transaction('rw', db.categories, async () => {
     const existing = await db.categories.toArray()
