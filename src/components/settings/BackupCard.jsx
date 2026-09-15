@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Sheet } from '../ui/Sheet'
 import { db } from '../../db/db'
+import { takeFile } from '../../utils/fileInput'
 import {
   downloadBackup,
   estimateBackupBytes,
@@ -85,10 +86,9 @@ export function BackupCard({ onStatus }) {
   }
 
   async function handleFile(e) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
     try {
+      const file = await takeFile(e)
+      if (!file) return
       setPending({ ...summarizeBackup(await file.text()), fileName: file.name })
     } catch (err) {
       onStatus?.({ error: err.message })

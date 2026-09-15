@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Sheet } from '../ui/Sheet'
+import { takeFiles } from '../../utils/fileInput'
 import {
   addReceiptFromClipboard,
   addReceiptFromFiles,
@@ -62,11 +63,16 @@ export function ReceiptCapture({ open, onClose, transactionId = null, expectedTo
     onClose?.()
   }
 
-  function kiesBestanden(e, nieuweBron) {
-    const files = Array.from(e.target.files ?? [])
-    e.target.value = ''
-    if (!files.length) return
+  async function kiesBestanden(e, nieuweBron) {
     setFout(null)
+    let files
+    try {
+      files = await takeFiles(e)   // kopieert eerst, leegt dan het veld (iOS)
+    } catch (err) {
+      setFout({ message: err.message })
+      return
+    }
+    if (!files.length) return
     const pdfs = files.filter(f => (f.type ?? '').includes('pdf') || /\.pdf$/i.test(f.name ?? ''))
     const beelden = files.filter(f => !pdfs.includes(f))
     if (beelden.length) setStukken(vorige => [...vorige, ...beelden.map(file => ({ file, url: URL.createObjectURL(file) }))])

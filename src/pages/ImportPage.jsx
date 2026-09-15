@@ -15,6 +15,7 @@ import { headerSignature, getMapping, saveMapping } from '../utils/csvMappings'
 import { amountsMatch, claimStatusOf } from '../utils/claims'
 import { closeBatchWithPayout, useSubmittedBatches } from '../hooks/useClaims'
 import { db } from '../db/db'
+import { takeFile } from '../utils/fileInput'
 
 // Velden die alleen in het reviewscherm leven en niet in de database horen.
 // `balance` en `account` horen er juist wel in: daar bouwen we later de
@@ -112,11 +113,16 @@ export function ImportPage() {
   }, [byRole, catMap, classifyOptions])
 
   const handleFile = useCallback(async e => {
-    const file = e.target.files?.[0]
-    e.target.value = ''            // hetzelfde bestand opnieuw kiezen moet werken
-    if (!file) return
     setError(null)
     setBron(null)
+    let file
+    try {
+      file = await takeFile(e)     // kopieert eerst, leegt dan het veld (iOS)
+    } catch (err) {
+      setError(err.message)
+      return
+    }
+    if (!file) return
     try {
       const isExcel = /\.(xls|xlsx)$/i.test(file.name)
       const text = isExcel ? null : await file.text()

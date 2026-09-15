@@ -4,6 +4,7 @@ import { TEMPLATES, DEFAULT_TEMPLATE_ID, templateDefs, buildTemplateRows, valida
 import { restoreBackup } from '../utils/backup'
 import { loadDemoData } from '../utils/demoData'
 import { euro } from '../utils/formatters'
+import { takeFile } from '../utils/fileInput'
 
 /**
  * Onboarding in vier stappen: welkom → categorieën → budgetten → data.
@@ -50,12 +51,11 @@ export function OnboardingPage({ onDone }) {
 
   // "Ik heb een backup": alles terugzetten en meteen naar de app.
   async function handleRestore(e) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
     setError(null)
     setBusy('backup')
     try {
+      const file = await takeFile(e)
+      if (!file) { setBusy(null); return }
       const { stats } = await restoreBackup(await file.text(), { mode: 'replace' })
       await db.settings.put({ key: 'migrationDone', value: true })
       onDone(`backup:${stats.transactions?.added ?? 0}`)
