@@ -8,7 +8,7 @@ import { BackupCard } from '../components/settings/BackupCard'
 import { RulesSheet } from '../components/settings/RulesSheet'
 import { AiReceiptsCard } from '../components/settings/AiReceiptsCard'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'
-import { useClaimExpiryMonths, setClaimExpiryMonths, useOutstandingClaims, useVoorschotCount, convertVoorschotToClaims } from '../hooks/useClaims'
+import { useClaimExpiryMonths, setClaimExpiryMonths, useOutstandingClaims, useVoorschotSummary, convertVoorschotToClaims } from '../hooks/useClaims'
 import { exportToCsv } from '../utils/importHelpers'
 import { euro } from '../utils/formatters'
 import { db } from '../db/db'
@@ -42,7 +42,7 @@ export function SettingsPage() {
   const demoMode = useLiveQuery(() => db.settings.get(DEMO_MODE_KEY).then(r => r?.value === true), [])
   const claimExpiryMonths = useClaimExpiryMonths()
   const claims = useOutstandingClaims()
-  const voorschotCount = useVoorschotCount()
+  const voorschot = useVoorschotSummary()
 
   // Zelfde samenvoeging als de Grafieken-pagina: onbekende ids eruit, nieuwe
   // grafieken achteraan erbij. Zonder dit blijven nieuwe grafieken onzichtbaar
@@ -212,11 +212,12 @@ export function SettingsPage() {
   }
 
   // Eenmalige opruimactie: de oude werkwijze (alles op categorie Voorschot)
-  // omzetten naar echte declaraties. De categorie blijft staan, zodat Florian
-  // ze daarna per stuk kan hercategoriseren.
+  // omzetten naar echte declaraties. De categorie blijft staan; bij "Niet
+  // declareren" doet de app daarna een voorstel voor de echte categorie.
   async function handleConvertVoorschot() {
     if (!window.confirm(
-      `${voorschotCount} uitgaven in Voorschot omzetten naar open declaraties? ` +
+      `${voorschot.count} ${voorschot.count === 1 ? 'uitgave' : 'uitgaven'} in Voorschot ` +
+      `(${euro(voorschot.total)}) omzetten naar open declaraties? ` +
       'Ze tellen daarna niet meer mee in je budget totdat ze zijn afgehandeld.'
     )) return
     const n = await convertVoorschotToClaims()
@@ -351,21 +352,26 @@ return (
             </div>
             <span className="text-sm text-muted">{euro(claims.total)} ({claims.count}) ›</span>
           </Link>
-          {voorschotCount > 0 && (
-            <button
-              onClick={handleConvertVoorschot}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left"
-              style={{ borderTop: '1px solid var(--color-border)' }}
-            >
-              <span className="text-xl">🔁</span>
-              <div className="flex-1">
-                <div className="text-sm">Zet Voorschot-uitgaven om naar declaraties</div>
-                <div className="text-xs text-muted">
-                  {voorschotCount} {voorschotCount === 1 ? 'uitgave staat' : 'uitgaven staan'} nog in Voorschot zonder declaratiestatus
+          {voorschot.count > 0 && (
+            <div style={{ borderTop: '1px solid var(--color-border)' }}>
+              <button
+                onClick={handleConvertVoorschot}
+                className="w-full flex items-center gap-3 px-4 pt-3 text-left"
+              >
+                <span className="text-xl">🔁</span>
+                <div className="flex-1">
+                  <div className="text-sm">Zet Voorschot-uitgaven om naar declaraties</div>
+                  <div className="text-xs text-muted">
+                    {voorschot.count} {voorschot.count === 1 ? 'uitgave staat' : 'uitgaven staan'} nog in Voorschot ({euro(voorschot.total)})
+                  </div>
                 </div>
-              </div>
-              <span className="text-sm text-muted">›</span>
-            </button>
+                <span className="text-sm text-muted">›</span>
+              </button>
+              <p className="text-[11px] text-muted px-4 pt-2 pb-3">
+                Tip: gebruik voor nieuwe werkkosten de gewone categorie + 💼; de categorie Voorschot
+                kun je hernoemen voor privé voorschieten.
+              </p>
+            </div>
           )}
 
           <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>

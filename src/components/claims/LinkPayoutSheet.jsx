@@ -4,6 +4,7 @@ import { db } from '../../db/db'
 import { Sheet } from '../ui/Sheet'
 import { CategoryPicker } from '../categories/CategoryPicker'
 import { CategoryChoiceRow } from './RejectClaimSheet'
+import { useRejectSuggestions } from '../../hooks/useRejectSuggestions'
 import { euro, fmtDate, fmtTimestamp } from '../../utils/formatters'
 import { amountsMatch, claimStatusOf, round2, sumAmount } from '../../utils/claims'
 import { closeBatchWithPayout, useBatchItems, useSubmittedBatches } from '../../hooks/useClaims'
@@ -35,6 +36,10 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
 
   const batches = useSubmittedBatches()
   const items = useBatchItems(batch?.id ?? null)
+  // Voorstellen voor items die nog op Voorschot of in de restbak staan; welke
+  // items straks afgekeurd worden weten we hier nog niet, dus we rekenen ze
+  // allemaal door (een batch telt een handvol regels).
+  const voorstellen = useRejectSuggestions(items ?? [])
   const cutoff = useMemo(() => isoDaysAgo(DAGEN), [])
   const credits = useLiveQuery(
     () => db.transactions.where('date').aboveOrEqual(cutoff).toArray(),
@@ -112,11 +117,16 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
   const rest = round2(diff - rejectedTotal)
   const passend = amountsMatch(rejectedTotal, diff)
 
-  const rejections = rejected.map(t => ({
-    tx: t,
-    category: choices[t.id]?.category ?? t.category,
-    subcategory: choices[t.id]?.subcategory ?? t.subcategory ?? '',
-  }))
+  // Eigen keuze gaat voor het voorstel, het voorstel voor de huidige categorie.
+  const rejections = rejected.map(t => {
+    const keuze = choices[t.id] ?? voorstellen[t.id]
+    return {
+      tx: t,
+      category: keuze?.category ?? t.category,
+      subcategory: keuze?.subcategory ?? t.subcategory ?? '',
+      isSuggestion: !choices[t.id] && !!voorstellen[t.id]?.isSuggestion,
+    }
+  })
   const gewijzigd = rejections.filter(r => r.category !== r.tx.category || r.subcategory !== (r.tx.subcategory ?? '')).length
 
   function noteFor() {
@@ -283,6 +293,7 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
               label={`${r.tx.note || ''} · ${euro(r.tx.amount)}`}
               category={r.category}
               subcategory={r.subcategory}
+              badge={r.isSuggestion ? 'voorstel' : null}
               onOpen={() => setPicking(r.tx.id)}
             />
           ))}
@@ -291,7 +302,7 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
 
       <CategoryPicker
         open={picking != null}
-        value={picking != null ? (choices[picking] ?? rejected.find(t => t.id === picking)) : undefined}
+        value={picking != null ? (choices[picking] ?? voorstellen[picking] ?? rejected.find(t => t.id === picking)) : undefined}
         onSelect={(cat, sub) => {
           setChoices(prev => ({ ...prev, [picking]: { category: cat, subcategory: sub } }))
           setPicking(null)

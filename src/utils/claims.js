@@ -160,6 +160,52 @@ export function isExpired(tx, expiryMonths = DEFAULT_CLAIM_EXPIRY_MONTHS, now = 
   return claimAgeMonths(tx, now) >= limit
 }
 
+/* ------------------------------------------------------------------ *
+ * Welke categorie stellen we voor bij afkeuren?                        *
+ * ------------------------------------------------------------------ */
+
+/**
+ * De oude werkwijze: werkkosten boekten op de categorie Voorschot. Bij het
+ * afkeuren wil je juist de échte categorie kiezen, dus zo'n uitgave heeft een
+ * voorstel nodig. `VOORSCHOT_KEY` staat hier (en niet in de hooks) zodat de
+ * logica zonder Dexie te testen is.
+ */
+export const VOORSCHOT_KEY = 'voorschot'
+
+/**
+ * Een categorie die niets zegt over wáár de uitgave thuishoort: leeg, Voorschot
+ * of de restbak. Alleen dan is een voorstel zinvol — en zo'n voorstel zelf mag
+ * er nooit een zijn, anders leert de app van zijn eigen verlegenheid.
+ */
+export function isVagueCategory(key, { voorschotKey = VOORSCHOT_KEY, uncategorizedKey = '' } = {}) {
+  if (!key) return true
+  if (voorschotKey && key === voorschotKey) return true
+  return !!uncategorizedKey && key === uncategorizedKey
+}
+
+/**
+ * Pure keuzelogica voor de afkeur-flow.
+ *
+ * @param tx  de declaratie die wordt afgekeurd
+ * @param ctx { suggestion: { cat, sub } | null, uncategorizedKey?, voorschotKey? }
+ *            `suggestion` komt van `categorizeWithLearning`; de aanroeper doet
+ *            het async werk, deze functie beslist alleen.
+ * @returns { category, subcategory, isSuggestion }
+ */
+export function suggestRejectCategory(tx, ctx = {}) {
+  const huidig = {
+    category: tx?.category ?? '',
+    subcategory: tx?.subcategory ?? '',
+    isSuggestion: false,
+  }
+  // Een uitgave die al een echte categorie heeft, houdt die gewoon.
+  if (!isVagueCategory(huidig.category, ctx)) return huidig
+
+  const cat = ctx.suggestion?.cat ?? ''
+  if (!cat || isVagueCategory(cat, ctx)) return huidig
+  return { category: cat, subcategory: ctx.suggestion?.sub ?? '', isSuggestion: true }
+}
+
 /** Korte leeftijd voor in een lijst: "deze maand", "1 mnd", "4 mnd". */
 export function claimAgeLabel(tx, now = new Date()) {
   const months = claimAgeMonths(tx, now)

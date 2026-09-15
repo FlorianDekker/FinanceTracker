@@ -9,7 +9,10 @@ import {
   outstandingClaims,
   round2,
   sumAmount,
+  VOORSCHOT_KEY,
 } from '../utils/claims'
+
+export { VOORSCHOT_KEY }
 
 export const CLAIM_EXPIRY_SETTING = 'claimExpiryMonths'
 
@@ -247,19 +250,28 @@ export async function closeBatchWithPayout({ batchId, transactionId, rejections 
  * Eenmalige actie: oude Voorschot-uitgaven worden declaraties.         *
  * ------------------------------------------------------------------ */
 
-export const VOORSCHOT_KEY = 'voorschot'
-
 function convertibleVoorschot() {
   return db.transactions
     .where('category').equals(VOORSCHOT_KEY)
     .filter(tx => tx.type === 'debit' && claimStatusOf(tx) === null)
 }
 
-export function useVoorschotCount() {
-  return useLiveQuery(() => convertibleVoorschot().count(), [], null)
+const EMPTY_SUMMARY = { count: 0, total: 0 }
+
+/** Hoeveel (en voor hoeveel euro) staat er nog in Voorschot zonder status? */
+export function useVoorschotSummary() {
+  return useLiveQuery(
+    () => convertibleVoorschot().toArray().then(txs => ({ count: txs.length, total: sumAmount(txs) })),
+    [],
+    EMPTY_SUMMARY,
+  )
 }
 
-/** Zet ze op 'open'; de categorie blijft voorschot en kan daarna per stuk wijzigen. */
+/**
+ * Zet ze op 'open'. De categorie blijft bewust Voorschot: pas als je een item
+ * afkeurt ("Niet declareren") komt de echte categorie aan bod — dan doet de app
+ * een voorstel. Zo leert de app niets van de verlegenheidscategorie zelf.
+ */
 export async function convertVoorschotToClaims() {
   const ids = (await convertibleVoorschot().toArray()).map(tx => tx.id)
   if (!ids.length) return 0
