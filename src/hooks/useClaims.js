@@ -105,6 +105,21 @@ export function usePayoutForBatch(batchId) {
   )
 }
 
+/**
+ * Wijzigt de categorie van een lopende declaratie. Het bedrag van een batch
+ * verandert hier niet van, dus dit mag ook bij een ingediend item.
+ * De correctie gaat naar de merchant-learning, net als in het transactieformulier.
+ */
+export async function changeClaimCategory(tx, category, subcategory = '') {
+  if (!tx?.id || !category) return
+  await db.transactions.update(tx.id, { category, subcategory: subcategory ?? '' })
+  const gewijzigd = tx.category !== category || (tx.subcategory ?? '') !== (subcategory ?? '')
+  if (tx.note) {
+    recordEvent(tx.note, category, subcategory ?? '', tx.amount, tx.type, null,
+      gewijzigd ? { was: true, from: tx.category } : null)
+  }
+}
+
 /** Haalt de declaratiemarkering van een open transactie weg. */
 export async function unmarkClaim(id) {
   return db.transactions.update(id, { claimStatus: null, claimBatchId: null })
