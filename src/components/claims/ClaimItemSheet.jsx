@@ -5,16 +5,29 @@ import { CategoryChoiceRow } from './RejectClaimSheet'
 import { useCategories } from '../../hooks/useCategories'
 import { euro, fmtDate } from '../../utils/formatters'
 import { CLAIM_STATUS_LABELS, claimAgeLabel, claimStatusOf, isPartialClaim } from '../../utils/claims'
-import { changeClaimCategory, unmarkClaim } from '../../hooks/useClaims'
+import { changeClaimCategory, discardClaim } from '../../hooks/useClaims'
 
 // Zolang de declaratie loopt mag de categorie nog wisselen: een ingediende bon
 // van de NS blijft even veel waard, hij hoort alleen thuis bij Reiskosten.
 // Afgekeurde items gaan via het gewone formulier, uitbetaalde liggen vast.
 const CATEGORIE_WIJZIGBAAR = new Set(['open', 'submitted'])
 
+// Een ingediend item haal je niet los uit zijn batch (ontbind dan de batch);
+// in elke andere fase mag "toch geen declaratie".
+const WEGHAALBAAR = new Set(['open', 'paid', 'rejected'])
+
+// Wat gebeurt er als je de markering weghaalt? Verschilt per fase.
+const WEGHAAL_TEKST = {
+  open: 'Markering weghalen? Deze uitgave telt daarna weer gewoon mee in je budget.',
+  paid: 'Toch geen declaratie? De uitgave telt daarna weer gewoon mee in je budget en verdwijnt uit de batch.',
+  rejected: 'Markering weghalen? De uitgave telt al mee; alleen het label en de plek in de batch verdwijnen.',
+}
+const WEGHAAL_TEKST_DEEL = 'Deeldeclaratie verwijderen? De uitgaven in deze categorie tellen daarna weer volledig mee.'
+
 /**
  * Detail van één declaratie. Bij een open item kun je hem hier alsnog uit de
  * declaraties halen of hem afkeuren (dan landt de uitgave in een categorie).
+ * Ook een per ongeluk uitbetaalde of afgekeurde markering haal je hier weg.
  */
 export function ClaimItemSheet({ tx, onClose, onReject }) {
   const { catMap } = useCategories()
@@ -29,10 +42,17 @@ export function ClaimItemSheet({ tx, onClose, onReject }) {
   const partial = isPartialClaim(tx)
 
   async function handleUnmark() {
-    if (!window.confirm('Markering weghalen? Deze uitgave telt daarna weer gewoon mee in je budget.')) return
-    await unmarkClaim(tx.id)
+    if (!window.confirm(partial ? WEGHAAL_TEKST_DEEL : WEGHAAL_TEKST[status])) return
+    await discardClaim(tx)
     onClose()
   }
+
+  const weghaalLabel = partial ? 'Deeldeclaratie verwijderen' : status === 'open' ? 'Markering weghalen' : 'Toch geen declaratie'
+  const weghaalKnop = WEGHAALBAAR.has(status) && (
+    <button onClick={handleUnmark} className="w-full text-red text-sm bg-red-dim rounded-xl py-2.5">
+      {weghaalLabel}
+    </button>
+  )
 
   async function kiesCategorie(nieuweCat, nieuweSub) {
     setPickerOpen(false)
@@ -85,9 +105,7 @@ export function ClaimItemSheet({ tx, onClose, onReject }) {
                 Niet declareren
               </button>
             )}
-            <button onClick={handleUnmark} className="w-full text-red text-sm bg-red-dim rounded-xl py-2.5">
-              Markering weghalen
-            </button>
+            {weghaalKnop}
           </div>
         )}
 
@@ -97,12 +115,21 @@ export function ClaimItemSheet({ tx, onClose, onReject }) {
           </p>
         )}
         {status === 'rejected' && (
-          <p className="text-xs text-muted mt-4">
-            Afgekeurd — deze uitgave telt gewoon mee in {cat?.label ?? category}. Wijzigen doe je in het transactieformulier.
-          </p>
+          <div className="mt-4 space-y-2 pb-2">
+            <p className="text-xs text-muted">
+              Afgekeurd — deze uitgave telt gewoon mee in {cat?.label ?? category}. Wijzigen doe je in het transactieformulier.
+            </p>
+            {weghaalKnop}
+          </div>
         )}
         {status === 'paid' && (
-          <p className="text-xs text-muted mt-4">Terugbetaald door werk.</p>
+          <div className="mt-4 space-y-2 pb-2">
+            <p className="text-xs text-muted">
+              Terugbetaald door werk. Hoort dit toch niet bij een declaratie? Dan haal je de markering hier weg;
+              de batch zelf heropen je vanuit Afgehandeld.
+            </p>
+            {weghaalKnop}
+          </div>
         )}
       </Sheet>
 

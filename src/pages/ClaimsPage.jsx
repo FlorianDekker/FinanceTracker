@@ -252,7 +252,9 @@ export function ClaimsPage() {
           onDone={() => setTab('done')}
         />
       )}
-      {batchDetail && <BatchSheet batch={batchDetail} onClose={() => setBatchDetail(null)} />}
+      {batchDetail && (
+        <BatchSheet batch={batchDetail} onClose={() => setBatchDetail(null)} onSelectItem={setDetail} />
+      )}
     </PageWrapper>
   )
 }

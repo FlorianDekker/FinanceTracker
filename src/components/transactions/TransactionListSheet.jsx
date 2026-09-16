@@ -37,6 +37,9 @@ export function TransactionListSheet({
   renderMeta,
   signOf,
   toneOf,
+  // Standaard opent een tik het transactieformulier; een aanroeper (zoals de
+  // batch-sheet van de declaraties) kan daar zijn eigen detail voor in de plaats zetten.
+  onSelect,
 }) {
   const { catMap } = useCategories()
   const [editing, setEditing] = useState(null)
@@ -66,7 +69,7 @@ export function TransactionListSheet({
           return (
             <button
               key={tx.id}
-              onClick={() => setEditing(tx)}
+              onClick={() => (onSelect ? onSelect(tx) : setEditing(tx))}
               className="w-full flex items-center gap-3 px-4 py-3 text-left"
               style={{ borderBottom: '1px solid var(--color-border)' }}
             >

@@ -390,5 +390,69 @@ await t('backup/restore hermapt claimBatchId naar de nieuwe batch-id', async () 
   assert.notEqual(terug.claimBatchId, batch2, 'de id is echt verschoven')
 })
 
+await t('batch heropenen: uitbetaling los, items terug naar ingediend, batch wacht weer', async () => {
+  const ids = await db.transactions.bulkAdd([
+    claim('Trein Den Haag', 20, '2026-08-03'),
+    claim('Lunch klant', 15, '2026-08-05'),
+  ], { allKeys: true })
+  const batchId = await CL.submitClaimBatch({ name: 'Heropen-test', transactionIds: ids })
+  const payoutId = await db.transactions.add({
+    date: '2026-09-01', amount: 35, type: 'credit', category: 'salaris', subcategory: '',
+    note: 'Werkgever declaraties', claimStatus: null, claimBatchId: null,
+  })
+  await CL.closeBatchWithPayout({ batchId, transactionId: payoutId })
+  assert.equal((await db.claimBatches.get(batchId)).status, 'closed')
+
+  const n = await CL.reopenClaimBatch(batchId)
+  assert.equal(n, 2)
+  const batch = await db.claimBatches.get(batchId)
+  assert.equal(batch.status, 'submitted')
+  assert.equal(batch.paidTransactionId, null)
+  assert.equal(batch.paidAmount, null)
+  assert.equal(batch.paidAt, null)
+  const payout = await db.transactions.get(payoutId)
+  assert.equal(C.claimStatusOf(payout), null, 'de uitbetaling is weer een gewone bijschrijving')
+  assert.equal(payout.claimBatchId, null)
+  for (const id of ids) {
+    const tx = await db.transactions.get(id)
+    assert.equal(C.claimStatusOf(tx), 'submitted')
+    assert.equal(tx.claimBatchId, batchId, 'en zit nog in de batch')
+  }
+  // Nog een keer heropenen doet niets: de batch is al niet meer gesloten.
+  assert.equal(await CL.reopenClaimBatch(batchId), 0)
+})
+
+await t('toch geen declaratie: uitbetaald item verlaat de batch, deeldeclaratie verdwijnt', async () => {
+  const ids = await db.transactions.bulkAdd([
+    claim('Parkeren Utrecht', 8, '2026-08-10'),
+    { date: '2026-08-31', amount: 25, type: 'credit', category: 'reiskosten', subcategory: '',
+      note: 'Reiskosten werk augustus 2026', claimStatus: 'open', claimBatchId: null },
+  ], { allKeys: true })
+  const batchId = await CL.submitClaimBatch({ name: 'Weghaal-test', transactionIds: ids })
+  const payoutId = await db.transactions.add({
+    date: '2026-09-05', amount: 33, type: 'credit', category: 'salaris', subcategory: '',
+    note: 'Werkgever declaraties', claimStatus: null, claimBatchId: null,
+  })
+  await CL.closeBatchWithPayout({ batchId, transactionId: payoutId })
+
+  const [parkeren, deel] = await db.transactions.bulkGet(ids)
+  assert.equal(C.claimStatusOf(parkeren), 'paid')
+  assert.ok(C.isPartialClaim(deel))
+
+  await CL.discardClaim(parkeren)
+  const los = await db.transactions.get(parkeren.id)
+  assert.equal(C.claimStatusOf(los), null)
+  assert.equal(los.claimBatchId, null)
+  assert.ok(C.countsInTotals(los), 'telt weer gewoon mee als uitgave')
+
+  await CL.discardClaim(deel)
+  assert.equal(await db.transactions.get(deel.id), undefined, 'een deeldeclaratie zonder markering bestaat niet')
+
+  // De batch blijft bestaan met zijn historie, alleen zonder deze items.
+  const rest = await CL.batchItemsQuery(batchId)
+  assert.equal(rest.length, 0)
+  assert.equal((await db.claimBatches.get(batchId)).status, 'closed')
+})
+
 console.log(`\n${pass} ok, ${fail} fout`)
 process.exit(fail ? 1 : 0)

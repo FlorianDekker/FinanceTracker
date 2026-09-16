@@ -132,6 +132,18 @@ export async function unmarkClaim(id) {
 }
 
 /**
+ * "Toch geen declaratie", ongeacht de fase: de markering gaat eraf en het item
+ * verlaat zijn batch (de batch houdt zijn expectedTotal — dat is wat je destijds
+ * indiende). Een deeldeclaratie heeft zonder markering geen bestaansrecht: die
+ * zou als losse bijschrijving de categorie blijven verlagen, dus die verdwijnt.
+ */
+export async function discardClaim(tx) {
+  if (!tx?.id) return
+  if (isPartialClaim(tx)) return db.transactions.delete(tx.id)
+  return unmarkClaim(tx.id)
+}
+
+/**
  * Bundelt open declaraties tot een ingediende batch.
  * @returns het id van de nieuwe batch
  */
@@ -249,6 +261,32 @@ export async function closeBatchWithPayout({ batchId, transactionId, rejections 
   }).then(result => {
     learnFromRejections(rejections)
     return result
+  })
+}
+
+/**
+ * Het omgekeerde van closeBatchWithPayout, voor als je te vroeg of verkeerd hebt
+ * afgerond: de uitbetaling wordt weer een gewone bijschrijving, alle items gaan
+ * terug naar 'submitted' en de batch wacht opnieuw op een betaling. De categorie
+ * van afgekeurde items blijft staan — die keuze was misschien juist.
+ * @returns het aantal items dat terug naar 'submitted' ging
+ */
+export async function reopenClaimBatch(batchId) {
+  return db.transaction('rw', db.transactions, db.claimBatches, async () => {
+    const batch = await db.claimBatches.get(batchId)
+    if (!batch) throw new Error('Deze declaratiebatch bestaat niet meer.')
+    if (batch.status !== 'closed') return 0
+    const items = await batchItemsQuery(batchId)
+    if (items.length) {
+      await db.transactions.where('id').anyOf(items.map(t => t.id)).modify({ claimStatus: 'submitted' })
+    }
+    await db.transactions.where('claimStatus').equals('payout')
+      .filter(tx => tx.claimBatchId === batchId)
+      .modify({ claimStatus: null, claimBatchId: null })
+    await db.claimBatches.update(batchId, {
+      status: 'submitted', paidTransactionId: null, paidAmount: null, paidAt: null,
+    })
+    return items.length
   })
 }
 
