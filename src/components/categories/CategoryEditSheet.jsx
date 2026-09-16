@@ -33,20 +33,26 @@ function parseAmount(value) {
   return isNaN(n) || n < 0 ? 0 : n
 }
 
-/** Bewerken van één categorie; `cat` leeg betekent "nieuwe categorie". */
-export function CategoryEditSheet({ open, cat, onClose }) {
+/**
+ * Bewerken van één categorie; `cat` leeg betekent "nieuwe categorie".
+ * `onCreated(key)` is optioneel: als die is meegegeven, wordt hij bij het
+ * aanmaken van een nieuwe categorie aangeroepen in plaats van `onClose`
+ * (de aanroeper — bijv. CategoryPicker — sluit het formulier dan zelf).
+ * `defaultType` bepaalt het begintype van een nieuwe categorie.
+ */
+export function CategoryEditSheet({ open, cat, onClose, onCreated, defaultType }) {
   if (!open) return null
-  return <EditBody cat={cat} onClose={onClose} />
+  return <EditBody cat={cat} onClose={onClose} onCreated={onCreated} defaultType={defaultType} />
 }
 
-function EditBody({ cat, onClose }) {
+function EditBody({ cat, onClose, onCreated, defaultType }) {
   const { allCategories, addCategory, updateCategory, archiveCategory } = useCategories()
   const isNew = !cat
 
   const [label, setLabel] = useState(cat?.label ?? '')
   const [icon, setIcon] = useState(cat?.icon ?? DEFAULT_CATEGORY_ICON)
   const [color, setColor] = useState(cat?.color ?? DEFAULT_CATEGORY_COLOR)
-  const [type, setType] = useState(cat?.type ?? 'expense')
+  const [type, setType] = useState(cat?.type ?? defaultType ?? 'expense')
   const [isFixed, setIsFixed] = useState(cat?.isFixed ?? false)
   const [budget, setBudget] = useState(String(Math.round(cat?.budget ?? 0)))
   const [subs, setSubs] = useState(cat?.subs ?? [])
@@ -119,9 +125,16 @@ function EditBody({ cat, onClose }) {
     // bedrag gewoon staan voor als het type later terugdraait.
     if (type === 'expense') patch.budget = parseAmount(budget)
     try {
-      if (isNew) await addCategory(patch)
-      else await updateCategory(cat.key, patch)
-      onClose()
+      if (isNew) {
+        const key = await addCategory(patch)
+        // De aanroeper (bijv. CategoryPicker) selecteert de nieuwe categorie
+        // en sluit het formulier zelf; zonder onCreated doen we dat hier.
+        if (onCreated) onCreated(key)
+        else onClose()
+      } else {
+        await updateCategory(cat.key, patch)
+        onClose()
+      }
     } catch (err) {
       setError(err.message)
     }
@@ -351,6 +364,7 @@ function EditBody({ cat, onClose }) {
           excludeKey={cat?.key}
           onSelect={target => moveAndArchive(target)}
           onClose={() => setMoveOpen(false)}
+          allowCreate={false}
         />
       </Sheet>
     </Sheet>

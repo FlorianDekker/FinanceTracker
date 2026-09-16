@@ -203,6 +203,10 @@ export async function addSub(key, label) {
     const row = await db.categories.get(key)
     if (!row) throw new Error(`Categorie '${key}' bestaat niet`)
     const subs = normalizeSubs(row.subs)
+    // Geen dubbele subcategorie aanmaken als er al eentje met (ongeveer)
+    // dezelfde naam bestaat — gewoon die selecteren.
+    const existing = subs.find(s => s.label.toLowerCase() === name.toLowerCase())
+    if (existing) { subKey = existing.key; return }
     subKey = uniqueSlug(name, subs.map(s => s.key))
     await db.categories.put({ ...row, subs: [...subs, { key: subKey, label: name }] })
   })

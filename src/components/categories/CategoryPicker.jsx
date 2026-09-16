@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useCategories } from '../../hooks/useCategories'
 import { Sheet } from '../ui/Sheet'
+import { CategoryEditSheet } from './CategoryEditSheet'
 
 /**
  * Gedeelde categoriekiezer in twee niveaus (categorie -> subcategorie).
@@ -10,6 +11,8 @@ import { Sheet } from '../ui/Sheet'
  *  - value: { category, subcategory } (optioneel, alleen voor de markering)
  *  - onSelect(categoryKey, subcategoryKey) — sluiten doet de aanroeper
  *  - title, subtitle, filterType ('expense' | 'income' | 'transfer'), excludeKey
+ *  - allowCreate: toon "+ nieuwe (sub)categorie" (standaard true; uitzetten
+ *    voor de "verplaats naar"-kiezer binnen CategoryEditSheet zelf)
  */
 export function CategoryPicker({
   open,
@@ -20,18 +23,31 @@ export function CategoryPicker({
   subtitle,
   filterType,
   excludeKey,
+  allowCreate = true,
 }) {
-  const { categories, catMap } = useCategories()
-  const [parent, setParent] = useState(null)
+  const { categories, catMap, addSub } = useCategories()
+  // Alleen de key bewaren, niet het hele object: na addSub is een bewaard
+  // object verouderd (de nieuwe sub staat er nog niet in). `parent` leiden
+  // we hieronder bij elke render af uit de actuele catMap.
+  const [parentKey, setParentKey] = useState(null)
   const [wasOpen, setWasOpen] = useState(open)
+  const [creating, setCreating] = useState(false)
+  const [addingSub, setAddingSub] = useState(false)
+  const [subName, setSubName] = useState('')
+  const [subError, setSubError] = useState(null)
 
   // Elke keer opnieuw op het bovenste niveau beginnen (reset tijdens render,
   // het aanbevolen patroon voor 'state afleiden van een prop-wissel').
   if (open !== wasOpen) {
     setWasOpen(open)
-    setParent(null)
+    setParentKey(null)
+    setCreating(false)
+    setAddingSub(false)
+    setSubName('')
+    setSubError(null)
   }
 
+  const parent = parentKey ? catMap[parentKey] : null
   const selectedKey = value?.category ?? ''
   const selectedSub = value?.subcategory ?? ''
 
@@ -42,6 +58,29 @@ export function CategoryPicker({
   const current = catMap[selectedKey]
   if (current?.archived) list = [current, ...list]
 
+  function goBack() {
+    setParentKey(null)
+    cancelSub()
+  }
+
+  function cancelSub() {
+    setAddingSub(false)
+    setSubName('')
+    setSubError(null)
+  }
+
+  async function saveSub() {
+    const name = subName.trim()
+    if (!name) { cancelSub(); return }
+    try {
+      const subKey = await addSub(parent.key, name)
+      cancelSub()
+      onSelect(parent.key, subKey)
+    } catch (err) {
+      setSubError(err.message)
+    }
+  }
+
   return (
     <Sheet
       open={open}
@@ -51,7 +90,7 @@ export function CategoryPicker({
       leading={
         parent ? (
           <button
-            onClick={() => setParent(null)}
+            onClick={goBack}
             className="text-sm shrink-0"
             style={{ color: 'var(--color-accent)' }}
           >
@@ -64,25 +103,46 @@ export function CategoryPicker({
       {!parent ? (
         <div className="divide-y divide-border">
           {list.map(cat => (
-            <button
-              key={cat.key}
-              onClick={() => {
-                if (cat.subs?.length) setParent(cat)
-                else onSelect(cat.key, '')
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left"
-            >
-              <CategoryIcon cat={cat} />
-              <span className="flex-1 text-sm">
-                {cat.label}
-                {cat.archived && <span className="text-xs text-muted"> · gearchiveerd</span>}
-              </span>
-              {cat.key === selectedKey && (
-                <span className="text-sm" style={{ color: 'var(--color-accent)' }}>✓</span>
+            <div key={cat.key} className="flex items-center">
+              <button
+                onClick={() => {
+                  if (cat.subs?.length) setParentKey(cat.key)
+                  else onSelect(cat.key, '')
+                }}
+                className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3 text-left"
+              >
+                <CategoryIcon cat={cat} />
+                <span className="flex-1 text-sm">
+                  {cat.label}
+                  {cat.archived && <span className="text-xs text-muted"> · gearchiveerd</span>}
+                </span>
+                {cat.key === selectedKey && (
+                  <span className="text-sm" style={{ color: 'var(--color-accent)' }}>✓</span>
+                )}
+                {cat.subs?.length > 0 && <span className="text-muted text-sm">›</span>}
+              </button>
+              {/* Zonder subs selecteert een tik direct; via dit pijltje kom je
+                  toch op het subniveau om er een eerste sub aan te maken. */}
+              {allowCreate && !cat.subs?.length && (
+                <button
+                  onClick={() => setParentKey(cat.key)}
+                  aria-label={`Subcategorie toevoegen aan ${cat.label}`}
+                  className="px-4 py-3 text-muted text-sm shrink-0"
+                >
+                  ›
+                </button>
               )}
-              {cat.subs?.length > 0 && <span className="text-muted text-sm">›</span>}
-            </button>
+            </div>
           ))}
+          {allowCreate && (
+            <button
+              onClick={() => setCreating(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 text-left"
+              style={{ color: 'var(--color-accent)' }}
+            >
+              <span className="flex-1 text-sm">+ Nieuwe categorie</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="divide-y divide-border">
@@ -108,8 +168,50 @@ export function CategoryPicker({
               )}
             </button>
           ))}
+          {allowCreate && (
+            addingSub ? (
+              <div className="w-full flex flex-wrap items-center gap-2 px-4 py-2 pl-14">
+                <input
+                  autoFocus
+                  type="text"
+                  value={subName}
+                  onChange={e => setSubName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') saveSub()
+                    if (e.key === 'Escape') cancelSub()
+                  }}
+                  placeholder="Naam subcategorie"
+                  className="flex-1 rounded-lg px-3 py-1.5"
+                  style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+                />
+                <button onClick={saveSub} className="text-sm shrink-0" style={{ color: 'var(--color-accent)' }}>
+                  Opslaan
+                </button>
+                {subError && <div className="text-xs text-red basis-full pl-2">{subError}</div>}
+              </div>
+            ) : (
+              <button
+                onClick={() => setAddingSub(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 pl-14 text-left"
+                style={{ color: 'var(--color-accent)' }}
+              >
+                <span className="flex-1 text-sm">+ Nieuwe subcategorie</span>
+              </button>
+            )
+          )}
         </div>
       )}
+
+      <CategoryEditSheet
+        open={creating}
+        cat={null}
+        defaultType={filterType}
+        onClose={() => setCreating(false)}
+        onCreated={key => {
+          setCreating(false)
+          onSelect(key, '')
+        }}
+      />
     </Sheet>
   )
 }
