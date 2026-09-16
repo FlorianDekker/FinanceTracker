@@ -157,19 +157,24 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
             </button>
           </div>
 
-          {/* Declaratie voor werk */}
-          {type === 'debit' && (
+          {/* Declaratie voor werk. Een bijschrijving in een uitgavencategorie kan
+              een deeldeclaratie zijn: "€X van deze categorie was werk" (zie
+              utils/claims.js). Zo maak je ook oude, handmatige correcties alsnog
+              tot declaratie. */}
+          {(type === 'debit' || (type === 'credit' && selectedCat?.type === 'expense')) && (
             claimEditable ? (
               <button
                 onClick={() => setClaimStatus(claimStatus === 'open' ? null : 'open')}
                 className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left"
                 style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
               >
-                <span className="text-lg">💼</span>
+                <span className="text-lg">{type === 'credit' ? '↩' : '💼'}</span>
                 <span className="flex-1 text-sm">
-                  Declaratie voor werk
+                  {type === 'credit' ? 'Deeldeclaratie' : 'Declaratie voor werk'}
                   <span className="block text-[11px] text-muted">
-                    {claimStatus === 'open' ? 'Telt niet mee in je budget' : 'Telt mee als gewone uitgave'}
+                    {type === 'credit'
+                      ? (claimStatus === 'open' ? 'Werkdeel van deze categorie; gaat mee in je volgende declaratie' : 'Gewone correctie op deze categorie')
+                      : (claimStatus === 'open' ? 'Telt niet mee in je budget' : 'Telt mee als gewone uitgave')}
                   </span>
                 </span>
                 <span
@@ -197,20 +202,6 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
                 </span>
               </div>
             )
-          )}
-
-          {/* Deeldeclaratie: deze bijschrijving is zelf al een declaratie. */}
-          {partial && (
-            <div
-              className="w-full flex items-center gap-3 rounded-lg px-3 py-2"
-              style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
-            >
-              <span className="text-lg">💼</span>
-              <span className="flex-1 text-sm">
-                Declaratie · {CLAIM_STATUS_LABELS[claimStatus]}
-                <span className="block text-[11px] text-muted">wijzigen via Declaraties</span>
-              </span>
-            </div>
           )}
 
           {/* Declaratie-uitbetaling van werk */}
