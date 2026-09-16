@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- provider + hook horen hier bij elkaar; kost alleen snelle HMR */
 import { createContext, useContext, useState, useRef, useCallback } from 'react'
 
 const now = new Date()
