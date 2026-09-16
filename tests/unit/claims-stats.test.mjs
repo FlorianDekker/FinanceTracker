@@ -105,6 +105,25 @@ await t('claimExpiryMonths leest en schrijft via de helper', async () => {
   assert.equal(await getClaimExpiryMonths(), 60, 'geklemd op 60')
 })
 
+/* ---------------- deeldeclaratie: negatieve uitgave, nooit inkomen ---------------- */
+
+await db.transactions.bulkAdd([
+  { date: '2026-09-07', amount: 12, type: 'credit', category: 'vervoer', subcategory: '', note: 'Vervoer werk sep 2026', claimStatus: 'open', claimBatchId: null },
+  { date: '2026-09-08', amount: 7, type: 'credit', category: 'vervoer', subcategory: '', note: 'Vervoer werk sep 2026 afgekeurd', claimStatus: 'rejected', claimBatchId: null },
+])
+
+await t('deeldeclaratie: verlaagt de uitgaven in budgetSpent en telt nergens als inkomen', async () => {
+  const { spent } = await budgetSpent(2026, 9)
+  // vervoer was 30 (de afgekeurde gewone declaratie); min 12 voor de open
+  // deeldeclaratie. De afgekeurde deeldeclaratie (7) telt niet meer mee.
+  assert.equal(spent.vervoer, 18, '30 - 12 (open deeldeclaratie); de afgekeurde (7) doet niet mee')
+
+  const maand = await db.transactions.where('date').startsWith('2026-09').filter(countsInTotals).toArray()
+  const inkomen = maand.filter(t2 => isCountedIncome(t2) && catMap[t2.category]?.type === 'income')
+    .reduce((s, t2) => s + t2.amount, 0)
+  assert.equal(inkomen, 2000, 'de deeldeclaratie staat in een uitgavencategorie en telt dus nooit als inkomen mee')
+})
+
 /* ---------------------------- backup ---------------------------------- */
 
 const batchId = await db.claimBatches.add({

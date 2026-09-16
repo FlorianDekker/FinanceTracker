@@ -4,7 +4,7 @@ import { CategoryIcon, CategoryPicker } from '../categories/CategoryPicker'
 import { CategoryChoiceRow } from './RejectClaimSheet'
 import { useCategories } from '../../hooks/useCategories'
 import { euro, fmtDate } from '../../utils/formatters'
-import { CLAIM_STATUS_LABELS, claimAgeLabel, claimStatusOf } from '../../utils/claims'
+import { CLAIM_STATUS_LABELS, claimAgeLabel, claimStatusOf, isPartialClaim } from '../../utils/claims'
 import { changeClaimCategory, unmarkClaim } from '../../hooks/useClaims'
 
 // Zolang de declaratie loopt mag de categorie nog wisselen: een ingediende bon
@@ -26,6 +26,7 @@ export function ClaimItemSheet({ tx, onClose, onReject }) {
   const sub = cat?.subs?.find(s => s.key === subcategory)
   const status = claimStatusOf(tx)
   const wijzigbaar = CATEGORIE_WIJZIGBAAR.has(status)
+  const partial = isPartialClaim(tx)
 
   async function handleUnmark() {
     if (!window.confirm('Markering weghalen? Deze uitgave telt daarna weer gewoon mee in je budget.')) return
@@ -51,7 +52,7 @@ export function ClaimItemSheet({ tx, onClose, onReject }) {
               {sub && <span className="text-muted"> › {sub.label}</span>}
             </div>
             <div className="text-[11px] text-muted">
-              {CLAIM_STATUS_LABELS[status] ?? 'Geen declaratie'} · {claimAgeLabel(tx)} oud
+              {partial && '↩ Deel · '}{CLAIM_STATUS_LABELS[status] ?? 'Geen declaratie'} · {claimAgeLabel(tx)} oud
             </div>
           </div>
           <span className="text-sm font-semibold tabular-nums">{euro(tx.amount)}</span>
@@ -66,7 +67,9 @@ export function ClaimItemSheet({ tx, onClose, onReject }) {
               onOpen={() => setPickerOpen(true)}
             />
             <p className="text-[11px] text-muted mt-2">
-              De declaratie blijft even veel waard; alleen de categorie verandert.
+              {partial
+                ? 'Dit bedrag verlaagt de uitgaven in deze categorie; alleen de categorie verandert.'
+                : 'De declaratie blijft even veel waard; alleen de categorie verandert.'}
             </p>
           </div>
         )}
@@ -109,6 +112,9 @@ export function ClaimItemSheet({ tx, onClose, onReject }) {
         onSelect={kiesCategorie}
         onClose={() => setPickerOpen(false)}
         title="Categorie wijzigen"
+        // Een deeldeclaratie moet in een uitgavencategorie blijven staan: anders
+        // zou hij als inkomen gaan meetellen in plaats van als negatieve uitgave.
+        filterType={partial ? 'expense' : undefined}
       />
     </>
   )

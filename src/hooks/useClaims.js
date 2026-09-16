@@ -6,6 +6,7 @@ import {
   DEFAULT_CLAIM_EXPIRY_MONTHS,
   claimStatusOf,
   defaultBatchName,
+  isPartialClaim,
   outstandingClaims,
   round2,
   sumAmount,
@@ -117,7 +118,9 @@ export async function changeClaimCategory(tx, category, subcategory = '') {
   if (!tx?.id || !category) return
   await db.transactions.update(tx.id, { category, subcategory: subcategory ?? '' })
   const gewijzigd = tx.category !== category || (tx.subcategory ?? '') !== (subcategory ?? '')
-  if (tx.note) {
+  // Een deeldeclaratie is een synthetische rij ("OV werk september 2026"),
+  // geen herkenbare merchant — die notitie hoort niet in de learning.
+  if (tx.note && !isPartialClaim(tx)) {
     recordEvent(tx.note, category, subcategory ?? '', tx.amount, tx.type, null,
       gewijzigd ? { was: true, from: tx.category } : null)
   }
@@ -187,7 +190,10 @@ function applyRejections(decisions) {
 function learnFromRejections(decisions) {
   for (const d of decisions ?? []) {
     const note = d.tx?.note
-    if (!note) continue
+    // Bij een deeldeclaratie verandert de categorie bij afkeuren juist niet
+    // (zie RejectClaimSheet/LinkPayoutSheet) en is de notitie sowieso
+    // synthetisch — niets om van te leren.
+    if (!note || isPartialClaim(d.tx)) continue
     const changed = d.tx.category !== d.category || (d.tx.subcategory ?? '') !== (d.subcategory ?? '')
     recordEvent(note, d.category, d.subcategory ?? '', d.tx.amount, d.tx.type, null,
       changed ? { was: true, from: d.tx.category } : null)

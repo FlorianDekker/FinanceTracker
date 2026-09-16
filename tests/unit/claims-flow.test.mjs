@@ -175,6 +175,56 @@ await t('niet declareren keurt af en laat de uitgave weer meetellen', async () =
   assert.equal(C.isCountedExpense(na), true)
 })
 
+/* ---------------- deeldeclaratie: aanmaken, indienen, uitbetalen ---------------- */
+
+await t('deeldeclaratie indienen en met een exacte uitbetaling afsluiten -> paid', async () => {
+  const date = C.partialClaimDate(2026, 9, new Date('2026-09-16'))
+  const note = C.partialClaimNote('Reiskosten', 2026, 9)
+  const partialId = await db.transactions.add({
+    date, amount: 10, type: 'credit', category: 'reiskosten', subcategory: '', note,
+    claimStatus: 'open', claimBatchId: null,
+  })
+  const aangemaakt = await db.transactions.get(partialId)
+  assert.equal(C.isPartialClaim(aangemaakt), true)
+  assert.equal(C.countsInTotals(aangemaakt), true, 'telt al als negatieve uitgave in reiskosten')
+
+  const bid = await CL.submitClaimBatch({ name: 'Declaratie OV', transactionIds: [partialId] })
+  assert.equal((await db.claimBatches.get(bid)).expectedTotal, 10)
+  const ingediend = await db.transactions.get(partialId)
+  assert.equal(ingediend.claimStatus, 'submitted')
+  assert.equal(C.countsInTotals(ingediend), true, 'blijft meetellen terwijl hij loopt')
+
+  const payoutId = await db.transactions.add({
+    date: '2026-09-20', amount: 10, type: 'credit', category: 'salaris', subcategory: '', note: 'Declaratie OV',
+  })
+  const res = await CL.closeBatchWithPayout({ batchId: bid, transactionId: payoutId })
+  assert.deepEqual(res, { paid: 1, rejected: 0 })
+
+  const afgehandeld = await db.transactions.get(partialId)
+  assert.equal(afgehandeld.claimStatus, 'paid')
+  assert.equal(C.countsInTotals(afgehandeld), true, 'blijft meetellen als negatieve uitgave, ook na uitbetaling')
+  assert.equal(C.isCountedIncome(await db.transactions.get(payoutId)), false, 'de bulkbetaling zelf is geen inkomen')
+})
+
+await t('deeldeclaratie afkeuren: categorie blijft staan en de rij telt niet meer mee', async () => {
+  const date = C.partialClaimDate(2026, 9, new Date('2026-09-16'))
+  const note = C.partialClaimNote('Reiskosten', 2026, 9)
+  const partialId = await db.transactions.add({
+    date, amount: 8, type: 'credit', category: 'reiskosten', subcategory: '', note,
+    claimStatus: 'open', claimBatchId: null,
+  })
+  const voor = await db.transactions.get(partialId)
+  assert.equal(C.countsInTotals(voor), true)
+
+  // Zoals RejectClaimSheet voor een deeldeclaratie: de categorie blijft exact gelijk.
+  await CL.rejectClaims([{ tx: voor, category: voor.category, subcategory: voor.subcategory }])
+  const na = await db.transactions.get(partialId)
+  assert.equal(na.claimStatus, 'rejected')
+  assert.equal(na.category, 'reiskosten', 'categorie ongewijzigd')
+  assert.equal(C.countsInTotals(na), false, 'werk vergoedt dit niet, dus telt niet meer mee')
+  assert.equal(C.isCountedExpense(na), false, 'en wordt ook geen uitgave: het blijft een credit-rij')
+})
+
 /* ---------------- CSV voor werk ---------------- */
 
 await t('de CSV is puntkomma-gescheiden met BOM en decimale komma', async () => {

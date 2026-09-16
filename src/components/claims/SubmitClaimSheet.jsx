@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Sheet } from '../ui/Sheet'
 import { euro } from '../../utils/formatters'
-import { defaultBatchName, sumAmount } from '../../utils/claims'
+import { defaultBatchName, isPartialClaim, sumAmount } from '../../utils/claims'
 import { submitClaimBatch } from '../../hooks/useClaims'
 
 /**
@@ -14,6 +14,7 @@ export function SubmitClaimSheet({ items, onClose, onSubmitted }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const total = sumAmount(items)
+  const partialCount = items.filter(isPartialClaim).length
 
   async function handleSubmit() {
     setBusy(true)
@@ -59,6 +60,12 @@ export function SubmitClaimSheet({ items, onClose, onSubmitted }) {
           style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
         />
       </label>
+
+      {partialCount > 0 && (
+        <p className="text-xs text-muted mt-3">
+          ↩ {partialCount} {partialCount === 1 ? 'deeldeclaratie' : 'deeldeclaraties'} inbegrepen.
+        </p>
+      )}
 
       <p className="text-xs text-muted mt-3">
         De uitgaven krijgen de status Ingediend. Zodra werk betaalt koppel je die

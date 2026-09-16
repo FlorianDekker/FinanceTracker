@@ -7,6 +7,7 @@ import { ClaimItemSheet } from '../components/claims/ClaimItemSheet'
 import { BatchSheet } from '../components/claims/BatchSheet'
 import { LinkPayoutSheet } from '../components/claims/LinkPayoutSheet'
 import { RejectClaimSheet } from '../components/claims/RejectClaimSheet'
+import { PartialClaimSheet } from '../components/claims/PartialClaimSheet'
 import { useCategories } from '../hooks/useCategories'
 import { useAllClaims, useClaimBatches, useClaimExpiryMonths } from '../hooks/useClaims'
 import { euro, euroParts, fmtDate, fmtTimestamp } from '../utils/formatters'
@@ -18,6 +19,7 @@ import {
   claimStatusOf,
   isExpired,
   isExpiringSoon,
+  isPartialClaim,
   isPayout,
   sumAmount,
 } from '../utils/claims'
@@ -40,6 +42,7 @@ export function ClaimsPage() {
   const [submitOpen, setSubmitOpen] = useState(false)
   const [linking, setLinking] = useState(null)   // { batch, transaction }
   const [rejecting, setRejecting] = useState(null)
+  const [partialOpen, setPartialOpen] = useState(false)
   // Standaard staat alles aangevinkt; we onthouden dus wat je juist NIET
   // meestuurt. Nieuwe open declaraties zijn daardoor meteen geselecteerd.
   const [unselected, setUnselected] = useState(() => new Set())
@@ -154,6 +157,7 @@ export function ClaimsPage() {
           onSelect={setDetail}
           unselected={unselected}
           onToggle={toggleSelected}
+          onPartial={() => setPartialOpen(true)}
         />
       )}
 
@@ -239,6 +243,7 @@ export function ClaimsPage() {
         />
       )}
       {rejecting && <RejectClaimSheet tx={rejecting} onClose={() => setRejecting(null)} />}
+      {partialOpen && <PartialClaimSheet onClose={() => setPartialOpen(false)} />}
       {linking && (
         <LinkPayoutSheet
           batch={linking.batch}
@@ -256,29 +261,36 @@ export function ClaimsPage() {
  * Lijsten                                                              *
  * ------------------------------------------------------------------ */
 
-function OpenList({ items, catMap, expiryMonths, onSelect, unselected, onToggle }) {
-  if (!items.length) {
-    return (
-      <p className="text-center text-muted py-10 text-sm px-6">
-        Geen open declaraties. Markeer een uitgave met 💼 in het formulier of bij het importeren.
-      </p>
-    )
-  }
+function OpenList({ items, catMap, expiryMonths, onSelect, unselected, onToggle, onPartial }) {
   return (
-    <div className="px-4 pt-3">
-      <div className="card overflow-hidden divide-y divide-border">
-        {items.map(tx => (
-          <ClaimRow
-            key={tx.id}
-            tx={tx}
-            catMap={catMap}
-            expiryMonths={expiryMonths}
-            onSelect={onSelect}
-            checked={!unselected.has(tx.id)}
-            onToggle={() => onToggle(tx.id)}
-          />
-        ))}
-      </div>
+    <div className="px-4 pt-3 space-y-3">
+      <button
+        onClick={onPartial}
+        className="w-full flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold"
+        style={{ background: 'var(--color-surface-2)', color: 'var(--color-accent)' }}
+      >
+        ↩ Bedrag uit categorie declareren
+      </button>
+
+      {items.length === 0 ? (
+        <p className="text-center text-muted py-10 text-sm px-6">
+          Geen open declaraties. Markeer een uitgave met 💼 in het formulier of bij het importeren.
+        </p>
+      ) : (
+        <div className="card overflow-hidden divide-y divide-border">
+          {items.map(tx => (
+            <ClaimRow
+              key={tx.id}
+              tx={tx}
+              catMap={catMap}
+              expiryMonths={expiryMonths}
+              onSelect={onSelect}
+              checked={!unselected.has(tx.id)}
+              onToggle={() => onToggle(tx.id)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -312,6 +324,7 @@ function ClaimRow({ tx, catMap, expiryMonths, onSelect, checked, onToggle }) {
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium truncate">{tx.note || cat?.label || tx.category}</div>
           <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
+            {isPartialClaim(tx) && <ExpiryBadge tone="accent">↩ deel</ExpiryBadge>}
             <span className="truncate">{fmtDate(tx.date)} · {claimAgeLabel(tx)}</span>
             {expired && <ExpiryBadge tone="red">verlopen</ExpiryBadge>}
             {soon && <ExpiryBadge tone="orange">verloopt binnenkort</ExpiryBadge>}
@@ -326,7 +339,7 @@ function ClaimRow({ tx, catMap, expiryMonths, onSelect, checked, onToggle }) {
 function ExpiryBadge({ tone, children }) {
   return (
     <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap ${
-      tone === 'red' ? 'bg-red-dim text-red' : 'bg-orange-dim text-orange'
+      tone === 'red' ? 'bg-red-dim text-red' : tone === 'orange' ? 'bg-orange-dim text-orange' : 'bg-accent-dim text-accent'
     }`}>
       {children}
     </span>

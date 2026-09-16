@@ -1,17 +1,20 @@
-import { CLAIM_STATUS_CLASSES, CLAIM_STATUS_LABELS, claimStatusOf } from '../../utils/claims'
+import { CLAIM_STATUS_CLASSES, CLAIM_STATUS_LABELS, claimStatusOf, isPartialClaim } from '../../utils/claims'
 
 /**
  * Klein label achter een transactie die bij een declaratie hoort.
- * Rendert niets voor gewone transacties.
+ * Rendert niets voor gewone transacties. Een deeldeclaratie (een credit die
+ * een stuk van een categorie als werk aanmerkt) krijgt een ↩-icoontje in
+ * plaats van 💼, zodat hij tussen gewone afschrijvingen herkenbaar blijft.
  */
 export function ClaimBadge({ tx, className = '' }) {
   const status = claimStatusOf(tx)
   if (!status) return null
+  const partial = isPartialClaim(tx)
   return (
     <span
       className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap ${CLAIM_STATUS_CLASSES[status]} ${className}`}
     >
-      💼 {CLAIM_STATUS_LABELS[status]}
+      {partial ? '↩ Deel ·' : '💼'} {CLAIM_STATUS_LABELS[status]}
     </span>
   )
 }

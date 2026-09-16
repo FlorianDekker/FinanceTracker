@@ -103,5 +103,75 @@ t('outstandingClaims = open + ingediend', () => {
   assert.deepEqual(C.outstandingClaims(undefined), { total: 0, count: 0 })
 })
 
+/* ------------------------------------------------------------------ *
+ * Deeldeclaraties: "€X uit categorie <cat> is werk"                    *
+ * ------------------------------------------------------------------ */
+
+// Een deeldeclaratie is een credit in een uitgavencategorie (bijv. OV/reiskosten).
+const partial = (extra = {}) => ({ date: '2026-09-15', amount: 10, type: 'credit', category: 'reiskosten', ...extra })
+
+t('isPartialClaim herkent alleen een credit met een declaratiestatus', () => {
+  assert.equal(C.isPartialClaim(partial({ claimStatus: 'open' })), true)
+  assert.equal(C.isPartialClaim(partial({ claimStatus: 'submitted' })), true)
+  assert.equal(C.isPartialClaim(partial({ claimStatus: 'paid' })), true)
+  assert.equal(C.isPartialClaim(partial({ claimStatus: 'rejected' })), true)
+  assert.equal(C.isPartialClaim(partial({ claimStatus: 'payout' })), false, 'de bulkbetaling is geen deeldeclaratie')
+  assert.equal(C.isPartialClaim(partial()), false, 'zonder status is het een gewone bijschrijving')
+  assert.equal(C.isPartialClaim(debit({ claimStatus: 'open' })), false, 'een debit-declaratie is geen deeldeclaratie')
+})
+
+t('deeldeclaratie: open/submitted/paid tellen mee, rejected niet (het omgekeerde van een gewone declaratie)', () => {
+  for (const s of ['open', 'submitted', 'paid']) {
+    assert.equal(C.isOpenClaim(partial({ claimStatus: s })), false, s)
+    assert.equal(C.countsInTotals(partial({ claimStatus: s })), true, s)
+    assert.equal(C.isCountedIncome(partial({ claimStatus: s })), true, s)
+    assert.equal(C.isCountedExpense(partial({ claimStatus: s })), false, `${s}: een credit is nooit een uitgave`)
+  }
+  assert.equal(C.isOpenClaim(partial({ claimStatus: 'rejected' })), true, 'werk betaalt niet, dus telt niet meer mee')
+  assert.equal(C.countsInTotals(partial({ claimStatus: 'rejected' })), false)
+  assert.equal(C.isCountedIncome(partial({ claimStatus: 'rejected' })), false)
+  assert.equal(C.isCountedExpense(partial({ claimStatus: 'rejected' })), false)
+})
+
+t('outstandingClaims telt deeldeclaraties gewoon mee', () => {
+  const list = [
+    partial({ amount: 10, claimStatus: 'open' }),
+    partial({ amount: 15, claimStatus: 'submitted' }),
+    debit({ amount: 25, claimStatus: 'open' }),
+    partial({ amount: 99, claimStatus: 'rejected' }),   // niet open/submitted, telt niet mee
+    partial({ amount: 5, claimStatus: 'paid' }),         // al uitbetaald, telt niet mee
+  ]
+  assert.deepEqual(C.outstandingClaims(list), { total: 50, count: 3 })
+})
+
+t('claimMonthlySeries telt deeldeclaraties ook als voorgeschoten', () => {
+  const now = new Date('2026-09-14T12:00:00')
+  const list = [
+    debit({ date: '2026-09-01', amount: 30, claimStatus: 'open' }),
+    partial({ date: '2026-09-05', amount: 10, claimStatus: 'open' }),
+    partial({ date: '2026-09-10', amount: 20, claimStatus: 'rejected' }),
+    { date: '2026-09-12', amount: 40, type: 'credit', category: 'salaris', claimStatus: 'payout' },
+  ]
+  const series = C.claimMonthlySeries(list, { months: 1, now })
+  assert.equal(series.length, 1)
+  assert.equal(series[0].advanced, 60, 'debit- én deeldeclaratie tellen mee als voorgeschoten')
+  assert.equal(series[0].received, 40)
+})
+
+t('partialClaimDate: laatste dag van de maand, maar nooit later dan vandaag', () => {
+  const huidigeMaand = new Date('2026-09-16T10:00:00')
+  assert.equal(C.partialClaimDate(2026, 9, huidigeMaand), '2026-09-16', 'huidige maand -> vandaag')
+  assert.equal(C.partialClaimDate(2026, 8, huidigeMaand), '2026-08-31', 'vorige maand -> laatste dag')
+  assert.equal(C.partialClaimDate(2026, 1, huidigeMaand), '2026-01-31')
+
+  assert.equal(C.partialClaimDate(2028, 2, new Date('2028-03-05T10:00:00')), '2028-02-29', 'schrikkeljaar')
+  assert.equal(C.partialClaimDate(2027, 2, new Date('2027-03-05T10:00:00')), '2027-02-28', 'geen schrikkeljaar')
+})
+
+t('partialClaimNote: "<Categorielabel> werk <maand> <jaar>"', () => {
+  assert.equal(C.partialClaimNote('OV', 2026, 9), 'OV werk september 2026')
+  assert.equal(C.partialClaimNote('Boodschappen', 2026, 1), 'Boodschappen werk januari 2026')
+})
+
 console.log(`\n${pass} geslaagd, ${fail} gefaald (claims.js)`)
 process.exit(fail ? 1 : 0)

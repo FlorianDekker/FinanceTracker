@@ -3,6 +3,7 @@ import { CategoryPicker, CategoryIcon } from '../categories/CategoryPicker'
 import { Sheet } from '../ui/Sheet'
 import { useCategories } from '../../hooks/useCategories'
 import { euro, fmtDate } from '../../utils/formatters'
+import { isPartialClaim } from '../../utils/claims'
 import { rejectClaims } from '../../hooks/useClaims'
 import { useRejectSuggestions } from '../../hooks/useRejectSuggestions'
 
@@ -59,14 +60,18 @@ export function KeepCategoryButton({ category, onKeep }) {
  * doet de app een voorstel op basis van regels en geleerde historie.
  */
 export function RejectClaimSheet({ tx, onClose, onDone }) {
+  const { catMap } = useCategories()
+  const partial = isPartialClaim(tx)
   const [keuze, setKeuze] = useState(null)      // null = volg het voorstel
   const [pickerOpen, setPickerOpen] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  const lijst = useMemo(() => [tx], [tx])
+  // Bij een deeldeclaratie heeft "waar hoort dit thuis" geen betekenis: de
+  // categorie stond er al en blijft gewoon staan. Geen voorstel nodig.
+  const lijst = useMemo(() => (partial ? [] : [tx]), [tx, partial])
   const voorstel = useRejectSuggestions(lijst)[tx.id]
   const huidig = { category: tx.category, subcategory: tx.subcategory ?? '', isSuggestion: false }
-  const gekozen = keuze ?? voorstel ?? huidig
+  const gekozen = partial ? huidig : (keuze ?? voorstel ?? huidig)
 
   async function handleConfirm() {
     setBusy(true)
@@ -80,22 +85,32 @@ export function RejectClaimSheet({ tx, onClose, onDone }) {
       <Sheet
         open
         onClose={onClose}
-        title="Waar hoort deze uitgave thuis?"
+        title={partial ? 'Toch geen werkuitgave' : 'Waar hoort deze uitgave thuis?'}
         subtitle={`${tx.note || ''} · ${fmtDate(tx.date)} · ${euro(tx.amount)}`}
         bodyClassName="p-4"
         maxHeight="70vh"
       >
-        <p className="text-xs text-muted mb-3">
-          Deze uitgave wordt niet vergoed en telt vanaf nu weer mee in je budget.
-        </p>
-        <CategoryChoiceRow
-          category={gekozen.category}
-          subcategory={gekozen.subcategory}
-          badge={gekozen.isSuggestion ? 'voorstel' : null}
-          onOpen={() => setPickerOpen(true)}
-        />
-        {gekozen.isSuggestion && (
-          <KeepCategoryButton category={tx.category} onKeep={() => setKeuze(huidig)} />
+        {partial ? (
+          <p className="text-xs text-muted mb-3">
+            Werk vergoedt dit deel niet. Telt weer als gewone uitgave in {catMap[tx.category]?.label ?? tx.category}.
+          </p>
+        ) : (
+          <p className="text-xs text-muted mb-3">
+            Deze uitgave wordt niet vergoed en telt vanaf nu weer mee in je budget.
+          </p>
+        )}
+        {!partial && (
+          <>
+            <CategoryChoiceRow
+              category={gekozen.category}
+              subcategory={gekozen.subcategory}
+              badge={gekozen.isSuggestion ? 'voorstel' : null}
+              onOpen={() => setPickerOpen(true)}
+            />
+            {gekozen.isSuggestion && (
+              <KeepCategoryButton category={tx.category} onKeep={() => setKeuze(huidig)} />
+            )}
+          </>
         )}
         <div className="mt-5 pb-4">
           <button
@@ -108,13 +123,15 @@ export function RejectClaimSheet({ tx, onClose, onDone }) {
         </div>
       </Sheet>
 
-      <CategoryPicker
-        open={pickerOpen}
-        value={gekozen}
-        onSelect={(cat, sub) => { setKeuze({ category: cat, subcategory: sub, isSuggestion: false }); setPickerOpen(false) }}
-        onClose={() => setPickerOpen(false)}
-        title="Categorie wijzigen"
-      />
+      {!partial && (
+        <CategoryPicker
+          open={pickerOpen}
+          value={gekozen}
+          onSelect={(cat, sub) => { setKeuze({ category: cat, subcategory: sub, isSuggestion: false }); setPickerOpen(false) }}
+          onClose={() => setPickerOpen(false)}
+          title="Categorie wijzigen"
+        />
+      )}
     </>
   )
 }

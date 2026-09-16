@@ -6,7 +6,7 @@ import { CategoryPicker } from '../categories/CategoryPicker'
 import { CategoryChoiceRow } from './RejectClaimSheet'
 import { useRejectSuggestions } from '../../hooks/useRejectSuggestions'
 import { euro, fmtDate, fmtTimestamp } from '../../utils/formatters'
-import { amountsMatch, claimStatusOf, round2, sumAmount } from '../../utils/claims'
+import { amountsMatch, claimStatusOf, isPartialClaim, round2, sumAmount } from '../../utils/claims'
 import { closeBatchWithPayout, useBatchItems, useSubmittedBatches } from '../../hooks/useClaims'
 
 const DAGEN = 90
@@ -118,7 +118,12 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
   const passend = amountsMatch(rejectedTotal, diff)
 
   // Eigen keuze gaat voor het voorstel, het voorstel voor de huidige categorie.
+  // Een deeldeclaratie slaat de categoriekeuze over: die categorie stond er
+  // al en verandert niet, alleen de status wordt 'rejected'.
   const rejections = rejected.map(t => {
+    if (isPartialClaim(t)) {
+      return { tx: t, category: t.category, subcategory: t.subcategory ?? '', isSuggestion: false }
+    }
     const keuze = choices[t.id] ?? voorstellen[t.id]
     return {
       tx: t,
@@ -245,7 +250,10 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
                   {checked ? '✓' : ''}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate">{item.note || item.category}</div>
+                  <div className="text-sm truncate">
+                    {isPartialClaim(item) && <span className="text-accent">↩ </span>}
+                    {item.note || item.category}
+                  </div>
                   <div className="text-[11px] text-muted">{fmtDate(item.date)}</div>
                 </div>
                 <span className="text-sm font-semibold tabular-nums">{euro(item.amount)}</span>
@@ -288,14 +296,25 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
         </p>
         <div className="space-y-2">
           {rejections.map(r => (
-            <CategoryChoiceRow
-              key={r.tx.id}
-              label={`${r.tx.note || ''} · ${euro(r.tx.amount)}`}
-              category={r.category}
-              subcategory={r.subcategory}
-              badge={r.isSuggestion ? 'voorstel' : null}
-              onOpen={() => setPicking(r.tx.id)}
-            />
+            isPartialClaim(r.tx) ? (
+              <div
+                key={r.tx.id}
+                className="rounded-lg px-3 py-2"
+                style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+              >
+                <div className="text-[11px] text-muted truncate">{r.tx.note || ''} · {euro(r.tx.amount)}</div>
+                <div className="text-sm">↩ Telt weer als gewone uitgave</div>
+              </div>
+            ) : (
+              <CategoryChoiceRow
+                key={r.tx.id}
+                label={`${r.tx.note || ''} · ${euro(r.tx.amount)}`}
+                category={r.category}
+                subcategory={r.subcategory}
+                badge={r.isSuggestion ? 'voorstel' : null}
+                onOpen={() => setPicking(r.tx.id)}
+              />
+            )
           ))}
         </div>
       </Sheet>

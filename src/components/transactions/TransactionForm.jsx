@@ -5,7 +5,7 @@ import { today } from '../../utils/formatters'
 import { Sheet } from '../ui/Sheet'
 import { recordEvent } from '../../utils/merchantLearning'
 import { CategoryPicker, CategoryIcon } from '../categories/CategoryPicker'
-import { CLAIM_STATUS_LABELS, claimStatusOf } from '../../utils/claims'
+import { CLAIM_STATUS_LABELS, claimStatusOf, isPartialClaim } from '../../utils/claims'
 import { useSubmittedBatches } from '../../hooks/useClaims'
 import { LinkPayoutSheet } from '../claims/LinkPayoutSheet'
 import { ReceiptRow } from '../receipts/ReceiptRow'
@@ -34,6 +34,9 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
   // Alleen een nog niet ingediende declaratie mag je hier aan- en uitzetten;
   // vanaf 'Ingediend' loopt de status via het declaratiescherm.
   const claimEditable = claimStatus === null || claimStatus === 'open'
+  // Een deeldeclaratie (credit + declaratiestatus) is zelf al een declaratie —
+  // die zet je hier nooit aan/uit, dat loopt altijd via Declaraties.
+  const partial = isPartialClaim({ type, claimStatus })
   const selectedCat = catMap[category]
   const selectedSub = selectedCat?.subs?.find(s => s.key === subcategory)
 
@@ -46,8 +49,10 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
     let savedId = existing?.id ?? null
     if (existing) {
       await updateTransaction(existing.id, tx)
-      // Learn from edits: record the category choice, with correction tracking
-      if (note) {
+      // Learn from edits: record the category choice, with correction tracking.
+      // Een deeldeclaratie heeft een synthetische notitie ("OV werk september
+      // 2026"), geen merchant — die hoort niet in de learning.
+      if (note && !isPartialClaim(existing)) {
         const catChanged = existing.category !== category
         recordEvent(note, category, subcategory, amt, type, null,
           catChanged ? { was: true, from: existing.category } : null
@@ -111,7 +116,7 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
               <span className="text-xs text-muted block">Richting</span>
               <div className="flex rounded-lg overflow-hidden mt-1" style={{ height: 40 }}>
                 <button
-                  onClick={() => setType('debit')}
+                  onClick={() => { setType('debit'); if (claimStatus === 'open') setClaimStatus(null) }}
                   className={`px-4 text-sm font-medium ${type === 'debit' ? 'bg-red text-white' : ''}`}
                   style={type !== 'debit' ? { background: 'var(--color-surface-2)', color: 'var(--color-muted)' } : undefined}
                 >
@@ -194,8 +199,22 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
             )
           )}
 
+          {/* Deeldeclaratie: deze bijschrijving is zelf al een declaratie. */}
+          {partial && (
+            <div
+              className="w-full flex items-center gap-3 rounded-lg px-3 py-2"
+              style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+            >
+              <span className="text-lg">💼</span>
+              <span className="flex-1 text-sm">
+                Declaratie · {CLAIM_STATUS_LABELS[claimStatus]}
+                <span className="block text-[11px] text-muted">wijzigen via Declaraties</span>
+              </span>
+            </div>
+          )}
+
           {/* Declaratie-uitbetaling van werk */}
-          {type === 'credit' && existing && claimStatus !== 'payout' && submittedBatches?.length > 0 && (
+          {type === 'credit' && existing && !partial && claimStatus !== 'payout' && submittedBatches?.length > 0 && (
             <button
               onClick={() => setLinkOpen(true)}
               className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left"
@@ -273,6 +292,9 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
         value={{ category, subcategory }}
         onSelect={(cat, sub) => { setCategory(cat); setSubcategory(sub); setPickerOpen(false) }}
         onClose={() => setPickerOpen(false)}
+        // Een deeldeclaratie moet in een uitgavencategorie blijven staan: anders
+        // zou hij als inkomen gaan meetellen in plaats van als negatieve uitgave.
+        filterType={partial ? 'expense' : undefined}
       />
     </>
   )

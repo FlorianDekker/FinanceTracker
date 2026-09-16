@@ -12,6 +12,35 @@
  * Alles wat "telt deze transactie mee in de cijfers?" moet weten gebruikt de
  * helpers hieronder. Geen losse claimStatus-vergelijkingen in hooks of charts.
  *
+ * --- Deeldeclaraties -----------------------------------------------------
+ *
+ * Een gewone declaratie is een afschrijving (`type: 'debit'`) die je voorschiet.
+ * Sommige kosten zijn nooit een losse afschrijving: de NS schrijft bijvoorbeeld
+ * steeds €10 af voor OV-opwaarderingen, deels werk, deels privé. Zo'n bedrag
+ * kun je niet aan één transactie hangen. Daarvoor bestaat de *deeldeclaratie*:
+ * een synthetische bijschrijving ("€X uit categorie OV is werk") met
+ * `type: 'credit'` in de betreffende uitgavencategorie en een gewone
+ * `claimStatus`. `isPartialClaim(tx)` herkent zo'n rij (credit + isClaim) en
+ * is de enige manier om ernaar te vragen — geen losse `tx.type === 'credit'`-
+ * checks in hooks of UI.
+ *
+ * Voor een deeldeclaratie is het meetel-verhaal precies omgekeerd van een
+ * gewone declaratie:
+ *   open/submitted/paid  telt WEL mee, als negatieve uitgave in zijn
+ *                        categorie (useBudgetStats trekt een credit al af
+ *                        zodra `countsInTotals` true geeft)
+ *   rejected             telt NIET meer mee: werk betaalt dit deel niet, dus
+ *                        de volle uitgave (elders, gewoon debit) blijft staan.
+ *                        De rij zelf blijft voor de historie bestaan.
+ * `isOpenClaim` codeert dit onderscheid; alles dat daarop bouwt (countsInTotals,
+ * isCountedExpense, isCountedIncome) klopt daardoor vanzelf mee.
+ *
+ * Een deeldeclaratie is *geen* inkomen: `isCountedIncome`/`countsInTotals`
+ * mogen 'm meetellen als negatieve uitgave, maar de dashboards en grafieken
+ * bepalen "is dit inkomen" zelf op basis van het categorietype (`role/type
+ * === 'income'`), niet op basis van deze helpers. Omdat een deeldeclaratie in
+ * een uitgavencategorie staat, belandt hij daar dus nooit als inkomen.
+ *
  * Dit bestand is bewust vrij van database- en React-imports zodat het overal
  * (en in tests) zonder Dexie te gebruiken is. De instelling `claimExpiryMonths`
  * leeft in `src/hooks/useClaims.js`.
@@ -54,10 +83,23 @@ export function isClaim(tx) {
 }
 
 /**
+ * Een deeldeclaratie: "€X uit deze categorie is werk" (zie de uitleg
+ * bovenaan dit bestand). Altijd via deze helper vragen, nooit `tx.type ===
+ * 'credit'` erbij fantaseren — dat geldt namelijk ook voor de bulkbetaling.
+ */
+export function isPartialClaim(tx) {
+  return tx?.type === 'credit' && isClaim(tx)
+}
+
+/**
  * Loopt er nog een vergoeding op deze uitgave (open/ingediend/uitbetaald)?
  * Zo ja: de uitgave is niet van jou en telt nergens mee.
+ *
+ * Voor een deeldeclaratie is dit precies omgekeerd: die telt juist wél mee
+ * zolang hij loopt, en pas bij afkeuren niet meer (zie de uitleg bovenaan).
  */
 export function isOpenClaim(tx) {
+  if (isPartialClaim(tx)) return claimStatusOf(tx) === 'rejected'
   return NOT_MY_EXPENSE.has(claimStatusOf(tx))
 }
 
@@ -223,6 +265,33 @@ export function defaultBatchName(now = new Date()) {
   return `Declaratie ${MONTH_NAMES_LONG[d.getMonth()]} ${d.getFullYear()}`
 }
 
+/* ------------------------------------------------------------------ *
+ * Deeldeclaratie: "€X uit categorie <cat> is werk"                     *
+ * ------------------------------------------------------------------ */
+
+/**
+ * Laatste dag van de gekozen maand, maar nooit later dan vandaag: de huidige
+ * maand levert dus gewoon vandaag op (je kunt niet op een uitgave vooruit
+ * declareren die nog moet gebeuren).
+ *
+ * @param year, month  de gekozen maand (month 1-12)
+ */
+export function partialClaimDate(year, month, now = new Date()) {
+  const ref = now instanceof Date ? now : new Date(now)
+  const lastDay = new Date(year, month, 0)
+  const today = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate())
+  const chosen = lastDay < today ? lastDay : today
+  const y = chosen.getFullYear()
+  const m = String(chosen.getMonth() + 1).padStart(2, '0')
+  const d = String(chosen.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/** Standaardomschrijving van een deeldeclaratie: "OV werk september 2026". */
+export function partialClaimNote(categoryLabel, year, month) {
+  return `${categoryLabel} werk ${MONTH_NAMES_LONG[month - 1]} ${year}`
+}
+
 /** Bestandsnaam-veilige variant van een batchnaam. */
 export function slugifyName(name) {
   const s = String(name ?? '')
@@ -299,7 +368,9 @@ export function claimMonthlySeries(txs, { months = 12, now = new Date() } = {}) 
     const row = index.get(String(tx?.date ?? '').slice(0, 7))
     if (!row) continue
     if (isPayout(tx)) row.received += tx.amount ?? 0
-    else if (isClaim(tx) && tx.type === 'debit') row.advanced += tx.amount ?? 0
+    // Een deeldeclaratie is net zo goed voorgeschoten geld, alleen als
+    // negatieve uitgave in plaats van een afschrijving.
+    else if (isClaim(tx)) row.advanced += tx.amount ?? 0
   }
   for (const row of buckets) {
     row.advanced = round2(row.advanced)
