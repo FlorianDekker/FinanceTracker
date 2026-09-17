@@ -72,7 +72,7 @@ await t('een kloppende bijschrijving sluit de batch af', async () => {
   })
   assert.equal(C.amountsMatch(50, 50), true)
   const res = await CL.closeBatchWithPayout({ batchId, transactionId: payoutId })
-  assert.deepEqual(res, { paid: 2, rejected: 0 })
+  assert.deepEqual(res, { paid: 2, rejected: 0, deferred: 0 })
 
   const batch = await db.claimBatches.get(batchId)
   assert.equal(batch.status, 'closed')
@@ -107,7 +107,7 @@ await t('minder ontvangen: afgekeurde items landen in hun nieuwe categorie', asy
     transactionId: payoutId,
     rejections: [{ tx: afgekeurd, category: 'boodschappen', subcategory: '' }],
   })
-  assert.deepEqual(res, { paid: 1, rejected: 1 })
+  assert.deepEqual(res, { paid: 1, rejected: 1, deferred: 0 })
 
   const [ok, weg] = await db.transactions.bulkGet([okId, rejectedId])
   assert.equal(ok.claimStatus, 'paid')
@@ -198,7 +198,7 @@ await t('deeldeclaratie indienen en met een exacte uitbetaling afsluiten -> paid
     date: '2026-09-20', amount: 10, type: 'credit', category: 'salaris', subcategory: '', note: 'Declaratie OV',
   })
   const res = await CL.closeBatchWithPayout({ batchId: bid, transactionId: payoutId })
-  assert.deepEqual(res, { paid: 1, rejected: 0 })
+  assert.deepEqual(res, { paid: 1, rejected: 0, deferred: 0 })
 
   const afgehandeld = await db.transactions.get(partialId)
   assert.equal(afgehandeld.claimStatus, 'paid')
@@ -452,6 +452,57 @@ await t('toch geen declaratie: uitbetaald item verlaat de batch, deeldeclaratie 
   const rest = await CL.batchItemsQuery(batchId)
   assert.equal(rest.length, 0)
   assert.equal((await db.claimBatches.get(batchId)).status, 'closed')
+})
+
+await t('deelbetaling: niet-betaalde items gaan terug naar Open en zijn opnieuw in te dienen', async () => {
+  const ids = await db.transactions.bulkAdd([
+    claim('Trein Groningen', 40, '2026-08-12'),
+    claim('Hotel Groningen', 120, '2026-08-12'),
+    claim('Koffie klant', 6, '2026-08-13'),
+  ], { allKeys: true })
+  const batchId = await CL.submitClaimBatch({ name: 'Deelbetaling-test', transactionIds: ids })
+  // Werk betaalt alleen de trein; het hotel komt later, de koffie is afgekeurd.
+  const payoutId = await db.transactions.add({
+    date: '2026-09-10', amount: 40, type: 'credit', category: 'salaris', subcategory: '',
+    note: 'Werkgever declaraties', claimStatus: null, claimBatchId: null,
+  })
+  const [trein, hotel, koffie] = await db.transactions.bulkGet(ids)
+  const res = await CL.closeBatchWithPayout({
+    batchId, transactionId: payoutId,
+    rejections: [{ tx: koffie, category: 'boodschappen', subcategory: '' }],
+    deferred: [hotel],
+    note: '€120,00 (1×) later opnieuw ingediend',
+  })
+  assert.deepEqual(res, { paid: 1, rejected: 1, deferred: 1 })
+
+  const [t1, h1, k1] = await db.transactions.bulkGet(ids)
+  assert.equal(C.claimStatusOf(t1), 'paid')
+  assert.equal(C.claimStatusOf(k1), 'rejected')
+  assert.equal(C.claimStatusOf(h1), 'open', 'het hotel staat weer open')
+  assert.equal(h1.claimBatchId, null, 'en hangt niet meer aan de oude batch')
+  assert.ok(!C.countsInTotals(h1), 'en telt dus nog steeds niet als eigen uitgave')
+  const batch = await db.claimBatches.get(batchId)
+  assert.equal(batch.status, 'closed')
+  assert.match(batch.note, /later opnieuw ingediend/)
+
+  // Het hotel gaat in een nieuwe batch en wordt daar wél betaald.
+  const batch2 = await CL.submitClaimBatch({ name: 'Nabetaling', transactionIds: [hotel.id] })
+  const payout2 = await db.transactions.add({
+    date: '2026-10-10', amount: 120, type: 'credit', category: 'salaris', subcategory: '',
+    note: 'Werkgever declaraties', claimStatus: null, claimBatchId: null,
+  })
+  await CL.closeBatchWithPayout({ batchId: batch2, transactionId: payout2 })
+  const h2 = await db.transactions.get(hotel.id)
+  assert.equal(C.claimStatusOf(h2), 'paid')
+  assert.equal(h2.claimBatchId, batch2)
+
+  // Een destijds afgekeurd item alsnog opnieuw indienen: terug naar Open, categorie blijft.
+  await CL.resubmitClaim(koffie.id)
+  const k2 = await db.transactions.get(koffie.id)
+  assert.equal(C.claimStatusOf(k2), 'open')
+  assert.equal(k2.claimBatchId, null)
+  assert.equal(k2.category, 'boodschappen', 'de gecorrigeerde categorie blijft staan')
+  assert.ok(!C.countsInTotals(k2))
 })
 
 console.log(`\n${pass} ok, ${fail} fout`)

@@ -28,7 +28,8 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
   const [batch, setBatch] = useState(startBatch)
   const [tx, setTx] = useState(startTx)
   const [phase, setPhase] = useState('compare')          // compare | reject | categorize
-  const [rejectedIds, setRejectedIds] = useState(() => new Set())
+  const [rejectedIds, setRejectedIds] = useState(() => new Set())   // niet betaald (afgekeurd óf later)
+  const [deferredIds, setDeferredIds] = useState(() => new Set())   // daarvan: later opnieuw indienen
   const [choices, setChoices] = useState({})             // id -> { category, subcategory }
   const [picking, setPicking] = useState(null)           // id waarvoor de kiezer openstaat
   const [busy, setBusy] = useState(false)
@@ -112,10 +113,17 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
 
   /* ---------------- stap 2: bedragen vergelijken ---------------- */
 
-  const rejected = (items ?? []).filter(t => rejectedIds.has(t.id))
+  // "Niet betaald" splitst in twee: afgekeurd (telt weer mee als uitgave) of
+  // later (terug naar Open, voor een volgende declaratie). Samen moeten ze het
+  // verschil verklaren.
+  const unpaid = (items ?? []).filter(t => rejectedIds.has(t.id))
+  const deferred = unpaid.filter(t => deferredIds.has(t.id))
+  const rejected = unpaid.filter(t => !deferredIds.has(t.id))
+  const unpaidTotal = sumAmount(unpaid)
   const rejectedTotal = sumAmount(rejected)
-  const rest = round2(diff - rejectedTotal)
-  const passend = amountsMatch(rejectedTotal, diff)
+  const deferredTotal = sumAmount(deferred)
+  const rest = round2(diff - unpaidTotal)
+  const passend = amountsMatch(unpaidTotal, diff)
 
   // Eigen keuze gaat voor het voorstel, het voorstel voor de huidige categorie.
   // Een deeldeclaratie slaat de categoriekeuze over: die categorie stond er
@@ -135,9 +143,13 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
   const gewijzigd = rejections.filter(r => r.category !== r.tx.category || r.subcategory !== (r.tx.subcategory ?? '')).length
 
   function noteFor() {
-    if (paid > expected && !exact) return `${euro(round2(paid - expected))} meer ontvangen dan verwacht`
-    if (!exact && !passend) return `${euro(Math.abs(rest))} verschil niet toegewezen`
-    return ''
+    const regels = []
+    if (paid > expected && !exact) regels.push(`${euro(round2(paid - expected))} meer ontvangen dan verwacht`)
+    if (!exact && !passend) regels.push(`${euro(Math.abs(rest))} verschil niet toegewezen`)
+    if (phase !== 'compare' && deferred.length) {
+      regels.push(`${euro(deferredTotal)} (${deferred.length}×) later opnieuw ingediend`)
+    }
+    return regels.join(' · ')
   }
 
   async function finish() {
@@ -148,6 +160,7 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
         batchId: batch.id,
         transactionId: tx.id,
         rejections: phase === 'compare' ? [] : rejections,
+        deferred: phase === 'compare' ? [] : deferred,
         note: noteFor(),
       })
       onDone?.()
@@ -163,6 +176,15 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
+      return next
+    })
+  }
+
+  function setDeferred(id, later) {
+    setDeferredIds(prev => {
+      const next = new Set(prev)
+      if (later) next.add(id)
+      else next.delete(id)
       return next
     })
   }
@@ -195,7 +217,7 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
             ? 'Het bedrag klopt precies: alle declaraties worden als uitbetaald gemarkeerd en de bijschrijving telt niet als inkomen.'
             : paid > expected
             ? `Je ontving ${euro(round2(paid - expected))} méér dan verwacht. Controleer of hier nog een oude declaratie bij zat; het verschil komt als notitie op de batch.`
-            : `Je ontving ${euro(diff)} minder. In de volgende stap wijs je aan welke declaraties zijn afgekeurd.`}
+            : `Je ontving ${euro(diff)} minder. In de volgende stap wijs je aan welke declaraties niet betaald zijn — afgekeurd, of pas bij een volgende betaling.`}
         </p>
       </Sheet>
     )
@@ -207,24 +229,24 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
         open
         onClose={onClose}
         title={`${euro(diff)} minder ontvangen`}
-        subtitle="Welke zijn afgekeurd?"
+        subtitle="Welke zijn niet betaald?"
         bodyClassName="pb-2"
         footer={
           <div className="pb-1">
             <div className="flex justify-between text-xs mb-2">
               <span className="text-muted">geselecteerd</span>
               <span className={`tabular-nums font-semibold ${passend ? 'text-green' : ''}`}>
-                {euro(rejectedTotal)} van {euro(diff)}
+                {euro(unpaidTotal)} van {euro(diff)}
               </span>
             </div>
-            {!passend && rejected.length > 0 && (
+            {!passend && unpaid.length > 0 && (
               <p className="text-[11px] text-muted mb-2">
                 Er blijft {euro(Math.abs(rest))} over. Sluit je toch af, dan komt dat verschil als notitie op de batch.
               </p>
             )}
             <button
               onClick={() => setPhase('categorize')}
-              disabled={rejected.length === 0}
+              disabled={unpaid.length === 0}
               className="w-full btn-accent rounded-2xl py-3.5 text-base disabled:opacity-40"
             >
               {passend ? 'Verder' : 'Toch afsluiten'}
@@ -271,8 +293,11 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
       <Sheet
         open
         onClose={onClose}
-        title="Waar horen deze uitgaven thuis?"
-        subtitle={`${rejected.length} afgekeurd · ${euro(rejectedTotal)}`}
+        title="Wat gebeurt er met de niet-betaalde?"
+        subtitle={[
+          rejected.length ? `${rejected.length} afgekeurd · ${euro(rejectedTotal)}` : null,
+          deferred.length ? `${deferred.length} later · ${euro(deferredTotal)}` : null,
+        ].filter(Boolean).join(' · ')}
         bodyClassName="p-4"
         footer={
           <div className="pb-1">
@@ -284,38 +309,53 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
             >
               {busy
                 ? 'Afronden…'
+                : rejected.length === 0
+                ? `Afronden · ${deferred.length} terug naar Open`
                 : gewijzigd === 0
-                ? 'Alle afgekeurde houden hun huidige categorie'
+                ? 'Afronden · afgekeurde houden hun categorie'
                 : `Afronden · ${gewijzigd} gewijzigd`}
             </button>
           </div>
         }
       >
         <p className="text-xs text-muted mb-3">
-          Deze uitgaven worden niet vergoed en tellen vanaf nu weer mee in je budget.
+          <strong>Afgekeurd</strong>: werk vergoedt dit niet, de uitgave telt weer mee in je budget.{' '}
+          <strong>Later</strong>: nog niet betaald; gaat terug naar Open zodat je hem opnieuw indient
+          en aan een volgende betaling koppelt.
         </p>
-        <div className="space-y-2">
-          {rejections.map(r => (
-            isPartialClaim(r.tx) ? (
-              <div
-                key={r.tx.id}
-                className="rounded-lg px-3 py-2"
-                style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
-              >
-                <div className="text-[11px] text-muted truncate">{r.tx.note || ''} · {euro(r.tx.amount)}</div>
-                <div className="text-sm">↩ Telt weer als gewone uitgave</div>
+        <div className="space-y-3">
+          {unpaid.map(t => {
+            const later = deferredIds.has(t.id)
+            const r = rejections.find(x => x.tx.id === t.id)
+            return (
+              <div key={t.id}>
+                <LaterOfAfgekeurd
+                  label={`${t.note || ''} · ${euro(t.amount)}`}
+                  later={later}
+                  onChange={v => setDeferred(t.id, v)}
+                />
+                {!later && (
+                  isPartialClaim(t) ? (
+                    <div
+                      className="rounded-lg px-3 py-2 mt-1"
+                      style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+                    >
+                      <div className="text-sm">↩ Telt weer als gewone uitgave</div>
+                    </div>
+                  ) : (
+                    <div className="mt-1">
+                      <CategoryChoiceRow
+                        category={r.category}
+                        subcategory={r.subcategory}
+                        badge={r.isSuggestion ? 'voorstel' : null}
+                        onOpen={() => setPicking(t.id)}
+                      />
+                    </div>
+                  )
+                )}
               </div>
-            ) : (
-              <CategoryChoiceRow
-                key={r.tx.id}
-                label={`${r.tx.note || ''} · ${euro(r.tx.amount)}`}
-                category={r.category}
-                subcategory={r.subcategory}
-                badge={r.isSuggestion ? 'voorstel' : null}
-                onOpen={() => setPicking(r.tx.id)}
-              />
             )
-          ))}
+          })}
         </div>
       </Sheet>
 
@@ -330,6 +370,23 @@ export function LinkPayoutSheet({ batch: startBatch = null, transaction: startTx
         title="Categorie wijzigen"
       />
     </>
+  )
+}
+
+/** Per niet-betaald item: afgekeurd (standaard) of later opnieuw indienen. */
+function LaterOfAfgekeurd({ label, later, onChange }) {
+  const knop = (actief) => ({
+    background: actief ? 'var(--color-accent)' : 'transparent',
+    color: actief ? 'white' : 'var(--color-muted)',
+  })
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 min-w-0 text-[11px] text-muted truncate">{label}</div>
+      <div className="flex rounded-lg overflow-hidden shrink-0 text-xs" style={{ background: 'var(--color-surface-2)' }}>
+        <button onClick={() => onChange(false)} className="px-3 py-1.5" style={knop(!later)}>Afgekeurd</button>
+        <button onClick={() => onChange(true)} className="px-3 py-1.5" style={knop(later)}>Later</button>
+      </div>
+    </div>
   )
 }
 

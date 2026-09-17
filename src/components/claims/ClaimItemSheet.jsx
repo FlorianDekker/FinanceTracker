@@ -5,7 +5,7 @@ import { CategoryChoiceRow } from './RejectClaimSheet'
 import { useCategories } from '../../hooks/useCategories'
 import { euro, fmtDate } from '../../utils/formatters'
 import { CLAIM_STATUS_LABELS, claimAgeLabel, claimStatusOf, isPartialClaim } from '../../utils/claims'
-import { changeClaimCategory, discardClaim } from '../../hooks/useClaims'
+import { changeClaimCategory, discardClaim, resubmitClaim } from '../../hooks/useClaims'
 
 // Zolang de declaratie loopt mag de categorie nog wisselen: een ingediende bon
 // van de NS blijft even veel waard, hij hoort alleen thuis bij Reiskosten.
@@ -44,6 +44,12 @@ export function ClaimItemSheet({ tx, onClose, onReject }) {
   async function handleUnmark() {
     if (!window.confirm(partial ? WEGHAAL_TEKST_DEEL : WEGHAAL_TEKST[status])) return
     await discardClaim(tx)
+    onClose()
+  }
+
+  async function handleResubmit() {
+    if (!window.confirm('Opnieuw indienen? Deze declaratie gaat terug naar Open en telt weer als werkkosten.')) return
+    await resubmitClaim(tx.id)
     onClose()
   }
 
@@ -118,7 +124,15 @@ export function ClaimItemSheet({ tx, onClose, onReject }) {
           <div className="mt-4 space-y-2 pb-2">
             <p className="text-xs text-muted">
               Afgekeurd — deze uitgave telt gewoon mee in {cat?.label ?? category}. Wijzigen doe je in het transactieformulier.
+              Betaalt werk hem toch nog (of later)? Dien hem dan opnieuw in.
             </p>
+            <button
+              onClick={handleResubmit}
+              className="w-full rounded-2xl py-3 text-sm font-semibold"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+            >
+              Opnieuw indienen
+            </button>
             {weghaalKnop}
           </div>
         )}

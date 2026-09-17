@@ -230,9 +230,13 @@ export async function attachPayoutToBatch({ batchId, transactionId }) {
 /**
  * Sluit een batch af met de binnengekomen bulkbetaling.
  * @param rejections [{ tx, category, subcategory }] — de afgekeurde items
+ * @param deferred   [tx] — nog niet betaald, maar ook niet afgekeurd: die gaan
+ *                   terug naar Open (los van deze batch) om later opnieuw te
+ *                   worden ingediend en aan een volgende betaling te hangen
  * @param note       extra regel op de batch (bijv. een verschil dat niet paste)
+ * @returns { paid, rejected, deferred } aantallen
  */
-export async function closeBatchWithPayout({ batchId, transactionId, rejections = [], note = '' }) {
+export async function closeBatchWithPayout({ batchId, transactionId, rejections = [], deferred = [], note = '' }) {
   return db.transaction('rw', db.transactions, db.claimBatches, async () => {
     const batch = await db.claimBatches.get(batchId)
     if (!batch) throw new Error('Deze declaratiebatch bestaat niet meer.')
@@ -241,9 +245,13 @@ export async function closeBatchWithPayout({ batchId, transactionId, rejections 
 
     const items = await batchItemsQuery(batchId)
     const rejectedIds = new Set(rejections.map(r => r.tx.id))
-    const paidIds = items.filter(t => !rejectedIds.has(t.id)).map(t => t.id)
+    const deferredIds = new Set(deferred.map(t => t.id))
+    const paidIds = items.filter(t => !rejectedIds.has(t.id) && !deferredIds.has(t.id)).map(t => t.id)
 
     await applyRejections(rejections)
+    if (deferredIds.size) {
+      await db.transactions.where('id').anyOf([...deferredIds]).modify({ claimStatus: 'open', claimBatchId: null })
+    }
     if (paidIds.length) {
       await db.transactions.where('id').anyOf(paidIds).modify({ claimStatus: 'paid', claimBatchId: batchId })
     }
@@ -257,11 +265,21 @@ export async function closeBatchWithPayout({ batchId, transactionId, rejections 
       paidAt: Date.now(),
       note: [String(batch.note ?? '').trim(), extra].filter(Boolean).join(' · '),
     })
-    return { paid: paidIds.length, rejected: rejections.length }
+    return { paid: paidIds.length, rejected: rejections.length, deferred: deferredIds.size }
   }).then(result => {
     learnFromRejections(rejections)
     return result
   })
+}
+
+/**
+ * Een afgekeurd item alsnog opnieuw indienen: terug naar Open, los van de oude
+ * batch. Voor als werk hem toch nog vergoedt, of als "afgekeurd" destijds de
+ * enige manier was om een deelbetaling af te ronden. De categorie blijft
+ * staan (die was misschien juist gecorrigeerd).
+ */
+export async function resubmitClaim(id) {
+  return db.transactions.update(id, { claimStatus: 'open', claimBatchId: null })
 }
 
 /**
