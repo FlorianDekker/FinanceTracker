@@ -116,6 +116,26 @@ export async function scenarioImport({ page, OUT, logs }) {
     ingKop.includes('5 nieuwe transacties') && ingSub.includes('ING'),
     `kop="${ingKop}" · bron="${ingSub}"`, ingShot)
 
+  /* ---- 1b. Veeg een rij naar links om over te slaan, en herstel hem weer ---- */
+  const eersteRij = page.locator('div.divide-y.divide-border > div.relative.overflow-hidden').first()
+  const rijBox = await eersteRij.boundingBox()
+  await page.mouse.move(rijBox.x + rijBox.width / 2, rijBox.y + rijBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(rijBox.x + rijBox.width / 2 - 200, rijBox.y + rijBox.height / 2, { steps: 10 })
+  await page.mouse.up()
+  await sleep(400) // uitschuifanimatie + state-update
+  const naSkipKop = await kop().innerText().catch(() => '')
+  const skipShot = await shot('ing-rij-overgeslagen')
+  stap('G2b', 'veeg naar links slaat een rij over (5 -> 4)',
+    naSkipKop.includes('4 nieuwe transacties'), `kop="${naSkipKop}"`, skipShot)
+
+  await page.locator('button', { hasText: 'Herstel' }).click()
+  await sleep(300)
+  const naHerstelKop = await kop().innerText().catch(() => '')
+  const herstelShot = await shot('ing-rij-hersteld')
+  stap('G2c', 'Herstel zet de overgeslagen rij terug (4 -> 5)',
+    naHerstelKop.includes('5 nieuwe transacties'), `kop="${naHerstelKop}"`, herstelShot)
+
   await page.locator('button', { hasText: /^Opslaan$/ }).click()
   await page.waitForSelector('text=transacties opgeslagen', { timeout: 10000 })
   const naIng = await page.evaluate(DUMP_TX)

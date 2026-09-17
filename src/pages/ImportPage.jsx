@@ -10,6 +10,7 @@ import { useCategories } from '../hooks/useCategories'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { CategoryPicker } from '../components/categories/CategoryPicker'
 import { Sheet } from '../components/ui/Sheet'
+import { SwipeToSkipRow } from '../components/ui/SwipeToSkipRow'
 import { ColumnMapperSheet } from '../components/import/ColumnMapperSheet'
 import { headerSignature, getMapping, saveMapping } from '../utils/csvMappings'
 import { amountsMatch, claimStatusOf } from '../utils/claims'
@@ -23,7 +24,7 @@ import { takeFile } from '../utils/fileInput'
 const REVIEW_ONLY_FIELDS = [
   'merchant', 'confidence', 'confidencePct', 'needsManual',
   'remi', 'source', 'eventCount', 'isRecurring', '_originalCategory',
-  'raw', 'counterparty',
+  'raw', 'counterparty', '_rid',
 ]
 
 // Eén of twee regels per bank; bewust kort, de rest doet de kolommapper.
@@ -48,6 +49,9 @@ export function ImportPage() {
   const { catMap, getByRole } = useCategories()
   const [step, setStep] = useState('upload') // upload | review | done
   const [pending, setPending] = useState([])
+  // Stack van rijen die met een veeg-naar-links zijn overgeslagen (niet
+  // opgeslagen); "Herstel" pakt de laatste terug op zijn oude plek.
+  const [skipped, setSkipped] = useState([])
   const [saved, setSaved] = useState(0)
   const [editIdx, setEditIdx] = useState(null)
   const [error, setError] = useState(null)
@@ -107,7 +111,9 @@ export function ImportPage() {
         await categorizeWithLearning(tx.merchant, tx.amount, tx.type, tx.remi, byRole, classifyOptions)
       return { ...tx, category: cat, subcategory: sub, confidence, confidencePct, needsManual, source, eventCount, isRecurring, _originalCategory: cat, note: tx.merchant }
     }))
-    setPending(withCats)
+    // Stabiel per rij, ook als je er later een aantal wegveegt (idx schuift dan op).
+    setPending(withCats.map((tx, i) => ({ ...tx, _rid: i })))
+    setSkipped([])
     setBron({ ...info, count: newOnes.length, skipped: parsed.length - newOnes.length })
     setStep('review')
   }, [byRole, catMap, classifyOptions])
@@ -195,6 +201,29 @@ export function ImportPage() {
     setStep('done')
   }
 
+  // Veeg-naar-links in de review: rij niet opslaan, gewoon uit de lijst halen.
+  // editIdx/payoutIdx zijn index-gebaseerd en verwijzen na het verwijderen
+  // naar de verkeerde rij, dus die sluiten we voor de zekerheid.
+  function skipRow(idx) {
+    const tx = pending[idx]
+    if (!tx) return
+    setSkipped(s => [...s, { tx, idx }])
+    setPending(p => p.filter((_, i) => i !== idx))
+    setEditIdx(null)
+    setPayoutIdx(null)
+  }
+
+  // Herstel: de laatst overgeslagen rij terug op (ongeveer) zijn oude plek.
+  function undoSkip() {
+    if (skipped.length === 0) return
+    const last = skipped[skipped.length - 1]
+    setSkipped(s => s.slice(0, -1))
+    setPending(p => {
+      const at = Math.min(last.idx, p.length)
+      return [...p.slice(0, at), last.tx, ...p.slice(at)]
+    })
+  }
+
   // 💼 in de review: markeer de rij als declaratie voor werk. claimStatus staat
   // niet in REVIEW_ONLY_FIELDS en gaat dus gewoon mee naar de database.
   function toggleClaim(idx) {
@@ -232,7 +261,7 @@ export function ImportPage() {
           <div style={{ filter: 'drop-shadow(0 0 20px rgba(48, 209, 88, 0.4))' }}><span className="text-5xl">✅</span></div>
           <p className="text-lg font-semibold">{saved} transacties opgeslagen!</p>
           {payoutHint && <p className="text-xs text-orange text-center px-8">{payoutHint}</p>}
-          <button onClick={() => { setStep('upload'); setPending([]); setBron(null) }}
+          <button onClick={() => { setStep('upload'); setPending([]); setSkipped([]); setBron(null) }}
             className="text-green text-sm">Nog een bestand importeren</button>
         </div>
       </PageWrapper>
@@ -248,10 +277,15 @@ export function ImportPage() {
             <div className="text-xs text-muted truncate">
               {bankLabel(bron?.bank)}
               {bron?.skipped > 0 && ` · ${bron.skipped} al in de app`}
-              {' · tik een rij voor de categorie'}
+              {' · tik een rij voor de categorie · veeg naar links om over te slaan'}
             </div>
+            {skipped.length > 0 && (
+              <div className="text-xs text-muted">
+                {skipped.length} overgeslagen · <button onClick={undoSkip} className="text-green font-medium">Herstel</button>
+              </div>
+            )}
           </div>
-          <button onClick={handleSave} className="btn-accent text-sm rounded-lg px-4 py-2">
+          <button onClick={handleSave} disabled={pending.length === 0} className="btn-accent text-sm rounded-lg px-4 py-2 disabled:opacity-40">
             Opslaan
           </button>
         </div>
@@ -264,6 +298,11 @@ export function ImportPage() {
         )}
 
         <div className="divide-y divide-border">
+          {pending.length === 0 && (
+            <div className="px-4 py-10 text-center text-sm text-muted">
+              Alles overgeslagen — herstel een rij of kies een ander bestand.
+            </div>
+          )}
           {pending.map((tx, idx) => {
             const cat = catMap[tx.category]
             const isLowConf = tx.confidence === 'low'
@@ -272,85 +311,87 @@ export function ImportPage() {
             // informatiever dan de omschrijving; alleen tonen als hij afwijkt.
             const tegenpartij = tx.counterparty && tx.counterparty !== tx.merchant ? tx.counterparty : null
             return (
-              <div key={idx} className="w-full flex items-center gap-2 px-4 py-3">
-                <button
-                  onClick={() => setEditIdx(idx)}
-                  className="flex-1 min-w-0 flex items-center gap-3 text-left"
-                >
-                  <div className="text-left w-20 shrink-0">
-                    <div className="text-xs text-muted">{fmtDate(tx.date)}</div>
-                    <div className={`text-sm font-semibold ${tx.type === 'credit' ? 'text-green' : ''}`} style={tx.type !== 'credit' ? { color: 'var(--color-text)' } : {}}>
-                      {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-sm ${editIdx === idx ? '' : 'truncate'}`}>{tx.merchant}</div>
-                    {tx.remi && (
-                      <div className={`text-xs text-muted ${editIdx === idx ? '' : 'truncate'}`}>{tx.remi}</div>
-                    )}
-                    {tegenpartij && (
-                      <div className={`text-[11px] text-muted ${editIdx === idx ? '' : 'truncate'}`}>{tegenpartij}</div>
-                    )}
-                    {tx.needsManual && (
-                      <div className="text-xs text-orange">⚠️ Voeg handmatige transactie toe</div>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className={`flex items-center justify-end gap-1 text-xs ${isLowConf ? 'text-orange' : 'text-green'}`}>
-                      {isLowConf && (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-orange text-white text-[9px] font-bold leading-none">?</span>
-                      )}
-                      {cat?.icon} {cat?.label}
-                    </div>
-                    {tx.subcategory && (
-                      <div className="text-[10px] text-muted">
-                        {cat?.subs?.find(s => s.key === tx.subcategory)?.label}
+              <SwipeToSkipRow key={tx._rid ?? idx} onSkip={() => skipRow(idx)}>
+                <div className="w-full flex items-center gap-2 px-4 py-3">
+                  <button
+                    onClick={() => setEditIdx(idx)}
+                    className="flex-1 min-w-0 flex items-center gap-3 text-left"
+                  >
+                    <div className="text-left w-20 shrink-0">
+                      <div className="text-xs text-muted">{fmtDate(tx.date)}</div>
+                      <div className={`text-sm font-semibold ${tx.type === 'credit' ? 'text-green' : ''}`} style={tx.type !== 'credit' ? { color: 'var(--color-text)' } : {}}>
+                        {tx.type === 'credit' ? '+' : '-'}{euro(tx.amount)}
                       </div>
-                    )}
-                    {showConfidence && tx.source === 'recurring' && (
-                      <div className="text-[9px] text-green mt-0.5">🔄 Terugkerend · {tx.confidencePct}%</div>
-                    )}
-                    {showConfidence && tx.source === 'learned' && tx.eventCount > 0 && (
-                      <div className={`text-[9px] mt-0.5 ${tx.confidencePct >= 70 ? 'text-blue' : 'text-orange'}`}>🧠 Geleerd ({tx.eventCount}x) · {tx.confidencePct}%</div>
-                    )}
-                    {showConfidence && tx.source === 'similar' && (
-                      <div className="text-[9px] text-orange mt-0.5">🧠 Vergelijkbaar · {tx.confidencePct}%</div>
-                    )}
-                    {showConfidence && tx.source === 'rules' && (
-                      <div className="text-[9px] text-muted mt-0.5">📋 Regel · {tx.confidencePct}%</div>
-                    )}
-                    {showConfidence && tx.source === 'unknown' && (
-                      <div className="text-[9px] text-orange mt-0.5">❓ Onbekend</div>
-                    )}
-                  </div>
-                </button>
-                {tx.type === 'credit' && submittedBatches?.length > 0 && (
-                  <button
-                    onClick={() => setPayoutIdx(idx)}
-                    aria-pressed={claimStatusOf(tx) === 'payout'}
-                    title="Uitbetaling van een declaratie-batch"
-                    className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
-                    style={claimStatusOf(tx) === 'payout'
-                      ? { background: 'var(--color-accent)' }
-                      : { background: 'var(--color-surface-2)', opacity: 0.45 }}
-                  >
-                    💼
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm ${editIdx === idx ? '' : 'truncate'}`}>{tx.merchant}</div>
+                      {tx.remi && (
+                        <div className={`text-xs text-muted ${editIdx === idx ? '' : 'truncate'}`}>{tx.remi}</div>
+                      )}
+                      {tegenpartij && (
+                        <div className={`text-[11px] text-muted ${editIdx === idx ? '' : 'truncate'}`}>{tegenpartij}</div>
+                      )}
+                      {tx.needsManual && (
+                        <div className="text-xs text-orange">⚠️ Voeg handmatige transactie toe</div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className={`flex items-center justify-end gap-1 text-xs ${isLowConf ? 'text-orange' : 'text-green'}`}>
+                        {isLowConf && (
+                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-orange text-white text-[9px] font-bold leading-none">?</span>
+                        )}
+                        {cat?.icon} {cat?.label}
+                      </div>
+                      {tx.subcategory && (
+                        <div className="text-[10px] text-muted">
+                          {cat?.subs?.find(s => s.key === tx.subcategory)?.label}
+                        </div>
+                      )}
+                      {showConfidence && tx.source === 'recurring' && (
+                        <div className="text-[9px] text-green mt-0.5">🔄 Terugkerend · {tx.confidencePct}%</div>
+                      )}
+                      {showConfidence && tx.source === 'learned' && tx.eventCount > 0 && (
+                        <div className={`text-[9px] mt-0.5 ${tx.confidencePct >= 70 ? 'text-blue' : 'text-orange'}`}>🧠 Geleerd ({tx.eventCount}x) · {tx.confidencePct}%</div>
+                      )}
+                      {showConfidence && tx.source === 'similar' && (
+                        <div className="text-[9px] text-orange mt-0.5">🧠 Vergelijkbaar · {tx.confidencePct}%</div>
+                      )}
+                      {showConfidence && tx.source === 'rules' && (
+                        <div className="text-[9px] text-muted mt-0.5">📋 Regel · {tx.confidencePct}%</div>
+                      )}
+                      {showConfidence && tx.source === 'unknown' && (
+                        <div className="text-[9px] text-orange mt-0.5">❓ Onbekend</div>
+                      )}
+                    </div>
                   </button>
-                )}
-                {tx.type === 'debit' && (
-                  <button
-                    onClick={() => toggleClaim(idx)}
-                    aria-pressed={isClaim}
-                    title="Declaratie voor werk"
-                    className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
-                    style={isClaim
-                      ? { background: 'var(--color-accent)' }
-                      : { background: 'var(--color-surface-2)', opacity: 0.45 }}
-                  >
-                    💼
-                  </button>
-                )}
-              </div>
+                  {tx.type === 'credit' && submittedBatches?.length > 0 && (
+                    <button
+                      onClick={() => setPayoutIdx(idx)}
+                      aria-pressed={claimStatusOf(tx) === 'payout'}
+                      title="Uitbetaling van een declaratie-batch"
+                      className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
+                      style={claimStatusOf(tx) === 'payout'
+                        ? { background: 'var(--color-accent)' }
+                        : { background: 'var(--color-surface-2)', opacity: 0.45 }}
+                    >
+                      💼
+                    </button>
+                  )}
+                  {tx.type === 'debit' && (
+                    <button
+                      onClick={() => toggleClaim(idx)}
+                      aria-pressed={isClaim}
+                      title="Declaratie voor werk"
+                      className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
+                      style={isClaim
+                        ? { background: 'var(--color-accent)' }
+                        : { background: 'var(--color-surface-2)', opacity: 0.45 }}
+                    >
+                      💼
+                    </button>
+                  )}
+                </div>
+              </SwipeToSkipRow>
             )
           })}
         </div>
