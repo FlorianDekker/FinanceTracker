@@ -505,5 +505,38 @@ await t('deelbetaling: niet-betaalde items gaan terug naar Open en zijn opnieuw 
   assert.ok(!C.countsInTotals(k2))
 })
 
+await t('twee ingediende batches samenvoegen en met één betaling afsluiten', async () => {
+  const idsA = await db.transactions.bulkAdd([claim('Trein Zwolle', 30, '2026-09-01')], { allKeys: true })
+  const idsB = await db.transactions.bulkAdd([
+    claim('Lunch Zwolle', 12, '2026-09-02'),
+    claim('Parkeren Zwolle', 8, '2026-09-02'),
+  ], { allKeys: true })
+  const a = await CL.submitClaimBatch({ name: 'Batch A', transactionIds: idsA })
+  const b = await CL.submitClaimBatch({ name: 'Batch B', transactionIds: idsB })
+
+  const moved = await CL.mergeClaimBatches(a, [b])
+  assert.equal(moved, 2)
+  assert.equal(await db.claimBatches.get(b), undefined, 'batch B is weg')
+  const batchA = await db.claimBatches.get(a)
+  assert.equal(batchA.status, 'submitted')
+  assert.equal(batchA.expectedTotal, 50, 'verwacht totaal is de som')
+  assert.match(batchA.note, /samengevoegd met Batch B/)
+  for (const id of [...idsA, ...idsB]) {
+    const tx = await db.transactions.get(id)
+    assert.equal(tx.claimBatchId, a)
+    assert.equal(C.claimStatusOf(tx), 'submitted')
+  }
+
+  const payoutId = await db.transactions.add({
+    date: '2026-09-20', amount: 50, type: 'credit', category: 'salaris', subcategory: '',
+    note: 'Werkgever declaraties', claimStatus: null, claimBatchId: null,
+  })
+  const res = await CL.closeBatchWithPayout({ batchId: a, transactionId: payoutId })
+  assert.deepEqual(res, { paid: 3, rejected: 0, deferred: 0 })
+
+  // Samenvoegen met een al afgesloten batch mag niet.
+  await assert.rejects(() => CL.mergeClaimBatches(a, [b]), /ingediende/)
+})
+
 console.log(`\n${pass} ok, ${fail} fout`)
 process.exit(fail ? 1 : 0)

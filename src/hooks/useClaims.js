@@ -171,6 +171,50 @@ export async function submitClaimBatch({ name, note = '', transactionIds }) {
   })
 }
 
+/**
+ * Voegt ingediende batches samen tot één, zodat één betaling van werk ze
+ * allemaal dekt. De eerste (target) blijft bestaan en houdt zijn naam; de
+ * andere verdwijnen, hun items en een eventueel al gekoppelde uitbetaling
+ * gaan mee (heeft de target al een uitbetaling, dan raakt die van de ander los).
+ * @returns het aantal items dat is verhuisd
+ */
+export async function mergeClaimBatches(targetId, otherIds) {
+  const ids = [...new Set(otherIds ?? [])].filter(id => id !== targetId)
+  if (!ids.length) return 0
+  return db.transaction('rw', db.transactions, db.claimBatches, async () => {
+    const target = await db.claimBatches.get(targetId)
+    if (!target || target.status !== 'submitted') throw new Error('Alleen ingediende batches kun je samenvoegen.')
+    const others = (await db.claimBatches.bulkGet(ids)).filter(b => b && b.status === 'submitted')
+    if (!others.length) throw new Error('Alleen ingediende batches kun je samenvoegen.')
+
+    let moved = 0
+    let targetHasPayout = !!(await db.transactions.where('claimStatus').equals('payout')
+      .filter(tx => tx.claimBatchId === targetId).first())
+    for (const other of others) {
+      const items = await batchItemsQuery(other.id)
+      if (items.length) {
+        await db.transactions.where('id').anyOf(items.map(t => t.id)).modify({ claimBatchId: targetId })
+        moved += items.length
+      }
+      await db.transactions.where('claimStatus').equals('payout')
+        .filter(tx => tx.claimBatchId === other.id)
+        .modify(tx => {
+          if (targetHasPayout) { tx.claimStatus = null; tx.claimBatchId = null }
+          else { tx.claimBatchId = targetId; targetHasPayout = true }
+        })
+      await db.claimBatches.delete(other.id)
+    }
+
+    const all = await batchItemsQuery(targetId)
+    const extra = `samengevoegd met ${others.map(b => b.name).join(', ')}`
+    await db.claimBatches.update(targetId, {
+      expectedTotal: sumAmount(all),
+      note: [String(target.note ?? '').trim(), extra].filter(Boolean).join(' · '),
+    })
+    return moved
+  })
+}
+
 /** Zet alles uit de batch terug op open en verwijdert de batch. */
 export async function dissolveClaimBatch(batchId) {
   return db.transaction('rw', db.transactions, db.claimBatches, async () => {
