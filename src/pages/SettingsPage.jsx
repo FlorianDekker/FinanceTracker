@@ -5,6 +5,7 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { Sheet } from '../components/ui/Sheet'
 import { CategoryManagerSheet } from '../components/categories/CategoryManagerSheet'
 import { BackupCard } from '../components/settings/BackupCard'
+import { BalanceCheckCard } from '../components/settings/BalanceCheckCard'
 import { RulesSheet } from '../components/settings/RulesSheet'
 import { AiReceiptsCard } from '../components/settings/AiReceiptsCard'
 import { useCategories, setCategoryBudget, seedCategories } from '../hooks/useCategories'
@@ -314,6 +315,12 @@ return (
             )
           })}
         </div>
+      </section>
+
+      {/* Saldocontrole */}
+      <section className="px-4 pt-4 pb-2">
+        <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Saldocontrole</h2>
+        <BalanceCheckCard />
       </section>
 
       {/* Categorieën */}
