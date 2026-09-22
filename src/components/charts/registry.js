@@ -3,6 +3,7 @@
 // dezelfde merge-regels gebruikt zonder de pagina te importeren.
 import { PaceChart } from './PaceChart'
 import { CashflowChart } from './CashflowChart'
+import { SavingsTrendChart } from './SavingsTrendChart'
 import { YearGrid } from './YearGrid'
 import { SpendingDonut } from './SpendingDonut'
 import { DailyChart } from './DailyChart'
@@ -34,6 +35,7 @@ import { PriceHistoryChart } from './PriceHistoryChart'
 export const ALL_CHARTS = [
   { id: 'budgettempo',    label: 'Budgettempo',    usesMonth: true,  Component: PaceChart },
   { id: 'spaarpercentage', label: 'Spaarpercentage', usesMonth: false, Component: CashflowChart },
+  { id: 'spaartrend',     label: 'Spaartrend',     usesMonth: false, Component: SavingsTrendChart },
   { id: 'verdeling',      label: 'Verdeling',      usesMonth: true,  Component: SpendingDonut },
   { id: 'dagelijks',      label: 'Dagelijks',      usesMonth: true,  Component: DailyChart },
   { id: 'top',            label: 'Top',            usesMonth: true,  Component: TopSpendingChart },

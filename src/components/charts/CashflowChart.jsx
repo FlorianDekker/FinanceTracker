@@ -13,6 +13,7 @@ import { useCashflowData } from '../../hooks/useCashflowData'
 import { euro, euroCompact } from '../../utils/formatters'
 import { tooltipTheme, tickTheme, gridTheme } from '../../utils/theme'
 import { MONTHS, MONTHS_LONG } from '../../constants/categories'
+import { monthRate, periodSavings, pct } from '../../utils/savings'
 import { useCategories } from '../../hooks/useCategories'
 import { db } from '../../db/db'
 import { countsInTotals } from '../../utils/claims'
@@ -28,9 +29,11 @@ export function CashflowChart() {
 
   if (!data.length) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
-  const avgSavingsRate = Math.round(
-    (data.reduce((s, d) => s + d.savingsRate, 0) / data.length) * 100
-  )
+  // Jaarpercentage = totaal gespaard ÷ totaal inkomen over de maanden mét
+  // inkomen. Een maand waarin het salaris nog niet binnen is telt dus niet
+  // als 0% mee (zie utils/savings.js).
+  const jaar = periodSavings(data)
+  const yearPct = pct(jaar.rate) ?? 0
 
   const current = data[data.length - 1]
   const labels = data.map(d => MONTHS[d.month - 1])
@@ -126,18 +129,26 @@ export function CashflowChart() {
     },
   }
 
-  const currentSaved = current?.saved ?? 0
+  const monthPct = pct(monthRate(current))
+  const geenInkomen = monthPct == null
+  // Zonder inkomen deze maand zegt "gespaard deze maand" niets; dan tonen we
+  // het jaar. Met inkomen: het echte maandsaldo (kan negatief zijn).
+  const maandSaldo = (current?.income ?? 0) - (current?.expenses ?? 0)
+  const getoond = geenInkomen ? jaar.saved : maandSaldo
+  const toon = getoond >= 0 ? 'green' : 'red'
 
   return (
     <div>
       {/* Stats card */}
       <div className="card p-5 mb-4">
         <StatCard
-          label="Gespaard deze maand"
-          value={Math.abs(currentSaved)}
-          tone={currentSaved >= 0 ? 'green' : 'red'}
-          delta={`${avgSavingsRate}%`}
-          deltaTone={currentSaved >= 0 ? 'green' : 'red'}
+          label={geenInkomen ? 'Gespaard dit jaar' : 'Gespaard deze maand'}
+          value={Math.abs(getoond)}
+          tone={toon}
+          delta={geenInkomen
+            ? `${yearPct}% van je inkomen dit jaar`
+            : `${monthPct}% deze maand · ${yearPct}% dit jaar`}
+          deltaTone={toon}
           deltaOpacity={0.3}
         />
         <div className="flex items-center gap-3 mt-3">
@@ -145,20 +156,28 @@ export function CashflowChart() {
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{
-                width: `${Math.min(Math.max(avgSavingsRate, 0), 100)}%`,
-                background: avgSavingsRate > 0 ? 'var(--color-green)' : 'var(--color-red)',
+                width: `${Math.min(Math.max(yearPct, 0), 100)}%`,
+                background: yearPct > 0 ? 'var(--color-green)' : 'var(--color-red)',
               }}
             />
           </div>
         </div>
         <div className="flex justify-between mt-2">
           <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
-            {euro(current?.expenses ?? 0)} uitgaven
+            {euro(geenInkomen ? jaar.expenses : (current?.expenses ?? 0))} uitgaven
+          </span>
+          <span className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
+            balk: spaarpercentage {new Date().getFullYear()}
           </span>
           <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
-            {euro(current?.income ?? 0)} inkomen
+            {euro(geenInkomen ? jaar.income : (current?.income ?? 0))} inkomen
           </span>
         </div>
+        {geenInkomen && (
+          <p className="text-[11px] text-center mt-2" style={{ color: 'var(--color-muted)' }}>
+            Nog geen inkomen deze maand ({euro(current?.expenses ?? 0)} uitgegeven) — de maand telt pas mee zodra je salaris binnen is.
+          </p>
+        )}
       </div>
 
       {/* Chart */}

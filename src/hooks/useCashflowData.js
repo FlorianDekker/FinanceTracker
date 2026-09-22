@@ -5,7 +5,12 @@ import { useCategories } from './useCategories'
 
 const EARNED_INCOME_KEYWORDS = ['salaris', 'salary', 'loon', 'overige_kosten']
 
-export function useCashflowData() {
+/**
+ * Inkomen, uitgaven en gespaard per maand.
+ * @param window  aantal maanden terug t/m nu (bijv. 24 voor een trend);
+ *                zonder `window` alle maanden van het lopende jaar.
+ */
+export function useCashflowData({ window: venster = null } = {}) {
   const { catMap, loading, getByRole } = useCategories()
   const transferKey = getByRole('transfer')?.key
 
@@ -15,8 +20,15 @@ export function useCashflowData() {
     const currentYear = now.getFullYear()
     const currentMonth = now.getMonth() + 1
     const months = []
-    for (let m = 1; m <= currentMonth; m++) {
-      months.push({ year: currentYear, month: m })
+    if (venster) {
+      for (let i = venster - 1; i >= 0; i--) {
+        const d = new Date(currentYear, currentMonth - 1 - i, 1)
+        months.push({ year: d.getFullYear(), month: d.getMonth() + 1 })
+      }
+    } else {
+      for (let m = 1; m <= currentMonth; m++) {
+        months.push({ year: currentYear, month: m })
+      }
     }
 
     const results = []
@@ -45,14 +57,17 @@ export function useCashflowData() {
       }
 
       expenses = Math.max(0, expenses)
+      // `saved`/`savingsRate` zijn afgekapt op 0 voor de gestapelde balken;
+      // `rate` is het eerlijke maandpercentage (negatief kan, null zonder inkomen).
       const saved = Math.max(0, income - expenses)
       const savingsRate = income > 0 ? saved / income : 0
+      const rate = income > 0 ? (income - expenses) / income : null
 
-      results.push({ year, month, income, expenses, saved, savingsRate })
+      results.push({ year, month, income, expenses, saved, savingsRate, rate })
     }
 
     return results
-  }, [catMap, loading, transferKey])
+  }, [catMap, loading, transferKey, venster])
 
   return data ?? []
 }

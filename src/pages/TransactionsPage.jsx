@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { TransactionForm } from '../components/transactions/TransactionForm'
-import { euro, fmtDate } from '../utils/formatters'
+import { euro, fmtDate, today } from '../utils/formatters'
 import { MONTHS_LONG } from '../constants/categories'
 import { useCategories } from '../hooks/useCategories'
 import { useMonth } from '../hooks/useMonth'
@@ -192,7 +192,14 @@ export function TransactionsPage() {
       </button>
 
       {editing && <TransactionForm existing={editing} onClose={() => setEditing(null)} />}
-      {showAdd && <TransactionForm onClose={() => setShowAdd(false)} />}
+      {/* Een nieuwe transactie valt in de maand die je bekijkt: vandaag als dat
+          de huidige maand is, anders de laatste dag van die maand. */}
+      {showAdd && (
+        <TransactionForm
+          prefill={{ date: isCurrentMonth ? today() : `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}` }}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
       {viewerId != null && <ReceiptViewer receiptId={viewerId} onClose={() => setViewerId(null)} />}
     </PageWrapper>
   )
