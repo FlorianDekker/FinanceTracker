@@ -1,0 +1,42 @@
+Settlement - Parijs
+14 July, 2026
+Settlement
+Florian is owed €22.97 by Yonathan €22.97
+Dani is owed €11.90 by Yonathan €11.90
+Yonathan owes €34.87 to Dani
+to Florian
+€11.90
+€22.97
+Settlement - Parijs
+14 July, 2026
+Balance
+Expenses Incomes Payments
+Member Balance + - + - + -
+Florian €22.97 €164.76 €141.79 €0.00 €0.00 €0.00 €0.00
+Dani €11.90 €154.20 €142.30 €0.00 €0.00 €0.00 €0.00
+Yonathan -€34.87 €0.00 €34.87 €0.00 €0.00 €0.00 €0.00
+Settlement - Parijs
+14 July, 2026
+Expenses
+Payer Description Amount Date Participants
+Dani Cola laatste dag €10.00 14-07-2026 Dani (€5.00), Florian (€5.00)
+Dani Hummus €2.40 14-07-2026 Dani (€1.20), Florian (€1.20)
+Florian Avondeten indiaas €58.50 13-07-2026 Dani (€19.50), Florian (€19.50), Yonathan (€19.50)
+Florian Boulangerie middag zondag €5.50 13-07-2026 Dani (€1.83), Florian (€1.83), Yonathan (€1.84)
+Florian Ijsjes na concert €21.00 13-07-2026 Dani (€7.00), Florian (€7.00), Yonathan (€7.00)
+Florian Koffie + baguette €9.30 13-07-2026 Dani (€4.65), Florian (€4.65)
+Florian Koffietjes voor concert €11.60 13-07-2026 Dani (€3.87), Florian (€3.86), Yonathan (€3.87)
+Florian Supermarkt zondag middag €7.96 13-07-2026 Dani (€2.65), Florian (€2.65), Yonathan (€2.66)
+Florian Bier keer op keer €16.00 12-07-2026 Dani (€8.00), Florian (€8.00)
+Dani Bier Quixxx €16.50 12-07-2026 Dani (€8.50), Florian (€8.00)
+Dani Broodje €6.50 12-07-2026 Dani (€3.25), Florian (€3.25)
+Florian Eerste dag uitgaven €22.90 12-07-2026 Dani (€11.45), Florian (€11.45)
+Continuing on next page
+Settlement - Parijs
+14 July, 2026
+Payer Description Amount Date Participants
+Dani Eten libanees €64.00 12-07-2026 Dani (€32.00), Florian (€32.00)
+Florian Limonade cafe met platen €12.00 12-07-2026 Dani (€6.00), Florian (€6.00)
+Dani Omtbijt €32.80 12-07-2026 Dani (€16.40), Florian (€16.40)
+Dani Toeristenbelasting €22.00 11-07-2026 Dani (€11.00), Florian (€11.00)
+Total spent €318.96

@@ -10,6 +10,8 @@ import { ImportPage } from './pages/ImportPage'
 import { ClaimsPage } from './pages/ClaimsPage'
 import { ReceiptsPage } from './pages/ReceiptsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { TripsPage } from './pages/TripsPage'
+import { WealthPage } from './pages/WealthPage'
 import { MonthProvider } from './hooks/useMonth'
 import { CategoriesProvider } from './hooks/useCategories'
 import { applyAccentColor } from './utils/theme'
@@ -75,6 +77,8 @@ export default function App() {
               <Route path="/import" element={<ImportPage />} />
               <Route path="/declaraties" element={<ClaimsPage />} />
               <Route path="/bon" element={<ReceiptsPage />} />
+              <Route path="/vakanties" element={<TripsPage />} />
+              <Route path="/vermogen" element={<WealthPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
             <BottomNav />

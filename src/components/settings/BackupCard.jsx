@@ -22,6 +22,12 @@ const TABLE_LABELS = {
   claimBatches: 'Declaratie-batches',
   receipts: 'Bonnetjes',
   receiptItems: 'Bonregels',
+  trips: 'Vakanties',
+  tripItems: 'Splitser-regels',
+  accounts: 'Rekeningen',
+  accountSnapshots: 'Saldo-momentopnames',
+  reservations: 'Reserveringen',
+  goals: 'Spaardoelen',
 }
 
 function fmtBytes(bytes) {

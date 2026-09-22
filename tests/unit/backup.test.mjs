@@ -49,10 +49,10 @@ await t('formaat: app, schemaVersion, exportedAt, tables', () => {
   assert.equal(backup.app, 'FinanceTracker')
   assert.equal(backup.schemaVersion, db.verno)
   assert.match(backup.exportedAt, /^\d{4}-\d{2}-\d{2}T/)
-  assert.deepEqual(Object.keys(backup.tables).sort(), ['categories', 'claimBatches', 'merchantHistory', 'receiptItems', 'receipts', 'rules', 'settings', 'transactions'].sort())
+  assert.deepEqual(Object.keys(backup.tables).sort(), ['categories', 'claimBatches', 'merchantHistory', 'receiptItems', 'receipts', 'rules', 'settings', 'transactions', 'trips', 'tripItems', 'accounts', 'accountSnapshots', 'reservations', 'goals'].sort())
 })
 await t('aantallen kloppen', () => {
-  assert.deepEqual(B.countRows(backup), { transactions: 3, categories: 2, settings: 2, merchantHistory: 2, rules: 1, claimBatches: 0, receipts: 0, receiptItems: 0 })
+  assert.deepEqual(B.countRows(backup), { transactions: 3, categories: 2, settings: 2, merchantHistory: 2, rules: 1, claimBatches: 0, receipts: 0, receiptItems: 0, trips: 0, tripItems: 0, accounts: 0, accountSnapshots: 0, reservations: 0, goals: 0 })
 })
 await t('geheime settings (ai*, *apiKey*) zitten er NIET in', () => {
   const keys = backup.tables.settings.map(s => s.key)

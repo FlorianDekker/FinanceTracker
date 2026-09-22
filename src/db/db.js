@@ -79,6 +79,28 @@ db.version(6).stores({
   receiptItems: '++id, receiptId, nameKey, group, date',
 })
 
+// v7: vakanties (trips + Splitser-regels) en vermogen (rekeningen met
+// momentopnames, reserveringen, spaardoelen). Transacties krijgen een index
+// op tripId zodat een vakantie zijn banktransacties snel vindt. Rekeningen
+// hebben een string-key (slug) zodat een backup-herstel geen id's hoeft te
+// verschuiven; trips wél (zie backup.js voor de tripId-remap).
+db.version(7).stores({
+  transactions: '++id, date, category, type, claimStatus, tripId, [date+category]',
+  categories: 'key, order',
+  settings: 'key',
+  merchantHistory: '++id, merchantKey, baseKey, timestamp',
+  rules: '++id, category',
+  claimBatches: '++id, status',
+  receipts: '++id, transactionId, date, merchantKey, status',
+  receiptItems: '++id, receiptId, nameKey, group, date',
+  trips: '++id, from, to',
+  tripItems: '++id, tripId, date',
+  accounts: 'key, order',
+  accountSnapshots: '++id, accountKey, date, [accountKey+date]',
+  reservations: '++id, dueMonth',
+  goals: '++id, order',
+})
+
 // Bootstrap learning from existing transactions (runs once, lazy-loaded to avoid circular imports)
 db.on('ready', async () => {
   const { bootstrapFromHistory } = await import('../utils/merchantLearning')

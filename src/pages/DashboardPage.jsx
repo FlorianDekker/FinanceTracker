@@ -172,6 +172,20 @@ export function DashboardPage() {
           </div>
         )}
 
+        {/* Snelkoppelingen naar de schermen buiten de tabbalk */}
+        <div className="px-4 pb-1 pt-1 grid grid-cols-2 gap-3">
+          <Link to="/vakanties" className="card px-4 py-3 flex items-center gap-3" style={{ color: 'var(--color-text)' }}>
+            <span className="text-xl">🧳</span>
+            <span className="flex-1 text-sm font-semibold">Vakanties</span>
+            <span style={{ color: 'var(--color-muted)' }}>›</span>
+          </Link>
+          <Link to="/vermogen" className="card px-4 py-3 flex items-center gap-3" style={{ color: 'var(--color-text)' }}>
+            <span className="text-xl">🏦</span>
+            <span className="flex-1 text-sm font-semibold">Vermogen</span>
+            <span style={{ color: 'var(--color-muted)' }}>›</span>
+          </Link>
+        </div>
+
         {view === 'cards' ? (
           <div className="px-4 pb-6 pt-2">
             <div className="grid grid-cols-3 gap-3">

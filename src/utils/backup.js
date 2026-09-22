@@ -17,7 +17,7 @@ import { downloadFile } from './download'
  */
 
 export const BACKUP_APP = 'FinanceTracker'
-export const BACKUP_TABLES = ['transactions', 'categories', 'settings', 'merchantHistory', 'rules', 'claimBatches', 'receipts', 'receiptItems']
+export const BACKUP_TABLES = ['transactions', 'categories', 'settings', 'merchantHistory', 'rules', 'claimBatches', 'receipts', 'receiptItems', 'trips', 'tripItems', 'accounts', 'accountSnapshots', 'reservations', 'goals']
 export const LAST_BACKUP_KEY = 'lastBackupAt'
 export const BACKUP_REMINDER_DAYS = 30
 
