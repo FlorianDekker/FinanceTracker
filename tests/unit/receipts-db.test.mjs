@@ -48,8 +48,8 @@ const { receiptItemRows } = await import(`${SRC}/utils/receipts/items.js`)
 await db.open()
 
 console.log('\n--- v6-upgrade ---')
-await t('verno = 6 en de nieuwe tabellen bestaan', async () => {
-  assert.equal(db.verno, 6)
+await t('verno = 7 en de nieuwe tabellen bestaan', async () => {
+  assert.equal(db.verno, 7)
   assert.ok(db.receipts, 'receipts-tabel')
   assert.ok(db.receiptItems, 'receiptItems-tabel')
   assert.equal(await db.receipts.count(), 0)

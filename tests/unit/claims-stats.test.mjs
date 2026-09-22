@@ -34,7 +34,7 @@ const { getClaimExpiryMonths, setClaimExpiryMonths } = await import(`${SRC}/hook
 await db.open()
 
 await t('upgrade v4 -> v5 laat bestaande transacties ongemoeid', async () => {
-  assert.equal(db.verno, 6)
+  assert.equal(db.verno, 7)
   assert.ok(db.claimBatches, 'tabel claimBatches bestaat')
   assert.equal(await db.transactions.count(), 2)
   const oud = await db.transactions.get(1)
@@ -134,7 +134,7 @@ await db.transactions.where('claimStatus').equals('submitted').modify({ claimBat
 const backup = await B.createBackup()
 
 await t('backup bevat claimBatches, claimStatus en claimBatchId', () => {
-  assert.equal(backup.schemaVersion, 6)
+  assert.equal(backup.schemaVersion, 7)
   assert.equal(B.countRows(backup).claimBatches, 1)
   const submitted = backup.tables.transactions.filter(tx => tx.claimStatus === 'submitted')
   assert.equal(submitted.length, 1)

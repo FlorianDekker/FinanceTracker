@@ -45,7 +45,7 @@ assert.deepEqual(sterre.subs.map(s => s.key), ['cadeaus_sterre', 'dates_sterre']
 console.log('  ok   legacy-categorie sterre behouden met label, icoon en budget')
 
 const backup = await B.createBackup()
-assert.equal(backup.schemaVersion, 6)
+assert.equal(backup.schemaVersion, 7)
 assert.equal(backup.tables.rules.length, 0)
 assert.equal(backup.tables.claimBatches.length, 0)
 console.log('  ok   backup van de gemigreerde database')
