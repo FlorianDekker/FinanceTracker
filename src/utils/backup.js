@@ -286,6 +286,34 @@ function normalizeReceiptItems(rows) {
   return rows.filter(row => row && row.receiptId != null)
 }
 
+// Vakanties uit een oudere backup missen soms `countries`/`splitser`; dat mag
+// nooit undefined worden, anders moet de UI overal raden.
+function normalizeTrips(rows) {
+  return rows
+    .filter(row => row && (row.name || row.from))
+    .map(row => ({
+      ...row,
+      name: String(row.name ?? 'Vakantie'),
+      countries: Array.isArray(row.countries) ? row.countries.filter(Boolean) : [],
+      note: String(row.note ?? ''),
+      createdAt: row.createdAt ?? Date.now(),
+      splitser: row.splitser ?? null,
+    }))
+}
+
+function normalizeTripItems(rows) {
+  return rows
+    .filter(row => row && row.tripId != null)
+    .map(row => ({
+      ...row,
+      participants: Array.isArray(row.participants) ? row.participants : [],
+      myShare: Number(row.myShare) || 0,
+      amount: Number(row.amount) || 0,
+      matchedTxId: row.matchedTxId ?? null,
+      source: row.source ?? 'splitser',
+    }))
+}
+
 function normalizeTables(tables) {
   const out = {}
   for (const name of BACKUP_TABLES) out[name] = Array.isArray(tables[name]) ? tables[name].filter(Boolean) : []
@@ -295,6 +323,8 @@ function normalizeTables(tables) {
   out.claimBatches = normalizeClaimBatches(out.claimBatches)
   out.receipts = normalizeReceipts(out.receipts)
   out.receiptItems = normalizeReceiptItems(out.receiptItems)
+  out.trips = normalizeTrips(out.trips)
+  out.tripItems = normalizeTripItems(out.tripItems)
   return out
 }
 
@@ -310,6 +340,15 @@ const ruleKey = rule => `${(rule.keywords ?? []).join(',')}|${rule.category}|${r
 const batchKey = batch => `${batch.name ?? ''}|${batch.createdAt ?? ''}`
 // Dezelfde winkel, dezelfde dag, hetzelfde totaal = dezelfde bon.
 const receiptKey = r => `${r.merchantKey ?? ''}|${r.date ?? ''}|${r.total ?? ''}`
+// Dezelfde naam en dezelfde periode = dezelfde vakantie.
+const tripKey = t => `${t.name ?? ''}|${t.from ?? ''}|${t.to ?? ''}`
+// Een Splitser-regel binnen een vakantie: datum + omschrijving + bedrag.
+const tripItemKey = i => `${i.tripId}|${i.date ?? ''}|${String(i.description ?? '').trim().toLowerCase()}|${Number(i.amount) || 0}`
+// Vermogen: één momentopname per rekening per dag; een reservering is naam +
+// maand + bedrag; een spaardoel is naam + doelbedrag.
+const snapshotKey = s => `${s.accountKey ?? ''}|${s.date ?? ''}`
+const reservationKey = r => `${String(r.name ?? '').trim().toLowerCase()}|${r.dueMonth ?? ''}|${Number(r.amount) || 0}`
+const goalKey = g => `${String(g.name ?? '').trim().toLowerCase()}|${Number(g.target) || 0}`
 
 /**
  * Voegt alleen rijen toe die er nog niet zijn (auto-increment tabellen).
@@ -412,10 +451,34 @@ export async function restoreBackup(input, { mode = 'merge' } = {}) {
     }
     stats.receipts = { added: nieuweBonnen.length, skipped: src.receipts.length - nieuweBonnen.length }
 
+    // Vakanties ook vóór de transacties: die krijgen bij samenvoegen nieuwe
+    // id's, en zowel `transactions.tripId` als `tripItems.tripId` wijst erheen.
+    const tripIdMap = new Map()
+    const bestaandeTrips = await db.trips.toArray()
+    const byTripKey = new Map(bestaandeTrips.map(t => [tripKey(t), t.id]))
+    const nieuweTrips = []
+    for (const trip of src.trips) {
+      const key = tripKey(trip)
+      if (byTripKey.has(key)) {
+        if (trip.id != null) tripIdMap.set(trip.id, byTripKey.get(key))
+        continue
+      }
+      byTripKey.set(key, null)
+      nieuweTrips.push(trip)
+    }
+    for (const trip of nieuweTrips) {
+      const nieuwId = await db.trips.add(withoutId(trip))
+      byTripKey.set(tripKey(trip), nieuwId)
+      if (trip.id != null) tripIdMap.set(trip.id, nieuwId)
+    }
+    stats.trips = { added: nieuweTrips.length, skipped: src.trips.length - nieuweTrips.length }
+
     const incomingTransactions = src.transactions.map(tx => {
       const out = { ...tx }
       if (out.claimBatchId != null) out.claimBatchId = batchIdMap.get(out.claimBatchId) ?? null
       if (out.receiptId != null) out.receiptId = receiptIdMap.get(out.receiptId) ?? null
+      // Een vakantie die niet mee kwam: de transactie blijft, zonder vakantie.
+      if (out.tripId != null) out.tripId = tripIdMap.get(out.tripId) ?? null
       return out
     })
     const txMerge = await mergeRows(db.transactions, incomingTransactions, transactionKey)
@@ -435,10 +498,40 @@ export async function restoreBackup(input, { mode = 'merge' } = {}) {
     }
     stats.receiptItems = { added: regels, skipped: Math.max(0, src.receiptItems.length - regels) }
 
+    // Splitser-regels: hun vakantie én hun gekoppelde banktransactie kunnen
+    // allebei hernummerd zijn.
+    const incomingTripItems = src.tripItems
+      .map(item => ({
+        ...item,
+        tripId: tripIdMap.get(item.tripId) ?? null,
+        matchedTxId: item.matchedTxId == null ? null : (txMerge.idMap.get(item.matchedTxId) ?? null),
+      }))
+      .filter(item => item.tripId != null)
+    const tripItemMerge = await mergeRows(db.tripItems, incomingTripItems, tripItemKey)
+    stats.tripItems = {
+      added: tripItemMerge.added,
+      skipped: src.tripItems.length - tripItemMerge.added,
+    }
+
     const history = await mergeRows(db.merchantHistory, src.merchantHistory, historyKey)
     stats.merchantHistory = { added: history.added, skipped: history.skipped }
     const rules = await mergeRows(db.rules, src.rules, ruleKey)
     stats.rules = { added: rules.added, skipped: rules.skipped }
+
+    // Vermogen. Rekeningen hebben een eigen string-key: de bestaande wint,
+    // ontbrekende komen erbij (zoals categorieen). Momentopnames verwijzen met
+    // die key, dus die hoeven niet te verhuizen; reserveringen en spaardoelen
+    // staan op zichzelf.
+    const haveAccounts = new Set((await db.accounts.toArray()).map(a => a.key))
+    const newAccounts = src.accounts.filter(a => a?.key && !haveAccounts.has(a.key))
+    if (newAccounts.length) await db.accounts.bulkPut(newAccounts)
+    stats.accounts = { added: newAccounts.length, skipped: src.accounts.length - newAccounts.length }
+    const snaps = await mergeRows(db.accountSnapshots, src.accountSnapshots, snapshotKey)
+    stats.accountSnapshots = { added: snaps.added, skipped: snaps.skipped }
+    const reservations = await mergeRows(db.reservations, src.reservations, reservationKey)
+    stats.reservations = { added: reservations.added, skipped: reservations.skipped }
+    const goals = await mergeRows(db.goals, src.goals, goalKey)
+    stats.goals = { added: goals.added, skipped: goals.skipped }
 
     // Categorieen: de bestaande rij wint, ontbrekende sleutels worden toegevoegd.
     const haveCats = new Set((await db.categories.toArray()).map(c => c.key))

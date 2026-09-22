@@ -88,14 +88,9 @@ await t('de momentopnames wijzen na herstel nog naar hun rekening', async () => 
   }
 })
 
-// LET OP — bekend gat: de merge-tak van `restoreBackup` kent alleen
-// transacties, bonnen, batches, regels, categorieen, instellingen en (sinds
-// Vakanties) trips. Voor accounts/accountSnapshots/reservations/goals doet
-// "samenvoegen" dus nog niets: bestaande rijen blijven staan, maar rijen uit de
-// backup worden niet toegevoegd. "Alles vervangen" zet ze wel volledig terug.
-// Deze twee tests leggen dat vast; zodra backup.js de vier tabellen meeneemt
-// (zelfde patroon als mergeRows voor rules/merchantHistory, met een sleutel op
-// accounts.key / [accountKey+date] / naam+maand / naam) mag de tweede omgedraaid.
+// Samenvoegen: bestaande rijen winnen, ontbrekende komen erbij (rekeningen op
+// hun key, momentopnames op rekening+dag, reserveringen op naam+maand+bedrag,
+// spaardoelen op naam+doelbedrag).
 await t('samenvoegen: bestaande rijen blijven ongemoeid', async () => {
   await reset()
   await db.accounts.put({ key: 'eigen-abc', name: 'Mijn eigen naam', kind: 'spaar', order: 1,
@@ -107,13 +102,22 @@ await t('samenvoegen: bestaande rijen blijven ongemoeid', async () => {
   const spaar = await db.accounts.get('eigen-abc')
   assert.equal(spaar.name, 'Mijn eigen naam', 'de bestaande rekening wint bij samenvoegen')
   assert.equal(spaar.balance, 9999)
-  assert.equal(await db.reservations.count(), 1, 'de bestaande reservering staat er nog')
+  const tandarts = (await db.reservations.toArray()).filter(r => r.name === 'Tandarts')
+  assert.equal(tandarts.length, 1, 'Tandarts uit de backup is dezelfde als de bestaande: niet dubbel')
 })
 
-await t('samenvoegen voegt Vermogen-rijen nog NIET toe (zie de opmerking hierboven)', async () => {
-  assert.equal(await db.accounts.get('bank-nl01abna0123456789'), undefined)
-  assert.equal(await db.accountSnapshots.count(), 0)
-  assert.equal(await db.goals.count(), 0)
+await t('samenvoegen voegt de Vermogen-rijen uit de backup toe', async () => {
+  assert.ok(await db.accounts.get('bank-nl01abna0123456789'), 'de rekening uit de backup is toegevoegd')
+  assert.equal(await db.accountSnapshots.count(), backup.tables.accountSnapshots.length)
+  assert.equal(await db.goals.count(), backup.tables.goals.length)
+  // Backup: Tandarts (al aanwezig, zelfde sleutel) + Laptop (nieuw) → 2.
+  assert.equal(await db.reservations.count(), 2, 'Tandarts één keer, Laptop erbij')
+  // Nog een keer samenvoegen verandert niets meer.
+  const r2 = await B.restoreBackup(backup, { mode: 'merge' })
+  assert.equal(r2.stats.accountSnapshots.added, 0)
+  assert.equal(r2.stats.goals.added, 0)
+  assert.equal(r2.stats.reservations.added, 0)
+  assert.equal(await db.reservations.count(), 2)
 })
 
 await t('instellingen buffer en horizon overleven een backup', async () => {

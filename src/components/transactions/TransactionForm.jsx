@@ -9,6 +9,8 @@ import { CLAIM_STATUS_LABELS, claimStatusOf, isPartialClaim } from '../../utils/
 import { useSubmittedBatches } from '../../hooks/useClaims'
 import { LinkPayoutSheet } from '../claims/LinkPayoutSheet'
 import { ReceiptRow } from '../receipts/ReceiptRow'
+import { useTrip } from '../../hooks/useTrips'
+import { flagsOf } from '../../utils/trips/country'
 
 /**
  * Props:
@@ -237,6 +239,10 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
           {/* Bonnetje */}
           {existing && <ReceiptRow transaction={existing} />}
 
+          {/* Vakantie: alleen tonen. Koppelen doe je bij Vakanties, want daar
+              staat de hele selectie van transacties bij elkaar. */}
+          {existing?.tripId != null && <TripRegel tripId={existing.tripId} />}
+
           {/* Note */}
           <label className="block">
             <span className="text-xs text-muted">Omschrijving</span>
@@ -288,5 +294,22 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
         filterType={partial ? 'expense' : undefined}
       />
     </>
+  )
+}
+
+function TripRegel({ tripId }) {
+  const trip = useTrip(tripId)
+  if (!trip) return null
+  return (
+    <div
+      className="w-full flex items-center gap-3 rounded-lg px-3 py-2"
+      style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+    >
+      <span className="text-lg">🧳</span>
+      <span className="flex-1 text-sm truncate">
+        {flagsOf(trip.countries)} {trip.name}
+        <span className="block text-[11px] text-muted">wijzigen via Vakanties</span>
+      </span>
+    </div>
   )
 }

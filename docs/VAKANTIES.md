@@ -23,7 +23,8 @@ transactions.tripId (index)               // banktransactie hoort bij deze vakan
 ## Land uit de omschrijving
 
 ABN zet bij buitenlandse pinbetalingen `Land: FRA` (ISO-3166 alpha-3) in de
-omschrijving; dat staat in `tx.note`. Helper `countryOf(tx)` → 'FRA' | null
+omschrijving; dat staat in `tx.note` (en bij sommige importen in `tx.remi`, dus
+we kijken in allebei). Helper `countryOf(tx)` → 'FRA' | null
 (regex `/\bLand:\s*([A-Z]{3})\b/`). `NLD` telt als thuis. Vlag: alpha-3 → alpha-2
 → regional-indicator-emoji; naam in het Nederlands. Een kleine tabel met de
 ~40 gangbare Europese/vakantielanden volstaat, met fallback "🌍 XXX".
@@ -47,7 +48,8 @@ zonder `tripId` met een buitenlands land: sorteer op datum, nieuw cluster
 zodra het gat > 3 dagen is óf het land wisselt (Land 'X' en 'Y' binnen 1 dag
 = zelfde reis met twee landen; anders splitsen). Toon per cluster: vlaggen,
 datums, aantal, totaal → "Vakantie aanmaken" vult het formulier voor.
-Puur: `src/utils/trips/suggest.js` (`clusterTrips(txs, { gapDays: 3 })`), getest.
+Puur: `src/utils/trips/suggest.js` (`clusterTrips(txs, { gapDays: 3 })` plus
+`suggestTripTransactions(txs, …)` voor het voorvinken in het formulier), getest.
 
 ## Splitser-PDF
 
@@ -113,7 +115,7 @@ Zonder Splitser: `myCost = bankNet`.
 - `/vakanties` (`src/pages/TripsPage.jsx`): voorstellen-blok (indien clusters),
   daaronder kaartjes per vakantie (vlag(gen), naam, periode, dagen, `myCost`,
   €/dag), nieuwste eerst; knop "+ Vakantie".
-- Detail-sheet of subroute `/vakanties/:id`: kop met vlag, periode, dagen;
+- Detail als **sheet** (geen subroute: `App.jsx` kent alleen `/vakanties`): kop met vlag, periode, dagen;
   tegels `Voor jou` / `Per dag` / `Bank netto` (+ verschil met uitleg);
   donut per categorie (hergebruik stijl van `SpendingDonut`/`GroceryGroupsChart`,
   kleuren via `catMap`); tabs **Regels** (Splitser + niet-gedekte bank, gemengd
@@ -134,6 +136,36 @@ samenvoegen verschuiven trip-id's: remap `transactions.tripId` en
 `tripItems.tripId` net zoals `claimBatchId` nu wordt geremapt in
 `src/utils/backup.js` (lees hoe dat daar gaat en volg hetzelfde patroon;
 test in `tests/unit/backup.test.mjs`).
+
+## Gebouwd — waar staat wat
+
+```
+src/utils/trips/country.js    countryOf / isForeign / flagOf / countryName / flagsOf
+src/utils/trips/suggest.js    clusterTrips, suggestTripTransactions, dayDiff/tripDays/shiftDate
+src/utils/trips/splitser.js   parseSplitserPdf, shareOf/totalShareOf, checkMyShare, diffSplitserRows
+src/utils/trips/costs.js      tripCosts (alle rekenregels), suggestMatches (bank ↔ Splitser)
+src/hooks/useTrips.js         queries + mutaties (createTrip, setTripTransactions,
+                              importSplitserRows, autoMatchTripItems, setTripItemMatch,
+                              splitserName-instelling)
+src/pages/TripsPage.jsx       voorstellen + kaartjes
+src/components/trips/         TripFormSheet, TripTransactionsSheet, CountryPickerSheet,
+                              TripDetailSheet, TripItemSheet, TripCategoryDonut,
+                              SplitserImportSheet
+tests/unit/trips.test.mjs, trips-splitser.test.mjs, trips-flow.test.mjs
+```
+
+Kleine keuzes die de spec openliet:
+- `parseSplitserPdf` geeft naast de regels ook `members`, `balance`, `settledOn`,
+  `from`/`to`, `sumAmounts` en `warnings` terug; de importsheet toont beide
+  controles ("Total spent" en `Expenses −` uit de balans) als vinkjes.
+- Het matchen bank ↔ Splitser (`suggestMatches`) staat in `costs.js`, want het
+  hoort bij de vraag "welke bankregel is al gedekt?".
+- Bij een tweede import lopen ook de aandelen van bestaande regels mee als je
+  een andere naam kiest; categorie en handmatige koppeling blijven staan.
+- Een Splitser-import accepteert ook een `.txt` met dezelfde tekst — handig om
+  een settlement te controleren zonder PDF.
+- Zonder Splitser-regels tellen bijschrijvingen in de verdeling per categorie/dag
+  als negatief bedrag; de donut toont alleen de positieve rijen.
 
 ## Buiten scope (nu)
 

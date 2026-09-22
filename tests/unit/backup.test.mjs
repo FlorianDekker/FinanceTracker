@@ -11,8 +11,8 @@ async function t(name, fn) {
 }
 
 async function reset() {
-  await db.transaction('rw', db.transactions, db.categories, db.settings, db.merchantHistory, db.rules, db.claimBatches, db.receipts, db.receiptItems, async () => {
-    await Promise.all([db.transactions.clear(), db.categories.clear(), db.settings.clear(), db.merchantHistory.clear(), db.rules.clear(), db.claimBatches.clear(), db.receipts.clear(), db.receiptItems.clear()])
+  await db.transaction('rw', db.transactions, db.categories, db.settings, db.merchantHistory, db.rules, db.claimBatches, db.receipts, db.receiptItems, db.trips, db.tripItems, async () => {
+    await Promise.all([db.transactions.clear(), db.categories.clear(), db.settings.clear(), db.merchantHistory.clear(), db.rules.clear(), db.claimBatches.clear(), db.receipts.clear(), db.receiptItems.clear(), db.trips.clear(), db.tripItems.clear()])
   })
 }
 async function seed() {
@@ -178,6 +178,67 @@ await t('accepteert lagere schemaVersion', async () => {
 })
 await t('weigert onbekende modus', async () => {
   await assert.rejects(() => B.restoreBackup(backup, { mode: 'kwijt' }), /Onbekende herstelmodus/)
+})
+
+console.log('\n--- vakanties: tripId verschuift bij samenvoegen ---')
+
+const parijsBackup = () => ({
+  app: 'FinanceTracker',
+  schemaVersion: db.verno,
+  tables: {
+    trips: [{
+      id: 7, name: 'Parijs', from: '2026-07-11', to: '2026-07-14', countries: ['FRA'],
+      note: '', createdAt: 2, splitser: { imported: [], myName: 'Florian' },
+    }],
+    transactions: [
+      { id: 3, date: '2026-07-12', amount: 22.9, type: 'debit', category: 'vakantie', subcategory: '', note: 'CAFE DU COIN', tripId: 7 },
+      { id: 4, date: '2026-07-13', amount: 12, type: 'debit', category: 'vakantie', subcategory: '', note: 'IJSSALON', tripId: 99 },
+    ],
+    tripItems: [
+      { id: 5, tripId: 7, date: '2026-07-12', description: 'Eerste dag uitgaven', amount: 22.9, payer: 'Florian', participants: [{ name: 'Florian', share: 11.45 }], myShare: 11.45, category: 'vakantie', subcategory: '', matchedTxId: 3, source: 'splitser' },
+      { id: 6, tripId: 99, date: '2026-07-12', description: 'Regel van een verdwenen reis', amount: 5, payer: 'Dani', participants: [], myShare: 2.5, category: 'vakantie', subcategory: '', matchedTxId: null, source: 'splitser' },
+    ],
+  },
+})
+
+await t('transactions.tripId en tripItems.tripId verhuizen mee naar het nieuwe id', async () => {
+  await reset()
+  // Er staat al een andere vakantie: het id uit de backup (7) is dus bezet.
+  await db.trips.add({ name: 'Berlijn', from: '2026-03-01', to: '2026-03-04', countries: ['DEU'], note: '', createdAt: 1, splitser: null })
+
+  const r = await B.restoreBackup(parijsBackup(), { mode: 'merge' })
+  assert.equal(r.stats.trips.added, 1)
+
+  const parijs = (await db.trips.toArray()).find(x => x.name === 'Parijs')
+  assert.ok(parijs, 'de vakantie is teruggezet')
+  const tx = (await db.transactions.toArray()).find(x => x.note === 'CAFE DU COIN')
+  assert.equal(tx.tripId, parijs.id)
+  assert.notEqual(tx.tripId, 7, 'niet het oude id uit de backup')
+
+  const items = await db.tripItems.toArray()
+  assert.equal(items.length, 1, 'een regel van een niet-meegekomen vakantie valt af')
+  assert.equal(items[0].tripId, parijs.id)
+  assert.equal(items[0].matchedTxId, tx.id, 'de gekoppelde banktransactie schuift ook mee')
+  assert.equal(r.stats.tripItems.added, 1)
+  assert.equal(r.stats.tripItems.skipped, 1)
+})
+await t('een transactie van een onbekende vakantie blijft staan, zonder vakantie', async () => {
+  const los = (await db.transactions.toArray()).find(x => x.note === 'IJSSALON')
+  assert.equal(los.tripId, null)
+})
+await t('nog een keer samenvoegen voegt niets dubbels toe', async () => {
+  const r = await B.restoreBackup(parijsBackup(), { mode: 'merge' })
+  assert.equal(r.stats.trips.added, 0)
+  assert.equal(r.stats.tripItems.added, 0)
+  assert.equal(await db.trips.count(), 2)
+  assert.equal(await db.tripItems.count(), 1)
+  assert.equal(await db.transactions.count(), 2)
+})
+await t('replace zet vakanties en hun regels gewoon terug', async () => {
+  await B.restoreBackup(parijsBackup(), { mode: 'replace' })
+  assert.equal(await db.trips.count(), 1)
+  assert.equal((await db.trips.get(7)).name, 'Parijs')
+  assert.equal(await db.tripItems.count(), 2, 'bij vervangen blijven de id\'s zoals ze waren')
 })
 
 console.log(`\n${pass} geslaagd, ${fail} mislukt`)
