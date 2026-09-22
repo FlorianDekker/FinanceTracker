@@ -24,11 +24,16 @@ function maandLabel(ym) {
 
 /* ---------------- de regels achter één groep ---------------- */
 
+// `netPrice` (na een gekoppelde korting) is leidend, met `price` als terugval
+// voor bonnen die nog niet zijn doorgerekend — zelfde regel als in insights.js,
+// zodat deze lijst optelt tot hetzelfde totaal als de donut erboven.
+const netto = i => Math.abs(i.netPrice ?? i.price ?? 0)
+
 function GroepSheet({ groep, items, ym, onClose }) {
   const rijen = [...items]
     .filter(i => i.group === groep)
-    .sort((a, b) => Math.abs(b.price ?? 0) - Math.abs(a.price ?? 0))
-  const totaal = rijen.reduce((s, i) => s + Math.abs(i.price ?? 0), 0)
+    .sort((a, b) => netto(b) - netto(a))
+  const totaal = rijen.reduce((s, i) => s + netto(i), 0)
 
   return (
     <Sheet
@@ -48,7 +53,7 @@ function GroepSheet({ groep, items, ym, onClose }) {
               {[i.merchant, i.date ? fmtDate(i.date) : null, i.qty > 1 ? `${i.qty}×` : null].filter(Boolean).join(' · ')}
             </div>
           </div>
-          <span className="text-sm font-semibold tabular-nums shrink-0">{euro(Math.abs(i.price ?? 0))}</span>
+          <span className="text-sm font-semibold tabular-nums shrink-0">{euro(netto(i))}</span>
         </div>
       ))}
     </Sheet>

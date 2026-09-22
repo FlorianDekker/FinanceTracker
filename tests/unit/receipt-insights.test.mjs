@@ -47,6 +47,10 @@ const item = (o = {}) => ({
   assert.equal(ins.eenheidsprijs({ unitPrice: -2.4, price: -2.4, qty: 1 }), 2.4, 'korting wordt positief')
   ok('eenheidsprijs valt terug op price/qty en rondt op centen af')
 
+  assert.equal(ins.eenheidsprijs({ netUnitPrice: 1.2, unitPrice: 2.4, price: 2.4, qty: 1 }), 1.2, 'netUnitPrice is leidend')
+  assert.equal(ins.eenheidsprijs({ netUnitPrice: null, unitPrice: 1.69, price: 1.69, qty: 1 }), 1.69, 'zonder netUnitPrice terug naar de oude berekening')
+  ok('eenheidsprijs geeft voorrang aan netUnitPrice, met terugval op de oude berekening')
+
   assert.equal(ins.regelBedrag({ price: -2.4 }), 2.4)
   assert.equal(ins.regelBedrag({ price: null }), 0)
   ok('regelBedrag is altijd positief')
@@ -94,6 +98,31 @@ const item = (o = {}) => ({
   const onbekend = ins.groepenPerMaand([item({ date: '2026-09-02', group: 'iets raars', price: 2 })], { maanden })
   assert.equal(onbekend.perMaand[1].perGroep.overig, 2)
   ok('een onbekende groep landt in de restbak overig')
+}
+
+/* ---------------- groepstotalen met gekoppelde kortingen ---------------- */
+{
+  // Een gekoppelde korting (netPrice ingevuld) drukt de groep van dát product;
+  // een losse korting (nog steeds als aparte statiegeld_korting-regel) raakt
+  // geen enkele groep, en het totale kortingsbedrag blijft in beide gevallen
+  // hetzelfde (alle kortingen, gekoppeld én los).
+  const items = [
+    item({ date: '2026-09-02', group: 'kant_en_klaar', price: 2.4, netPrice: 1.2, netUnitPrice: 1.2 }),  // korting gekoppeld
+    item({ date: '2026-09-02', group: 'zuivel_eieren', price: 1.29 }),                                    // geen korting, geen netPrice-veld
+    item({ date: '2026-09-02', group: 'statiegeld_korting', price: -1.2, isDiscount: true }),             // de kortingsregel zelf
+    item({ date: '2026-09-02', group: 'statiegeld_korting', price: -0.5, isDiscount: true }),             // een losse korting
+  ]
+  const perMaand = ins.groepenPerMaand(items, { maanden: ['2026-09'] })
+  assert.equal(perMaand.perMaand[0].perGroep.kant_en_klaar, 1.2, 'gekoppelde korting drukt de groep van het product')
+  assert.equal(perMaand.perMaand[0].perGroep.zuivel_eieren, 1.29, 'product zonder netPrice valt terug op price')
+  assert.equal(perMaand.perMaand[0].korting, 1.7, 'kortingTotaal blijft het volledige bedrag, gekoppeld én los')
+  ok('groepenPerMaand rekent met netPrice, kortingTotaal blijft ongewijzigd')
+
+  const totalen = ins.groepTotalen(items)
+  assert.equal(totalen.rijen.find(r => r.group === 'kant_en_klaar').totaal, 1.2)
+  assert.equal(totalen.rijen.find(r => r.group === 'zuivel_eieren').totaal, 1.29)
+  assert.equal(totalen.korting, 1.7)
+  ok('groepTotalen rekent met netPrice, kortingTotaal blijft ongewijzigd')
 }
 
 /* ---------------- groep-totalen voor de donut ---------------- */

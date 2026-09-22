@@ -8,18 +8,31 @@
 
 import { nameKey } from './extract'
 import { normalizeGroup } from './groups'
+import { netItems } from './discounts'
 
-/** @returns {Array<object>} rijen voor `receiptItems` (zonder id) */
+/**
+ * @returns {Array<object>} rijen voor `receiptItems` (zonder id)
+ *
+ * Elke rij krijgt naast de brutoprijs ook `discount`/`netPrice`/`netUnitPrice`
+ * (via `netItems`): de gekoppelde korting (`receipt.discounts[].itemIndex`)
+ * gaat zo mee de tabel in, zodat groepstotalen en prijshistorie er zonder
+ * extra opzoekwerk mee kunnen rekenen. Bonnen zonder discounts leveren gewoon
+ * netPrice = price op.
+ */
 export function receiptItemRows(receipt) {
   if (!receipt || receipt.id == null) return []
   const items = Array.isArray(receipt.items) ? receipt.items : []
-  return items.map(item => ({
+  const genetto = netItems(items, receipt.discounts)
+  return genetto.map(item => ({
     receiptId: receipt.id,
     name: String(item?.name ?? ''),
     nameKey: item?.nameKey || nameKey(item?.name),
     qty: Number.isFinite(Number(item?.qty)) && Number(item.qty) > 0 ? Number(item.qty) : 1,
     unitPrice: item?.unitPrice ?? null,
     price: item?.price ?? null,
+    discount: item?.discount ?? 0,
+    netPrice: item?.netPrice ?? item?.price ?? null,
+    netUnitPrice: item?.netUnitPrice ?? item?.unitPrice ?? null,
     group: normalizeGroup(item?.group),
     isDiscount: item?.isDiscount === true,
     // Gekopieerd van de bon zodat een zoekopdracht op productnaam meteen datum,

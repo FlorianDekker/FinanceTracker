@@ -22,6 +22,7 @@ import { extractPdfText, renderPdfPage } from '../utils/receipts/pdfText'
 import { normalizeGroup } from '../utils/receipts/groups'
 import { bestMatch, findTransactionCandidates } from '../utils/receipts/match'
 import { receiptItemRows } from '../utils/receipts/items'
+import { matchDiscounts } from '../utils/receipts/discounts'
 import { receiptImageBytes } from '../utils/backup'
 
 /* ------------------------------------------------------------------ *
@@ -37,6 +38,7 @@ export const AI_KEY_SETTING = 'aiApiKey'
 export const STORE_IMAGES_SETTING = 'receiptStoreImages'
 export const STATS_SETTING = 'receiptStats'
 export const GROUP_OVERRIDES_SETTING = 'receiptGroupOverrides'
+export const DISCOUNT_LINKS_SETTING = 'receiptDiscountLinks'
 export const PERSIST_SETTING = 'receiptPersistRequested'
 
 export const RECEIPT_STATUSES = ['new', 'extracting', 'extracted', 'review', 'linked', 'error']
@@ -124,6 +126,26 @@ export function applyGroupOverrides(items, overrides = {}) {
     const geleerd = overrides[key]
     return geleerd ? { ...item, nameKey: key, group: normalizeGroup(geleerd) } : { ...item, nameKey: key }
   })
+}
+
+export async function getDiscountLinks() {
+  const row = await db.settings.get(DISCOUNT_LINKS_SETTING)
+  const value = row?.value
+  return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {}
+}
+
+/**
+ * Onthoudt met welk product een korting hoort, per genormaliseerde kortings-
+ * naam. `itemNameKey = null` betekent expliciet "los" (geen product) — dat
+ * voorkomt dat de heuristiek diezelfde koppeling steeds opnieuw voorstelt.
+ */
+export async function setDiscountLink(discountNameKey, itemNameKey) {
+  const key = String(discountNameKey ?? '').trim()
+  if (!key) return null
+  const links = await getDiscountLinks()
+  links[key] = itemNameKey ? String(itemNameKey) : null
+  await db.settings.put({ key: DISCOUNT_LINKS_SETTING, value: links })
+  return links
 }
 
 /* ------------------------------------------------------------------ *
@@ -405,6 +427,7 @@ export async function extractReceiptById(receiptId, { model, signal, language = 
     })
 
     const items = applyGroupOverrides(uit.items, await getGroupOverrides())
+    const discounts = matchDiscounts(items, uit.discounts, { learned: await getDiscountLinks() })
     const validation = validateReceipt({ ...uit, items })
     const patch = {
       merchant: uit.merchant,
@@ -416,8 +439,8 @@ export async function extractReceiptById(receiptId, { model, signal, language = 
       total: uit.total,
       currency: uit.currency,
       items,
-      discounts: uit.discounts,
-      discountTotal: discountTotalVan(uit),
+      discounts,
+      discountTotal: discountTotalVan({ discounts }),
       validation,
       model: uit.raw?.model ?? gekozenModel,
       extractedAt: Date.now(),
@@ -523,6 +546,33 @@ export async function updateReceiptItems(receiptId, items, { learnGroups = true 
   const validation = validateReceipt({ ...bon, items: nieuw })
   const patch = { items: nieuw, validation, discountTotal: discountTotalVan(bon) }
   patch.status = statusVoor({ ...bon, ...patch })
+  await db.receipts.update(receiptId, patch)
+  const bijgewerkt = { ...bon, ...patch }
+  await syncReceiptItems(bijgewerkt)
+  return bijgewerkt
+}
+
+/**
+ * Handmatige koppeling van een korting aan een productregel (of `null` =
+ * "los"). Spiegelt meteen naar `receiptItems` (nettoprijzen) en onthoudt de
+ * keuze per kortingsnaam, zodat de heuristiek dezelfde koppeling voortaan
+ * zelf voorstelt — ook als de productnaam op de bon net weer anders luidt.
+ */
+export async function updateDiscountLink(receiptId, discountIndex, itemIndex) {
+  const bon = await db.receipts.get(receiptId)
+  if (!bon) throw new Error('Deze bon bestaat niet meer.')
+  const discounts = Array.isArray(bon.discounts) ? bon.discounts : []
+  if (discountIndex < 0 || discountIndex >= discounts.length) return bon
+
+  const items = Array.isArray(bon.items) ? bon.items : []
+  const doel = itemIndex != null ? items[itemIndex] : null
+  const nieuweItemIndex = doel ? itemIndex : null
+  const nieuweDiscounts = discounts.map((d, i) => (i === discountIndex ? { ...d, itemIndex: nieuweItemIndex } : d))
+
+  const dKey = productKey(discounts[discountIndex]?.name)
+  if (dKey) await setDiscountLink(dKey, doel ? (doel.nameKey || productKey(doel.name)) : null)
+
+  const patch = { discounts: nieuweDiscounts }
   await db.receipts.update(receiptId, patch)
   const bijgewerkt = { ...bon, ...patch }
   await syncReceiptItems(bijgewerkt)
@@ -696,6 +746,7 @@ export function useReceipts({ limit = 200 } = {}) {
     removeReceipt,
     updateItems: updateReceiptItems,
     updateFields: updateReceiptFields,
+    updateDiscountLink,
     autoLink,
     findCandidates,
     storageEstimate,

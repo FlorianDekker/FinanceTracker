@@ -8,7 +8,14 @@
 // Conventies:
 // - Een kortingsregel (`isDiscount`) heeft een negatieve prijs en de groep
 //   `statiegeld_korting`. Die telt nergens mee in de groep-totalen; het bespaarde
-//   bedrag rapporteren we apart als `korting` (positief).
+//   bedrag rapporteren we apart als `korting` (positief). Dat bedrag is altijd
+//   het VOLLEDIGE kortingsbedrag, of de korting nu aan een product gekoppeld is
+//   of los staat — zo blijft `korting`/`kortingTotaal` overal kloppen.
+// - Een gekoppelde korting (`receipt.discounts[].itemIndex`) drukt wél de
+//   groepstotalen: `groepenPerMaand` en `groepTotalen` rekenen met `netPrice`
+//   (bruto min gekoppelde korting) in plaats van `price`. Bonnen zonder
+//   `netPrice` (nog niet doorgerekend, of ouder dan deze koppelfunctie)
+//   vallen terug op `price` — zie `netBedrag`.
 // - Regels zonder datum (bon nog niet uitgelezen) vallen overal buiten de
 //   maandindeling; ze zouden anders in een willekeurige maand landen.
 
@@ -59,10 +66,23 @@ export function regelBedrag(item) {
 }
 
 /**
- * Prijs per stuk. `unitPrice` is leidend; ontbreekt die, dan `price / qty`.
- * Zonder bruikbare prijs: null (het punt valt dan uit de prijshistorie).
+ * Het bedrag van een productregel ná een eventueel gekoppelde korting
+ * (`netPrice`). Ontbreekt dat veld (bon nog niet doorgerekend), dan gewoon
+ * de brutoprijs — zie de conventie bovenaan dit bestand.
+ */
+function netBedrag(item) {
+  const net = Number(item?.netPrice)
+  return Number.isFinite(net) ? Math.abs(net) : regelBedrag(item)
+}
+
+/**
+ * Prijs per stuk. `netUnitPrice` (na gekoppelde korting) is leidend; ontbreekt
+ * die, dan `unitPrice`, en anders `price / qty`. Zonder bruikbare prijs: null
+ * (het punt valt dan uit de prijshistorie).
  */
 export function eenheidsprijs(item) {
+  const net = Number(item?.netUnitPrice)
+  if (Number.isFinite(net) && net !== 0) return Math.abs(Math.round(net * 100) / 100)
   const unit = Number(item?.unitPrice)
   if (Number.isFinite(unit) && unit !== 0) return Math.abs(Math.round(unit * 100) / 100)
   const prijs = Number(item?.price)
@@ -99,12 +119,12 @@ export function groepenPerMaand(items, { maanden } = {}) {
     if (inVenster && !inVenster.has(ym)) continue
     if (!perMaand.has(ym)) perMaand.set(ym, { ym, totaal: 0, korting: 0, perGroep: {} })
     const rij = perMaand.get(ym)
-    const bedrag = regelBedrag(item)
 
     if (isKorting(item)) {
-      rij.korting += bedrag
+      rij.korting += regelBedrag(item)
       continue
     }
+    const bedrag = netBedrag(item)
     const groep = normalizeGroup(item?.group)
     rij.perGroep[groep] = (rij.perGroep[groep] ?? 0) + bedrag
     rij.totaal += bedrag
@@ -135,8 +155,8 @@ export function groepTotalen(items) {
   const perGroep = new Map()
   let korting = 0
   for (const item of items ?? []) {
-    const bedrag = regelBedrag(item)
-    if (isKorting(item)) { korting += bedrag; continue }
+    if (isKorting(item)) { korting += regelBedrag(item); continue }
+    const bedrag = netBedrag(item)
     const key = normalizeGroup(item?.group)
     const huidig = perGroep.get(key) ?? { group: key, totaal: 0, aantal: 0 }
     huidig.totaal += bedrag

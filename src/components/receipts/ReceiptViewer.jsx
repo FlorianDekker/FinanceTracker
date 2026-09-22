@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Sheet } from '../ui/Sheet'
 import { euro, fmtDate } from '../../utils/formatters'
 import { RECEIPT_GROUPS, groupColor, groupIcon, groupLabel } from '../../utils/receipts/groups'
+import { netItems } from '../../utils/receipts/discounts'
 import {
   MODEL_OPTIONS,
   RECEIPT_STATUS_LABELS,
@@ -9,6 +10,7 @@ import {
   receiptErrorMessage,
   removeReceipt,
   unlinkReceipt,
+  updateDiscountLink,
   updateReceiptItems,
   useReceipt,
 } from '../../hooks/useReceipts'
@@ -68,6 +70,59 @@ function GroepKiezer({ open, value, onSelect, onClose, naam }) {
       </div>
       <p className="text-[11px] text-muted mt-3">
         De app onthoudt je keuze voor dit product en gebruikt hem voortaan bij elke bon.
+      </p>
+    </Sheet>
+  )
+}
+
+/**
+ * "Bij welk product hoort deze korting?" — voor zowel een korting die al aan
+ * een regel hangt (om te corrigeren) als een losse korting (om alsnog te
+ * koppelen). Onderaan staat "Geen product (los)" om de koppeling te ontkoppelen.
+ */
+function KortingKoppelSheet({ open, discount, items, onSelect, onClose }) {
+  if (!open) return null
+  const producten = items.map((item, i) => ({ item, i })).filter(({ item }) => !item.isDiscount)
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title="Bij welk product hoort deze korting?"
+      subtitle={discount?.name}
+      leading={<span className="text-2xl">🏷️</span>}
+      bodyClassName="p-4"
+    >
+      <div className="space-y-1.5">
+        {producten.map(({ item, i }) => {
+          const actief = discount?.itemIndex === i
+          return (
+            <button
+              key={i}
+              onClick={() => onSelect(i)}
+              className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm"
+              style={{
+                background: actief ? 'var(--color-accent-dim, rgba(0,122,255,0.12))' : 'var(--color-surface-2)',
+                boxShadow: actief ? 'inset 0 0 0 2px var(--color-accent)' : 'none',
+              }}
+            >
+              <span className="flex-1 truncate">{item.name || '(zonder naam)'}</span>
+              <span className="text-muted tabular-nums text-xs shrink-0">{euro(item.price ?? 0)}</span>
+            </button>
+          )
+        })}
+        <button
+          onClick={() => onSelect(null)}
+          className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm"
+          style={{
+            background: discount?.itemIndex == null ? 'var(--color-accent-dim, rgba(0,122,255,0.12))' : 'var(--color-surface-2)',
+            boxShadow: discount?.itemIndex == null ? 'inset 0 0 0 2px var(--color-accent)' : 'none',
+          }}
+        >
+          <span className="flex-1">Geen product (los)</span>
+        </button>
+      </div>
+      <p className="text-[11px] text-muted mt-3">
+        De app onthoudt deze koppeling voor volgende bonnen met dezelfde korting.
       </p>
     </Sheet>
   )
@@ -184,6 +239,7 @@ export function ReceiptViewer({ receiptId, onClose, onOpenTransaction }) {
   )
   const [groepVoor, setGroepVoor] = useState(null)     // index van de regel
   const [bewerken, setBewerken] = useState(null)       // index van de regel
+  const [kortingVoor, setKortingVoor] = useState(null) // index in bon.discounts
   const [linkOpen, setLinkOpen] = useState(false)
   const [modelOpen, setModelOpen] = useState(false)
   const [bezig, setBezig] = useState(null)
@@ -200,11 +256,32 @@ export function ReceiptViewer({ receiptId, onClose, onOpenTransaction }) {
 
   const items = Array.isArray(bon.items) ? bon.items : []
   const kortingen = Array.isArray(bon.discounts) ? bon.discounts : []
+  const genetto = netItems(items, kortingen)
+  // Gekoppelde kortingen per productregel, voor de subregel eronder.
+  const kortingenPerItem = new Map()
+  kortingen.forEach((d, i) => {
+    if (d.itemIndex == null) return
+    const lijst = kortingenPerItem.get(d.itemIndex) ?? []
+    lijst.push({ ...d, _index: i })
+    kortingenPerItem.set(d.itemIndex, lijst)
+  })
+  const losseKortingen = kortingen.map((d, i) => ({ ...d, _index: i })).filter(d => d.itemIndex == null)
 
   async function schrijfItems(nieuw) {
     setFout(null)
     try {
       await updateReceiptItems(receiptId, nieuw)
+    } catch (err) {
+      setFout(receiptErrorMessage(err))
+    }
+  }
+
+  async function koppelKorting(itemIndex) {
+    const discountIndex = kortingVoor
+    setKortingVoor(null)
+    setFout(null)
+    try {
+      await updateDiscountLink(receiptId, discountIndex, itemIndex)
     } catch (err) {
       setFout(receiptErrorMessage(err))
     }
@@ -286,33 +363,55 @@ export function ReceiptViewer({ receiptId, onClose, onOpenTransaction }) {
                     }}
                   />
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setBewerken(i)} className="flex-1 min-w-0 text-left">
-                      <div className="text-sm truncate">{item.name || '(zonder naam)'}</div>
-                      <div className="text-[11px] text-muted">
-                        {item.qty > 1 ? `${item.qty} × ${euro(item.unitPrice ?? 0)}` : euro(item.unitPrice ?? item.price ?? 0)}
-                      </div>
-                    </button>
-                    <GroupChip group={item.group} onClick={() => setGroepVoor(i)} />
-                    <span className={`text-sm font-semibold tabular-nums shrink-0 ${item.isDiscount ? 'text-green' : ''}`}>
-                      {item.price == null ? '—' : euro(item.price)}
-                    </span>
-                  </div>
+                  <>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setBewerken(i)} className="flex-1 min-w-0 text-left">
+                        <div className="text-sm truncate">{item.name || '(zonder naam)'}</div>
+                        <div className="text-[11px] text-muted">
+                          {item.qty > 1 ? `${item.qty} × ${euro(item.unitPrice ?? 0)}` : euro(item.unitPrice ?? item.price ?? 0)}
+                        </div>
+                      </button>
+                      <GroupChip group={item.group} onClick={() => setGroepVoor(i)} />
+                      {genetto[i]?.discount > 0 ? (
+                        <span className="text-right shrink-0">
+                          <span className="block text-[11px] text-muted line-through tabular-nums">{euro(item.price)}</span>
+                          <span className="block text-sm font-semibold tabular-nums">{euro(genetto[i].netPrice)}</span>
+                        </span>
+                      ) : (
+                        <span className={`text-sm font-semibold tabular-nums shrink-0 ${item.isDiscount ? 'text-green' : ''}`}>
+                          {item.price == null ? '—' : euro(item.price)}
+                        </span>
+                      )}
+                    </div>
+                    {(kortingenPerItem.get(i) ?? []).map(d => (
+                      <button
+                        key={d._index}
+                        onClick={() => setKortingVoor(d._index)}
+                        className="w-full flex items-center gap-1 pt-1 pl-1 text-left"
+                      >
+                        <span className="text-[11px] text-green flex-1 truncate">− {euro(d.amount)} · {d.name}</span>
+                      </button>
+                    ))}
+                  </>
                 )}
               </div>
             ))}
           </div>
 
-          {/* Kortingen */}
-          {kortingen.length > 0 && (
+          {/* Losse kortingen (nog niet aan een product gekoppeld) */}
+          {losseKortingen.length > 0 && (
             <div className="mx-4">
               <div className="text-[11px] uppercase tracking-wider text-muted mb-1.5 px-1">Kortingen</div>
               <div className="card divide-y divide-border overflow-hidden">
-                {kortingen.map((d, i) => (
-                  <div key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
+                {losseKortingen.map(d => (
+                  <button
+                    key={d._index}
+                    onClick={() => setKortingVoor(d._index)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left"
+                  >
                     <span className="flex-1 truncate">{d.name}</span>
                     <span className="text-green font-semibold tabular-nums">−{euro(d.amount)}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -375,6 +474,14 @@ export function ReceiptViewer({ receiptId, onClose, onOpenTransaction }) {
           setGroepVoor(null)
           schrijfItems(items.map((x, j) => (j === i ? { ...x, group: groep } : x)))
         }}
+      />
+
+      <KortingKoppelSheet
+        open={kortingVoor != null}
+        discount={kortingVoor != null ? kortingen[kortingVoor] : null}
+        items={items}
+        onClose={() => setKortingVoor(null)}
+        onSelect={koppelKorting}
       />
 
       {modelOpen && (
