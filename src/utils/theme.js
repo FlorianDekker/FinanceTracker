@@ -63,3 +63,13 @@ export function gridTheme() {
   const c = chartColors()
   return { color: c.grid }
 }
+
+export const SHEET_MARGIN_SETTING = 'sheetTopMargin'
+export const DEFAULT_SHEET_MARGIN = 24
+
+/** Ruimte tussen statusbalk en de bovenkant van een hoge sheet, in px. */
+export function applySheetMargin(px) {
+  const v = Math.max(0, Math.min(200, Math.round(Number(px)) || 0))
+  document.documentElement.style.setProperty('--sheet-top-margin', `${v}px`)
+  return v
+}

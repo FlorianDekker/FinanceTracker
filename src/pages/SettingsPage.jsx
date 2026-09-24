@@ -15,7 +15,7 @@ import { euro } from '../utils/formatters'
 import { db } from '../db/db'
 import { parseTransactionsCsv } from '../utils/parsers'
 import { bulkAddTransactions } from '../hooks/useTransactions'
-import { applyAccentColor } from '../utils/theme'
+import { applyAccentColor, applySheetMargin, DEFAULT_SHEET_MARGIN, SHEET_MARGIN_SETTING } from '../utils/theme'
 import { SALARY_THRESHOLD } from '../utils/categorizer'
 import { loadDemoData, clearDemoData, DEMO_MODE_KEY } from '../utils/demoData'
 import { ALL_CHARTS, mergeChartConfig } from '../components/charts/registry'
@@ -36,6 +36,11 @@ export function SettingsPage() {
     () => db.settings.get('salaryThreshold').then(r => Number(r?.value) || SALARY_THRESHOLD), [])
   const theme = useLiveQuery(() => db.settings.get('theme').then(r => r?.value ?? 'light'), [])
   const accentColor = useLiveQuery(() => db.settings.get('accentColor').then(r => r?.value ?? '#1E3A5F'), [])
+  const sheetMargin = useLiveQuery(() => db.settings.get(SHEET_MARGIN_SETTING).then(r => r?.value ?? DEFAULT_SHEET_MARGIN), [], DEFAULT_SHEET_MARGIN)
+  async function zetSheetMargin(px) {
+    const v = applySheetMargin(px)
+    await db.settings.put({ key: SHEET_MARGIN_SETTING, value: v })
+  }
   const chartConfig = useLiveQuery(() => db.settings.get('chartConfig').then(r => r?.value ?? null), [])
   const chartStats = useLiveQuery(() => db.settings.get('chartStats').then(r => r?.value ?? {}), [])
   // Bepaalt of de bon-grafieken standaard aanstaan (zelfde regel als ChartsPage).
@@ -264,6 +269,23 @@ return (
               </button>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Weergave: sheet-marge onder de statusbalk (instelbaar tot de goede waarde vaststaat) */}
+      <section className="px-4 pt-4 pb-2">
+        <h2 className="text-xs text-muted uppercase tracking-wider mb-3">Weergave</h2>
+        <div className="card px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm">Hoge schermen onder de statusbalk</div>
+              <div className="text-xs text-muted">Ruimte tussen notch en bovenkant van een sheet</div>
+            </div>
+            <button onClick={() => zetSheetMargin(sheetMargin - 8)} className="w-9 h-9 rounded-full text-lg" style={{ background: 'var(--color-surface-2)' }} aria-label="Minder">−</button>
+            <span className="text-sm font-semibold tabular-nums w-12 text-center">{sheetMargin} px</span>
+            <button onClick={() => zetSheetMargin(sheetMargin + 8)} className="w-9 h-9 rounded-full text-lg" style={{ background: 'var(--color-surface-2)' }} aria-label="Meer">+</button>
+          </div>
+          <p className="text-[11px] text-muted mt-2">Open daarna een vakantie om het effect te zien. Standaard {DEFAULT_SHEET_MARGIN} px.</p>
         </div>
       </section>
 

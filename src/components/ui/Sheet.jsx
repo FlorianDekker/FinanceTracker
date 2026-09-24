@@ -54,7 +54,8 @@ function capMaxHeight(maxHeight) {
   const m = /^(\d+(?:\.\d+)?)vh$/.exec(String(maxHeight ?? '').trim())
   // 100% (de zichtbare viewport) in plaats van 100vh: op iOS is 100vh de
   // gróte viewport en steekt een sheet anders alsnog onder de statusbalk uit.
-  if (m && Number(m[1]) >= 80) return 'calc(100% - env(safe-area-inset-top) - 48px)'
+  // De marge is instelbaar (Instellingen → Weergave) totdat de juiste waarde bekend is.
+  if (m && Number(m[1]) >= 80) return 'calc(100% - env(safe-area-inset-top) - var(--sheet-top-margin, 24px))'
   return maxHeight
 }
 

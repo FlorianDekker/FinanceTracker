@@ -101,8 +101,10 @@ export function TripCategoryDonut({ perCategory = [], showBank = false, onSelect
         const endY = y + Math.sin(hoek) * (outerRadius + 14)
         const rechts = endX > x
         let tailX = endX + (rechts ? 12 : -12)
-        if (rechts) { const maxX = chart.width - 20; if (tailX > maxX) { tailX = maxX; endX = Math.min(endX, tailX - 12) } }
-        else { const minX = 26; if (tailX < minX) { tailX = minX; endX = Math.max(endX, tailX + 12) } }
+        // Nooit de ring in: het einde van het lijntje blijft buiten de buitenrand.
+        const buiten = outerRadius + 4
+        if (rechts) { const maxX = chart.width - 18; if (tailX > maxX) { tailX = maxX; endX = Math.max(x + buiten, Math.min(endX, tailX - 8)) } }
+        else { const minX = 18; if (tailX < minX) { tailX = minX; endX = Math.min(x - buiten, Math.max(endX, tailX + 8)) } }
         ctx.save()
         ctx.strokeStyle = kleuren[i]
         ctx.lineWidth = 1
@@ -123,7 +125,7 @@ export function TripCategoryDonut({ perCategory = [], showBank = false, onSelect
   const options = {
     responsive: true,
     maintainAspectRatio: true,
-    layout: { padding: 28 },
+    layout: { padding: { left: 52, right: 52, top: 22, bottom: 22 } },
     cutout: '66%',
     animation: false,
     plugins: {

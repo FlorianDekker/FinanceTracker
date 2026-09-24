@@ -14,7 +14,7 @@ import { TripsPage } from './pages/TripsPage'
 import { WealthPage } from './pages/WealthPage'
 import { MonthProvider } from './hooks/useMonth'
 import { CategoriesProvider } from './hooks/useCategories'
-import { applyAccentColor } from './utils/theme'
+import { applyAccentColor, applySheetMargin, DEFAULT_SHEET_MARGIN, SHEET_MARGIN_SETTING } from './utils/theme'
 
 const BASENAME = '/FinanceTracker'
 
@@ -33,6 +33,9 @@ export default function App() {
     // Load accent color
     db.settings.get('accentColor').then(row => {
       if (row?.value) applyAccentColor(row.value)
+    })
+    db.settings.get(SHEET_MARGIN_SETTING).then(row => {
+      applySheetMargin(row?.value ?? DEFAULT_SHEET_MARGIN)
     })
   }, [])
 
