@@ -18,6 +18,11 @@
  * zitten maar tellen nergens mee: `isOpenClaim` houdt ze buiten de sommen.
  * Zonder Splitser is `myCost` gewoon `bankNet`.
  *
+ * De verdeling per (sub)categorie kent twee waarheden naast elkaar: `mine`
+ * (wat het jou kostte) en `bank` (wat er van je rekening ging). Sleutel is
+ * `categorie|subcategorie`, want binnen een vakantie zit alles in dezelfde
+ * categorie en doet alleen de sub ertoe.
+ *
  * Puur: geen db, geen React.
  */
 
@@ -81,6 +86,22 @@ function optellen(map, sleutel, waarde) {
 }
 
 /**
+ * Sleutel van de verdeling: categorie én subcategorie. Binnen een vakantie
+ * staat vrijwel alles in dezelfde categorie (Vakantie); de sub maakt het
+ * verschil tussen een vlucht en een terrasje.
+ */
+export const categoryKey = (category, subcategory) => `${category ?? ''}|${subcategory ?? ''}`
+
+// Telt op in de kolom `mine` of `bank` van één rij van de verdeling.
+function optellenRij(map, category, subcategory, kolom, waarde) {
+  if (!category) return
+  const sleutel = categoryKey(category, subcategory)
+  const rij = map.get(sleutel) ?? { key: sleutel, category, subcategory: subcategory ?? '', mine: 0, bank: 0 }
+  rij[kolom] = round2(rij[kolom] + waarde)
+  map.set(sleutel, rij)
+}
+
+/**
  * Alle cijfers van één vakantie.
  *
  * @param {{ items?: Array, transactions?: Array, from?: string, to?: string }} invoer
@@ -108,31 +129,40 @@ export function tripCosts({ items = [], transactions = [], from = null, to = nul
   const myCost = hasSplitser ? round2(splitserShare + bankNotCovered) : bankNet
   const reconcile = round2(bankNet - myCost)
 
-  // Per categorie en per dag: Splitser-regels met hun eigen aandeel, niet-
-  // gedekte bankregels met hun volle bedrag. Samen precies `myCost`.
+  // Per (sub)categorie twee waarheden naast elkaar:
+  //   mine  wat het jou kostte — Splitser-aandeel plus de niet-gedekte
+  //         bankregels; telt samen precies op tot `myCost`;
+  //   bank  wat er van je rekening ging — álle afschrijvingen van de reis,
+  //         ook die een Splitser-regel dekt (die schoot je immers voor).
+  // Per dag houden we één bedrag aan: dat is `mine`.
   const perCategorieMap = new Map()
   const perDagMap = new Map()
   if (hasSplitser) {
     for (const i of regels) {
-      optellen(perCategorieMap, i.category, Number(i.myShare) || 0)
+      optellenRij(perCategorieMap, i.category, i.subcategory, 'mine', Number(i.myShare) || 0)
       optellen(perDagMap, i.date, Number(i.myShare) || 0)
     }
   }
   for (const tx of (hasSplitser ? ongedekt : debits)) {
-    optellen(perCategorieMap, tx.category, bedrag(tx))
+    optellenRij(perCategorieMap, tx.category, tx.subcategory, 'mine', bedrag(tx))
     optellen(perDagMap, tx.date, bedrag(tx))
   }
   if (!hasSplitser) {
     for (const tx of credits) {
-      optellen(perCategorieMap, tx.category, -bedrag(tx))
+      optellenRij(perCategorieMap, tx.category, tx.subcategory, 'mine', -bedrag(tx))
       optellen(perDagMap, tx.date, -bedrag(tx))
     }
   }
+  for (const tx of debits) {
+    optellenRij(perCategorieMap, tx.category, tx.subcategory, 'bank', bedrag(tx))
+  }
 
-  const perCategory = [...perCategorieMap.entries()]
-    .map(([key, amount]) => ({ key, amount }))
-    .filter(r => Math.abs(r.amount) > 0.005)
-    .sort((a, b) => b.amount - a.amount)
+  const perCategory = [...perCategorieMap.values()]
+    // `amount` is de oude naam van `mine` en blijft bestaan: de donut en de
+    // kaartjes rekenen ermee.
+    .map(r => ({ ...r, amount: r.mine }))
+    .filter(r => Math.abs(r.mine) > 0.005 || Math.abs(r.bank) > 0.005)
+    .sort((a, b) => b.mine - a.mine || b.bank - a.bank)
   const perDay = [...perDagMap.entries()]
     .map(([date, amount]) => ({ date, amount }))
     .sort((a, b) => a.date.localeCompare(b.date))

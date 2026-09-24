@@ -8,6 +8,7 @@ import { takeFile } from '../../utils/fileInput'
 import { extractPdfText } from '../../utils/receipts/pdfText'
 import { categorizeWithLearning } from '../../utils/categorizer'
 import { checkMyShare, parseSplitserPdf, totalShareOf } from '../../utils/trips/splitser'
+import { findTripCategory, pickTripCategory } from '../../utils/trips/subcategory'
 import { euro, fmtDate } from '../../utils/formatters'
 
 /**
@@ -32,10 +33,7 @@ export function SplitserImportSheet({ trip, onClose }) {
 
   const mijnNaam = naam ?? trip.splitser?.myName ?? opgeslagenNaam
 
-  const vakantieKey = useMemo(() => {
-    const hit = allCategories.find(c => c.key === 'vakantie' || c.label?.toLowerCase() === 'vakantie')
-    return hit?.key ?? null
-  }, [allCategories])
+  const vakantieCat = useMemo(() => findTripCategory(allCategories), [allCategories])
 
   const byRole = useMemo(() => ({
     uncategorized: getByRole('uncategorized'),
@@ -98,10 +96,9 @@ export function SplitserImportSheet({ trip, onClose }) {
             isActiveKey: Object.keys(catMap).length ? isActiveKey : undefined,
             rules: userRules ?? [],
           })
-          // Niets herkend? Dan is Vakantie een betere gok dan de restbak.
-          const onbekend = r.source === 'unknown' || !r.cat || r.cat === byRole.uncategorized?.key
-          if (onbekend && vakantieKey) return { category: vakantieKey, subcategory: '' }
-          return { category: r.cat, subcategory: r.sub ?? '' }
+          // Op reis is alles Vakantie; de subcategorie doet het werk. Alleen
+          // wat de app eerder van jóu leerde mag daarbuiten vallen.
+          return pickTripCategory(r, { cat: vakantieCat, description: row.description })
         },
       })
       setResultaat(uit)
@@ -168,6 +165,12 @@ export function SplitserImportSheet({ trip, onClose }) {
             In Splitser: open de groep → Settlement → deel als PDF. De app leest de uitgaven,
             de verdeling en de controlegetallen ("Total spent" en de balans per lid).
           </p>
+          {!vakantieCat && (
+            <p className="text-xs text-orange mt-2">
+              Er is geen categorie Vakantie: de regels krijgen dan de categorie die de app herkent,
+              zonder vakantie-subcategorie.
+            </p>
+          )}
           {Array.isArray(trip.splitser?.imported) && trip.splitser.imported.length > 0 && (
             <p className="text-xs text-muted mt-3">
               Eerder geïmporteerd: {trip.splitser.imported.map(i => i.fileName || 'bestand').join(', ')}.

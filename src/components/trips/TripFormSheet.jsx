@@ -3,9 +3,10 @@ import { Sheet } from '../ui/Sheet'
 import { CountryPickerSheet } from './CountryPickerSheet'
 import { TripTransactionsSheet } from './TripTransactionsSheet'
 import { useCategories } from '../../hooks/useCategories'
-import { createTrip, updateTrip, useTripCandidates, useTripTransactions } from '../../hooks/useTrips'
+import { createTrip, recategorizeTripTransactions, updateTrip, useTripCandidates, useTripTransactions } from '../../hooks/useTrips'
 import { EmojiPickerLite } from '../ui/EmojiPickerLite'
 import { countryLabel, flagsOf } from '../../utils/trips/country'
+import { findTripCategory } from '../../utils/trips/subcategory'
 import { tripDays } from '../../utils/trips/suggest'
 import { euro, today } from '../../utils/formatters'
 
@@ -33,6 +34,9 @@ export function TripFormSheet({ trip = null, prefill = null, onClose, onSaved })
   const [kiezerOpen, setKiezerOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // Alleen bij een nieuwe vakantie: de gekozen uitgaven meteen op Vakantie
+  // zetten, met een subcategorie per regel.
+  const [opVakantie, setOpVakantie] = useState(true)
 
   // Zodra je zelf kiest, houdt de app op met voorstellen.
   const [zelfLanden, setZelfLanden] = useState((start.countries ?? []).length > 0)
@@ -49,10 +53,8 @@ export function TripFormSheet({ trip = null, prefill = null, onClose, onSaved })
     setIds(huidige.map(tx => tx.id))
   }
 
-  const vakantieKeys = useMemo(
-    () => allCategories.filter(c => c.key === 'vakantie' || c.label?.toLowerCase() === 'vakantie').map(c => c.key),
-    [allCategories],
-  )
+  const vakantieCat = useMemo(() => findTripCategory(allCategories), [allCategories])
+  const vakantieKeys = useMemo(() => (vakantieCat ? [vakantieCat.key] : []), [vakantieCat])
   const isIncomeKey = useCallback(key => catMap[key]?.type === 'income', [catMap])
 
   const kandidaten = useTripCandidates({ from, to, tripId: trip?.id ?? null, vakantieKeys, isIncomeKey })
@@ -80,6 +82,9 @@ export function TripFormSheet({ trip = null, prefill = null, onClose, onSaved })
     try {
       const velden = { name, from, to, countries, note, icon, transactionIds: ids }
       const id = trip ? (await updateTrip(trip.id, velden), trip.id) : await createTrip(velden)
+      // Ná het koppelen: pas dan weet `recategorizeTripTransactions` welke
+      // transacties bij de reis horen.
+      if (!trip && opVakantie) await recategorizeTripTransactions(id)
       onSaved?.(id)
       onClose()
     } catch (err) {
@@ -189,6 +194,23 @@ export function TripFormSheet({ trip = null, prefill = null, onClose, onSaved })
             </span>
             <span className="text-muted">›</span>
           </button>
+
+          {!trip && vakantieCat && (
+            <label className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: 'var(--color-surface-2)', minHeight: 44 }}>
+              <input
+                type="checkbox"
+                checked={opVakantie}
+                onChange={e => setOpVakantie(e.target.checked)}
+                style={{ width: 20, height: 20, accentColor: 'var(--color-accent)' }}
+              />
+              <span className="flex-1 text-sm">
+                Gekoppelde uitgaven op Vakantie zetten
+                <span className="block text-[11px] text-muted">
+                  met een subcategorie per regel; verrekeningen en declaraties blijven staan
+                </span>
+              </span>
+            </label>
+          )}
 
           <label className="block">
             <span className="text-xs text-muted">Notitie (optioneel)</span>

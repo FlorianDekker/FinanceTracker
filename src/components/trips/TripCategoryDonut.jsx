@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
 import { Doughnut } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js'
 import { useCategories } from '../../hooks/useCategories'
+import { findTripCategory, subLabelOf } from '../../utils/trips/subcategory'
 import { euro } from '../../utils/formatters'
 import { chartColors, tooltipTheme } from '../../utils/theme'
 
@@ -11,25 +13,42 @@ ChartJS.register(ArcElement, Tooltip)
  * maandverdeling: kleuren uit de categorieën, totaal in het midden, de rijen
  * eronder als balkjes.
  *
- * @param perCategory [{ key, amount }] uit `tripCosts`
+ * Binnen een vakantie staat bijna alles in dezelfde categorie, dus tonen we
+ * het label van de subcategorie (Vlucht, Vervoer, …) en houden we de partjes
+ * uit elkaar met een oplopende tint van de vakantiekleur.
+ *
+ * @param perCategory [{ key, category, subcategory, amount, mine, bank }] uit `tripCosts`
+ * @param showBank    tweede kolom "Bank" tonen (alleen zinvol mét Splitser)
  */
-export function TripCategoryDonut({ perCategory = [], onSelect }) {
-  const { catMap, colors } = useCategories()
-  const rijen = perCategory.filter(r => r.amount > 0)
-  const totaal = rijen.reduce((s, r) => s + r.amount, 0)
+export function TripCategoryDonut({ perCategory = [], showBank = false, onSelect }) {
+  const { catMap, colors, allCategories } = useCategories()
+  const vakantie = useMemo(() => findTripCategory(allCategories), [allCategories])
+
+  const catKeyOf = r => r.category ?? r.key
+  const rijen = perCategory.filter(r => r.amount > 0 || (showBank && (r.bank ?? 0) > 0))
+  const partjes = rijen.filter(r => r.amount > 0)
+  const totaal = partjes.reduce((s, r) => s + r.amount, 0)
 
   if (!rijen.length) {
     return <div className="text-center text-muted py-8 text-sm">Nog niets te verdelen</div>
   }
 
-  const kleur = key => colors[key] ?? '#8E8E93'
-  const label = key => catMap[key]?.label ?? key ?? 'Onbekend'
+  const isVakantie = r => vakantie && catKeyOf(r) === vakantie.key && r.subcategory
+  const label = r => (isVakantie(r)
+    ? subLabelOf(vakantie, r.subcategory)
+    : catMap[catKeyOf(r)]?.label ?? catKeyOf(r) ?? 'Onbekend')
+  const kleur = r => {
+    const basis = colors[catKeyOf(r)] ?? '#8E8E93'
+    if (!isVakantie(r)) return basis
+    const subs = vakantie.subs ?? []
+    return tint(basis, Math.max(0, subs.findIndex(s => s.key === r.subcategory)))
+  }
 
   const data = {
-    labels: rijen.map(r => label(r.key)),
+    labels: partjes.map(label),
     datasets: [{
-      data: rijen.map(r => r.amount),
-      backgroundColor: rijen.map(r => kleur(r.key)),
+      data: partjes.map(r => r.amount),
+      backgroundColor: partjes.map(kleur),
       borderWidth: 0,
       spacing: 2,
     }],
@@ -73,9 +92,17 @@ export function TripCategoryDonut({ perCategory = [], onSelect }) {
 
   return (
     <div>
-      <div className="mx-auto mb-3" style={{ maxWidth: 240 }}>
-        <Doughnut data={data} options={options} plugins={[midden]} />
-      </div>
+      {partjes.length > 0 && (
+        <div className="mx-auto mb-3" style={{ maxWidth: 240 }}>
+          <Doughnut data={data} options={options} plugins={[midden]} />
+        </div>
+      )}
+      {showBank && (
+        <div className="flex justify-end gap-3 pr-3 mb-1 text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-muted)' }}>
+          <span>Voor jou</span>
+          <span>Bank</span>
+        </div>
+      )}
       <div className="space-y-1">
         {rijen.map(r => {
           const pct = totaal > 0 ? (r.amount / totaal) * 100 : 0
@@ -87,20 +114,40 @@ export function TripCategoryDonut({ perCategory = [], onSelect }) {
             >
               <div
                 className="absolute inset-y-0 left-0 rounded-xl"
-                style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: kleur(r.key), opacity: 0.15 }}
+                style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: kleur(r), opacity: 0.15 }}
               />
-              <div className="w-2.5 h-2.5 rounded-full shrink-0 relative" style={{ backgroundColor: kleur(r.key) }} />
+              <div className="w-2.5 h-2.5 rounded-full shrink-0 relative" style={{ backgroundColor: kleur(r) }} />
               <div className="flex-1 min-w-0 text-left relative text-sm truncate">
-                {catMap[r.key]?.icon ?? '📦'} {label(r.key)}
+                {catMap[catKeyOf(r)]?.icon ?? '📦'} {label(r)}
               </div>
-              <div className="text-right relative">
-                <div className="text-sm font-bold tabular-nums">{euro(r.amount)}</div>
-                <div className="text-[10px] text-muted tabular-nums">{Math.round(pct)}%</div>
-              </div>
+              {showBank ? (
+                <div className="flex items-baseline gap-3 relative shrink-0">
+                  <span className="text-sm font-bold tabular-nums">{euro(r.amount)}</span>
+                  <span className="text-[11px] text-muted tabular-nums" style={{ minWidth: 54, textAlign: 'right' }}>
+                    {euro(r.bank ?? 0)}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-right relative">
+                  <div className="text-sm font-bold tabular-nums">{euro(r.amount)}</div>
+                  <div className="text-[10px] text-muted tabular-nums">{Math.round(pct)}%</div>
+                </div>
+              )}
             </button>
           )
         })}
       </div>
     </div>
   )
+}
+
+// Zelfde kleur, iets lichter per stap: alle vakantie-subs delen immers de
+// kleur van Vakantie en zouden anders één massief rondje vormen.
+function tint(hex, stap) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex ?? ''))
+  if (!stap || !m) return hex
+  const n = parseInt(m[1], 16)
+  const mix = Math.min(0.5, stap * 0.13)
+  const kanaal = v => Math.round(v + (255 - v) * mix).toString(16).padStart(2, '0')
+  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map(kanaal).join('')}`
 }

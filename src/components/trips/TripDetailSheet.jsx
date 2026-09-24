@@ -9,6 +9,7 @@ import { TransactionForm } from '../transactions/TransactionForm'
 import { useCategories } from '../../hooks/useCategories'
 import {
   deleteTrip,
+  recategorizeTripTransactions,
   setTripTransactions,
   useTrip,
   useTripCandidates,
@@ -16,6 +17,7 @@ import {
   useTripTransactions,
 } from '../../hooks/useTrips'
 import { tripCosts } from '../../utils/trips/costs'
+import { findTripCategory, needsTripCategory, subLabelOf } from '../../utils/trips/subcategory'
 import { tripIcon } from '../../utils/trips/country'
 import { euro, euroParts, fmtDate } from '../../utils/formatters'
 import { isOpenClaim } from '../../utils/claims'
@@ -44,10 +46,8 @@ export function TripDetailSheet({ tripId, onClose }) {
   const [kiezerOpen, setKiezerOpen] = useState(false)
   const [splitserOpen, setSplitserOpen] = useState(false)
 
-  const vakantieKeys = useMemo(
-    () => allCategories.filter(c => c.key === 'vakantie' || c.label?.toLowerCase() === 'vakantie').map(c => c.key),
-    [allCategories],
-  )
+  const vakantieCat = useMemo(() => findTripCategory(allCategories), [allCategories])
+  const vakantieKeys = useMemo(() => (vakantieCat ? [vakantieCat.key] : []), [vakantieCat])
   const isIncomeKey = useCallback(key => catMap[key]?.type === 'income', [catMap])
   const kandidaten = useTripCandidates({
     from: trip?.from, to: trip?.to, tripId: tripId, vakantieKeys, isIncomeKey,
@@ -71,6 +71,21 @@ export function TripDetailSheet({ tripId, onClose }) {
 
   const laden = items == null || txs == null
   const gedekt = new Set(costs.coveredTxIds)
+  // Binnen een vakantie zegt "Vakantie" niets; de sub wel.
+  const vakLabel = (category, subcategory) => (
+    vakantieCat && category === vakantieCat.key && subcategory
+      ? subLabelOf(vakantieCat, subcategory)
+      : catMap[category]?.label ?? category
+  )
+  const teDoen = (txs ?? []).filter(tx => needsTripCategory(tx, vakantieCat?.key)).length
+
+  async function zetOpVakantie() {
+    if (!window.confirm(
+      `${teDoen} ${teDoen === 1 ? 'uitgave' : 'uitgaven'} van deze reis op Vakantie zetten, `
+      + 'met een subcategorie per regel? De verrekeningen en lopende declaraties blijven zoals ze zijn.'
+    )) return
+    await recategorizeTripTransactions(trip.id)
+  }
 
   async function verwijder() {
     if (!window.confirm(`"${trip.name}" verwijderen? De transacties blijven staan en verliezen alleen hun vakantie.`)) return
@@ -110,7 +125,7 @@ export function TripDetailSheet({ tripId, onClose }) {
           )}
 
           <div className="card p-4 mt-3">
-            <TripCategoryDonut perCategory={costs.perCategory} />
+            <TripCategoryDonut perCategory={costs.perCategory} showBank={costs.hasSplitser} />
           </div>
 
           <div className="flex gap-1 mt-3 p-1 rounded-xl" style={{ background: 'var(--color-surface-2)' }}>
@@ -151,7 +166,7 @@ export function TripDetailSheet({ tripId, onClose }) {
                     key={r.sleutel}
                     icoon={catMap[r.tx.category]?.icon ?? '💸'}
                     label={r.tx.note || catMap[r.tx.category]?.label || r.tx.category}
-                    meta={`${fmtDate(r.tx.date)} · ${catMap[r.tx.category]?.label ?? r.tx.category}`}
+                    meta={`${fmtDate(r.tx.date)} · ${vakLabel(r.tx.category, r.tx.subcategory)}`}
                     badge="bank"
                     amount={r.tx.amount}
                     onClick={() => setEditTx(r.tx)}
@@ -175,7 +190,7 @@ export function TripDetailSheet({ tripId, onClose }) {
                     key={tx.id}
                     icoon={catMap[tx.category]?.icon ?? '💸'}
                     label={tx.note || catMap[tx.category]?.label || tx.category}
-                    meta={`${fmtDate(tx.date)} · ${catMap[tx.category]?.label ?? tx.category}`}
+                    meta={`${fmtDate(tx.date)} · ${vakLabel(tx.category, tx.subcategory)}`}
                     badge={
                       isOpenClaim(tx) ? 'declaratie'
                       : tx.type === 'credit' ? 'verrekening'
@@ -190,6 +205,17 @@ export function TripDetailSheet({ tripId, onClose }) {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {teDoen > 0 && (
+          <div className="px-4 pt-4">
+            <button
+              onClick={zetOpVakantie}
+              className="w-full rounded-xl py-2.5 text-xs font-semibold bg-accent-dim text-accent"
+            >
+              ✈️ Zet {teDoen} gekoppelde {teDoen === 1 ? 'uitgave' : 'uitgaven'} op Vakantie
+            </button>
           </div>
         )}
 

@@ -252,3 +252,52 @@ alleen één kolom.
 - `recategorizeTripTransactions`: gematchte regel wint, bijschrijving en open
   declaratie blijven, learning-event met `was/from`.
 - `tripCosts`: `bank` naast `mine` per sleutel; Brugge-fixture doorrekenen.
+
+### Gebouwd (24 sep 2026) — en de keuzes die de spec openliet
+
+```
+src/utils/trips/subcategory.js   TRIP_SUBS, guessTripSub, findTripCategory,
+                                 tripSubKey/subLabelOf, needsTripCategory, pickTripCategory
+src/hooks/useTrips.js            ensureTripSubcategories(+Once), recategorizeTripTransactions
+src/utils/trips/costs.js         perCategory op 'categorie|sub' met `mine` én `bank`
+src/constants/categories.js      de zeven subs staan bij `vakantie`
+components/trips/                TripCategoryDonut (sub-labels, tinten, bankkolom),
+                                 TripDetailSheet (knop), TripFormSheet (vinkje),
+                                 SplitserImportSheet (altijd Vakantie + sub)
+tests/unit/trips-subs.test.mjs
+```
+
+- **Twee soorten sub-sleutels.** `guessTripSub` geeft de *kanonieke* sleutel uit
+  de tabel hierboven. `ensureTripSubcategories` gebruikt `addSub`, en die maakt
+  de sleutel uit het label: in een bestaande database wordt 'Boodschappen' dus
+  `boodschappen` en 'Overig' `overig`, terwijl een verse installatie de sleutels
+  uit `DEFAULT_CATEGORIES` krijgt (`boodschappen_vakantie`, `overig_vakantie`).
+  `tripSubKey(cat, kanoniek)` vertaalt daartussen: eerst op sleutel, dan op
+  label, anders de kanonieke sleutel. Alles wat naar de database schrijft gaat
+  door `tripSubKey`.
+- **Trefwoorden.** 'pain' is toegevoegd aan eten & drinken, anders viel "Le pain
+  quotidien" in de restbak. Trefwoorden van hoogstens twee tekens ('ov') matchen
+  alleen als heel woord, anders zit 'ov' in "overnachting". Bij gelijkspel wint
+  eerst het *langste* trefwoord (Spar → boodschappen i.p.v. 'spa', huurauto →
+  vervoer i.p.v. 'huur') en pas daarna de volgorde van de tabel.
+- **Wat telt als "geleerd"?** Alleen de merchant-learning (`source` ≠ `rules` /
+  `unknown`). De ingebouwde regels uit `constants/rules.js` kennen het verschil
+  tussen thuis en op reis niet en overrulen de Vakantie-keuze dus niet.
+- **`recategorizeTripTransactions`** gebruikt de sub van de gematchte
+  Splitser-regel alleen als die regel zelf in Vakantie staat; anders raadt hij
+  op `tx.note`. De learning-events gaan met `{ was: true, from: oudeCategorie }`
+  de historie in, net als bij een handmatige correctie.
+- **`ensureTripSubcategories()`** draait via `ensureTripSubcategoriesOnce()` —
+  een module-variabele met de belofte — één keer per app-sessie, aangeroepen in
+  een `useEffect` op de Vakanties-pagina. Zonder Vakantie-categorie meldt de
+  pagina dat (en de Splitser-import ook).
+- **Verdeling.** `perCategory` levert `{ key: 'categorie|sub', category,
+  subcategory, mine, bank, amount }`; `amount` blijft de oude naam van `mine`
+  zodat de donut ongewijzigd kon blijven rekenen. Een rij telt mee zodra `mine`
+  óf `bank` niet nul is — zo blijft een via Splitser gedekte bankregel in een
+  andere categorie zichtbaar. `perDay` blijft één bedrag (`mine`).
+  De bestaande test `trips.test.mjs` ("een gematchte bankregel telt niet
+  dubbel") is hierop aangepast; dat is de enige bewuste gedragswijziging.
+- **Donut.** Alle vakantie-subs delen de kleur van Vakantie, dus krijgt elke sub
+  een oplopende tint van die kleur — anders is de ring één massief vlak. De
+  bankkolom staat alleen naast "Voor jou" als er Splitser-regels zijn.

@@ -139,7 +139,10 @@ await t('een gematchte bankregel telt niet dubbel', () => {
   assert.equal(c.myCost, 75)
   assert.equal(c.bankNet, 85)
   assert.equal(c.reconcile, 10, 'zoveel schoot je voor')
-  assert.deepEqual(c.perCategory, [{ key: 'boodschappen', amount: 50 }, { key: 'reiskosten', amount: 25 }])
+  // De verdeling loopt op 'categorie|sub'; de gedekte bankregel staat met zijn
+  // eigen categorie (Vakantie) in de kolom `bank`, niet in `mine`.
+  assert.deepEqual(c.perCategory.map(r => [r.key, r.mine, r.bank]),
+    [['boodschappen|', 50, 0], ['reiskosten|', 25, 25], ['vakantie|', 0, 60]])
   assert.deepEqual(c.perDay, [{ date: '2026-07-11', amount: 30 }, { date: '2026-07-12', amount: 45 }])
   assert.equal(c.perCategory.reduce((s, r) => s + r.amount, 0), c.myCost, 'de verdeling telt op tot myCost')
 })

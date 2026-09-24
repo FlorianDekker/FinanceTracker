@@ -1,8 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import { addSub } from './useCategories'
 import { clusterTrips, shiftDate, suggestTripTransactions, filterIgnored, ignoreEntriesFor } from '../utils/trips/suggest'
 import { diffSplitserRows, round2, shareOf } from '../utils/trips/splitser'
 import { suggestMatches, tripCosts } from '../utils/trips/costs'
+import { findTripCategory, guessTripSub, needsTripCategory, tripSubKey, TRIP_SUBS } from '../utils/trips/subcategory'
+import { recordEvent } from '../utils/merchantLearning'
 
 /**
  * Vakanties: de Dexie-kant. Alle rekenregels staan puur in `src/utils/trips/*`;
@@ -327,4 +330,80 @@ export async function setTripItemMatch(itemId, txId) {
     }
     await db.tripItems.update(itemId, { matchedTxId: txId ?? null })
   })
+}
+
+/* ------------------------------------------------------------------ *
+ * Subcategorieën van Vakantie                                          *
+ * ------------------------------------------------------------------ */
+
+/**
+ * Zorgt dat de categorie Vakantie de vaste subs heeft (Vlucht, Vervoer, …).
+ *
+ * Eén keer per installatie genoeg: een Vakantie-categorie die al subs heeft
+ * laten we met rust — die heeft de gebruiker zelf ingericht. `addSub` maakt de
+ * sleutel uit het label, dus in een bestaande database kan 'Boodschappen'
+ * `boodschappen` heten in plaats van `boodschappen_vakantie`; `tripSubKey`
+ * vertaalt daartussen.
+ *
+ * @returns {Promise<{ok: boolean, key: string|null, added: number}>}
+ *          `ok: false` = er is helemaal geen categorie Vakantie.
+ */
+export async function ensureTripSubcategories() {
+  const cat = findTripCategory(await db.categories.toArray())
+  if (!cat) return { ok: false, key: null, added: 0 }
+  if (Array.isArray(cat.subs) && cat.subs.length) return { ok: true, key: cat.key, added: 0 }
+  for (const sub of TRIP_SUBS) await addSub(cat.key, sub.label)
+  return { ok: true, key: cat.key, added: TRIP_SUBS.length }
+}
+
+// Module-variabele: de Vakanties-pagina vraagt dit bij elke render, maar de
+// controle hoeft maar één keer per app-sessie te draaien.
+let subsBelofte = null
+
+export function ensureTripSubcategoriesOnce() {
+  subsBelofte ??= ensureTripSubcategories()
+  return subsBelofte
+}
+
+/**
+ * Zet de gekoppelde uitgaven van een vakantie in één keer op Vakantie + sub.
+ *
+ * Alleen afschrijvingen die er nog niet in staan; bijschrijvingen
+ * (verrekeningen) en lopende declaraties blijven zoals ze zijn. De sub komt
+ * van de gematchte Splitser-regel als die er een heeft, anders geraden uit de
+ * bankomschrijving. Elke wijziging gaat als correctie de merchant-learning in,
+ * zodat dezelfde partij de volgende keer meteen goed staat.
+ *
+ * @returns {Promise<number>} aantal gewijzigde transacties
+ */
+export async function recategorizeTripTransactions(tripId) {
+  const cat = findTripCategory(await db.categories.toArray())
+  if (!cat) return 0
+
+  const txs = await db.transactions.where('tripId').equals(tripId).toArray()
+  const items = await db.tripItems.where('tripId').equals(tripId).toArray()
+  const perTx = new Map(items.filter(i => i.matchedTxId != null).map(i => [i.matchedTxId, i]))
+
+  const wijzigingen = txs
+    .filter(tx => needsTripCategory(tx, cat.key))
+    .map(tx => {
+      const item = perTx.get(tx.id)
+      // De Splitser-regel wint: daar heeft de gebruiker de sub al gezien.
+      const sub = item && item.category === cat.key && item.subcategory
+        ? item.subcategory
+        : tripSubKey(cat, guessTripSub(tx.note))
+      return { tx, sub }
+    })
+  if (!wijzigingen.length) return 0
+
+  await db.transaction('rw', db.transactions, async () => {
+    for (const { tx, sub } of wijzigingen) {
+      await db.transactions.update(tx.id, { category: cat.key, subcategory: sub })
+    }
+  })
+  for (const { tx, sub } of wijzigingen) {
+    if (!tx.note) continue
+    await recordEvent(tx.note, cat.key, sub, tx.amount, 'debit', null, { was: true, from: tx.category })
+  }
+  return wijzigingen.length
 }

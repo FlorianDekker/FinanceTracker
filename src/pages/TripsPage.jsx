@@ -1,9 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageWrapper } from '../components/layout/PageWrapper'
 import { TripFormSheet } from '../components/trips/TripFormSheet'
 import { TripDetailSheet } from '../components/trips/TripDetailSheet'
-import { useTripSuggestions, useTripsOverview, useTripIgnore, ignoreTripCluster, clearTripIgnore } from '../hooks/useTrips'
+import {
+  useTripSuggestions,
+  useTripsOverview,
+  useTripIgnore,
+  ignoreTripCluster,
+  clearTripIgnore,
+  ensureTripSubcategoriesOnce,
+} from '../hooks/useTrips'
 import { countryName, flagsOf, tripIcon } from '../utils/trips/country'
 import { euro, fmtDate } from '../utils/formatters'
 
@@ -19,6 +26,11 @@ export function TripsPage() {
   const negeer = useTripIgnore()
   const [form, setForm] = useState(null)      // { trip } of { prefill }
   const [detailId, setDetailId] = useState(null)
+  const [subs, setSubs] = useState(null)      // uitkomst van ensureTripSubcategories
+
+  // De vaste subcategorieën van Vakantie (Vlucht, Vervoer, …) één keer per
+  // app-sessie controleren; bestaande subs blijven zoals ze zijn.
+  useEffect(() => { ensureTripSubcategoriesOnce().then(setSubs, () => setSubs(null)) }, [])
 
   const laden = overzicht == null
 
@@ -38,6 +50,13 @@ export function TripsPage() {
       </div>
 
       {laden && <div className="text-center text-muted py-12 text-sm">Laden…</div>}
+
+      {subs && !subs.ok && (
+        <p className="px-5 pt-2 text-[11px] text-orange">
+          Er is geen categorie Vakantie. Maak hem aan bij Instellingen → Categorieën; dan kan de app
+          uitgaven op reis onderverdelen in vlucht, vervoer, overnachting en zo verder.
+        </p>
+      )}
 
       {!laden && (negeer.txIds.length > 0 || negeer.notes.length > 0) && (voorstellen?.length ?? 0) === 0 && (
         <div className="px-4 pt-2 text-center">

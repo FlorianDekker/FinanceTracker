@@ -70,12 +70,22 @@ export const DEFAULT_CATEGORIES = [
     ],
   },
   {
+    // De subs komen terug in het vakantiescherm (`src/utils/trips/subcategory.js`):
+    // binnen een reis zegt "Vakantie" niets meer, de sub wél.
     key: 'vakantie',
     label: 'Vakantie',
     icon: '✈️',
     order: 6,
     type: 'expense',
-    subs: [],
+    subs: [
+      { key: 'vlucht', label: 'Vlucht' },
+      { key: 'vervoer', label: 'Vervoer' },
+      { key: 'overnachting', label: 'Overnachting' },
+      { key: 'eten_drinken', label: 'Eten & drinken' },
+      { key: 'activiteiten', label: 'Activiteiten' },
+      { key: 'boodschappen_vakantie', label: 'Boodschappen' },
+      { key: 'overig_vakantie', label: 'Overig' },
+    ],
   },
   {
     key: 'afspreken_vrienden',
