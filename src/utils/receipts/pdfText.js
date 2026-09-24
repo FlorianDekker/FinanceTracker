@@ -16,6 +16,63 @@ function isNodeRuntime() {
 }
 
 /** Laadt pdf.js lui en precies één keer. */
+/**
+ * pdf.js leest tekst met `for await (const chunk of readableStream)`. Safari
+ * kent asynchrone iteratie over een ReadableStream pas sinds kort; op iOS
+ * daarvoor gaf dat "undefined is not a function (near '...e of t...')" midden
+ * in getTextContent. Dit vult de standaard-iterator in als hij ontbreekt.
+ */
+function polyfillStreamIteration() {
+  if (typeof ReadableStream === 'undefined') return
+  const proto = ReadableStream.prototype
+  if (proto[Symbol.asyncIterator]) return
+  if (typeof proto.values !== 'function') {
+    proto.values = function values({ preventCancel = false } = {}) {
+      const reader = this.getReader()
+      return {
+        async next() {
+          try {
+            const r = await reader.read()
+            if (r.done) reader.releaseLock()
+            return r
+          } catch (err) {
+            reader.releaseLock()
+            throw err
+          }
+        },
+        async return(value) {
+          if (preventCancel) reader.releaseLock()
+          else { const c = reader.cancel(value); reader.releaseLock(); await c }
+          return { done: true, value }
+        },
+        [Symbol.asyncIterator]() { return this },
+      }
+    }
+  }
+  proto[Symbol.asyncIterator] = proto.values
+}
+
+/**
+ * De tekst van één pagina, zonder te leunen op pdf.js' eigen `for await`
+ * (zie polyfillStreamIteration): we lezen de stream zelf met een reader.
+ */
+async function readTextContent(page) {
+  const stream = page.streamTextContent?.()
+  if (!stream?.getReader) return page.getTextContent()
+  const reader = stream.getReader()
+  const items = []
+  try {
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      if (Array.isArray(value?.items)) items.push(...value.items)
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  return { items }
+}
+
 export function loadPdfjs() {
   if (!pdfjsPromise) {
     pdfjsPromise = (async () => {
@@ -28,6 +85,7 @@ export function loadPdfjs() {
       // De legacy-build: de moderne build leunt op Promise.withResolvers en
       // Iterator-helpers, en die ontbreken op iOS-versies die verder prima
       // zijn ("undefined is not a function (near '...e of t...')" in Safari).
+      polyfillStreamIteration()
       const mod = await import('pdfjs-dist/legacy/build/pdf.mjs')
       const worker = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')
       mod.GlobalWorkerOptions.workerSrc = worker.default
@@ -116,7 +174,7 @@ export async function extractPdfText(arrayBuffer, opties = {}) {
     for (let p = 1; p <= max; p++) {
       const page = await doc.getPage(p)
       try {
-        const content = await page.getTextContent()
+        const content = await readTextContent(page)
         pageTexts.push(itemsToLines(content.items).join('\n'))
       } finally {
         page.cleanup?.()
