@@ -94,7 +94,7 @@ export function TripItemSheet({ item, transactions = [], myName, startIn = null,
             {loading && <div className="px-3 py-3 text-xs text-muted">Afschrijvingen zoeken…</div>}
             {!loading && sorteerKandidaten(transactions, item).length === 0 && (
               <div className="px-3 py-3 text-xs text-muted">
-                Geen afschrijvingen gevonden rond {fmtDate(item.date)} (± 3 dagen). Staat deze betaling al in de app?
+                Geen afschrijvingen gevonden in de vakantieperiode (± 2 weken). Staat deze betaling al in de app?
                 Importeer anders eerst je bankafschrift van die periode.
               </div>
             )}
@@ -149,8 +149,9 @@ export function TripItemSheet({ item, transactions = [], myName, startIn = null,
 }
 
 /**
- * Afschrijvingen gesorteerd op hoe goed ze bij de regel passen: eerst gelijk
- * bedrag (dichtste datum eerst, gemarkeerd als voorstel), dan de rest op datum.
+ * Afschrijvingen gesorteerd op hoe goed ze bij de regel passen: eerst álle
+ * regels met exact hetzelfde bedrag (dichtste datum eerst; gemarkeerd als
+ * voorstel — ook als de bank pas dagen later boekte), dan de rest op datum.
  */
 function sorteerKandidaten(transactions, item) {
   const dagen = (a, b) => Math.abs((Date.parse(`${a}T00:00:00`) - Date.parse(`${b}T00:00:00`)) / 86400000)
@@ -159,7 +160,7 @@ function sorteerKandidaten(transactions, item) {
     .map(tx => {
       const gelijk = Math.abs((Number(tx.amount) || 0) - (Number(item.amount) || 0)) <= 0.01
       const afstand = dagen(item.date, tx.date)
-      return { tx, afstand, voorstel: gelijk && afstand <= 3 }
+      return { tx, afstand, voorstel: gelijk }
     })
     .sort((a, b) => (a.voorstel !== b.voorstel ? (a.voorstel ? -1 : 1) : a.afstand - b.afstand))
 }

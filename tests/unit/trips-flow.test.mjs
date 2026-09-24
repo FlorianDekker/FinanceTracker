@@ -187,6 +187,24 @@ await t('automatch trekt mijn losse pinbetaling uit de periode de vakantie in en
   assert.equal(tx.tripId, tripId, 'de pinbetaling hangt nu aan de vakantie')
   const item = (await db.tripItems.where('tripId').equals(tripId).toArray())[0]
   assert.equal(item.matchedTxId, txId, 'en is gekoppeld aan de Splitser-regel (datum 1 dag later mag)')
+
+  // Een bank die pas dagen later boekt: exact bedrag binnen 10 dagen koppelt ook.
+  const laatId = await db.transactions.add({
+    date: '2026-07-28', amount: 7, type: 'debit', category: 'boodschappen', subcategory: '',
+    note: 'FRITUUR BRUGGE Land: BEL', claimStatus: null, claimBatchId: null, tripId: null,
+  })
+  await T.importSplitserRows(tripId, {
+    rows: [
+      { date: '2026-07-22', description: 'Le pain quotidien', amount: 29.3, payer: 'Florian',
+        participants: [{ name: 'Florian', share: 14.65 }, { name: 'Sterre', share: 14.65 }] },
+      { date: '2026-07-22', description: 'Frietje 1', amount: 7, payer: 'Florian',
+        participants: [{ name: 'Florian', share: 3.5 }, { name: 'Sterre', share: 3.5 }] },
+    ],
+    myName: 'Florian',
+  })
+  const friet = (await db.tripItems.where('tripId').equals(tripId).toArray()).find(i => i.description === 'Frietje 1')
+  assert.equal(friet.matchedTxId, laatId, 'zes dagen later geboekt, toch gekoppeld')
+  assert.equal((await db.transactions.get(laatId)).tripId, tripId)
   assert.equal((await db.transactions.get(anderId)).tripId, null, 'het andere bedrag blijft los')
 })
 

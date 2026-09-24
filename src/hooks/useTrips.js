@@ -294,12 +294,12 @@ export async function importSplitserRows(tripId, { rows = [], myName, fileName =
 }
 
 /**
- * Banktransacties die bij deze vakantie kúnnen horen: al gekoppeld, óf nog
- * los (geen vakantie) en in de periode ± `marge` dagen. Splitser weet wat jij
+ * Banktransacties die bij deze vakantie kúnnen horen: al gekoppeld, óf in de
+ * periode ± `marge` dagen (ruim, want een bank boekt soms dagen later). Splitser weet wat jij
  * pinde; daarmee vinden we je betalingen ook als je ze nog niet zelf had
  * gekoppeld.
  */
-export async function tripCandidateTransactions(trip, { marge = 3 } = {}) {
+export async function tripCandidateTransactions(trip, { marge = 14 } = {}) {
   if (!trip) return []
   const gekoppeld = await db.transactions.where('tripId').equals(trip.id).toArray()
   if (!trip.from || !trip.to) return gekoppeld
@@ -339,7 +339,9 @@ export async function autoMatchTripItems(tripId, myName) {
   // laten we staan (dat kies je desnoods met de hand).
   const vrij = kandidaten.filter(tx => !bezet.has(tx.id) && (tx.tripId == null || tx.tripId === tripId))
 
-  const matches = suggestMatches(open, vrij, naam, { dagen: 3 })
+  // Banken boeken soms dagen later; een exact bedrag binnen 10 dagen is
+  // vrijwel zeker dezelfde betaling.
+  const matches = suggestMatches(open, vrij, naam, { dagen: 10 })
   if (!matches.size) return 0
   const perId = new Map(vrij.map(tx => [tx.id, tx]))
   await db.transaction('rw', db.tripItems, db.transactions, async () => {
