@@ -11,7 +11,7 @@ import { euro, fmtDate } from '../../utils/formatters'
  * het importeren van een bankbestand) en aanwijzen welke banktransactie erbij
  * hoort. Die koppeling bepaalt of de bankregel nog los meetelt in de kosten.
  */
-export function TripItemSheet({ item, transactions = [], myName, onClose }) {
+export function TripItemSheet({ item, transactions = [], myName, startIn = null, onClose }) {
   const { catMap } = useCategories()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [matchOpen, setMatchOpen] = useState(false)
@@ -130,6 +130,7 @@ export function TripItemSheet({ item, transactions = [], myName, onClose }) {
         onClose={() => setPickerOpen(false)}
         title="Categorie van deze regel"
         filterType="expense"
+        startIn={startIn}
       />
     </>
   )

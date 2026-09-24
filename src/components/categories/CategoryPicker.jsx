@@ -13,6 +13,8 @@ import { CategoryEditSheet } from './CategoryEditSheet'
  *  - title, subtitle, filterType ('expense' | 'income' | 'transfer'), excludeKey
  *  - allowCreate: toon "+ nieuwe (sub)categorie" (standaard true; uitzetten
  *    voor de "verplaats naar"-kiezer binnen CategoryEditSheet zelf)
+ *  - startIn: open meteen op het subniveau van deze categorie (bijv. Vakantie
+ *    vanuit een vakantie) — scheelt een tik; "‹ Terug" brengt je naar alles
  */
 export function CategoryPicker({
   open,
@@ -24,12 +26,15 @@ export function CategoryPicker({
   filterType,
   excludeKey,
   allowCreate = true,
+  startIn = null,
 }) {
   const { categories, catMap, addSub } = useCategories()
+  // Startniveau: het subniveau van `startIn` als die categorie subs heeft.
+  const startKey = startIn && catMap[startIn]?.subs?.length ? startIn : null
   // Alleen de key bewaren, niet het hele object: na addSub is een bewaard
   // object verouderd (de nieuwe sub staat er nog niet in). `parent` leiden
   // we hieronder bij elke render af uit de actuele catMap.
-  const [parentKey, setParentKey] = useState(null)
+  const [parentKey, setParentKey] = useState(startKey)
   const [wasOpen, setWasOpen] = useState(open)
   const [creating, setCreating] = useState(false)
   const [addingSub, setAddingSub] = useState(false)
@@ -40,7 +45,7 @@ export function CategoryPicker({
   // het aanbevolen patroon voor 'state afleiden van een prop-wissel').
   if (open !== wasOpen) {
     setWasOpen(open)
-    setParentKey(null)
+    setParentKey(startKey)
     setCreating(false)
     setAddingSub(false)
     setSubName('')

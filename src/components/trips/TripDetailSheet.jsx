@@ -114,8 +114,8 @@ export function TripDetailSheet({ tripId, onClose }) {
           {costs.hasSplitser && Math.abs(costs.reconcile) > 0.5 && (
             <p className="text-[11px] text-muted mt-2 px-1">
               {costs.reconcile > 0
-                ? `Er staat nog ${euro(costs.reconcile)} open: zoveel schoot je voor en kreeg je (nog) niet terug.`
-                : `Je betaalde ${euro(-costs.reconcile)} minder via de bank dan je eigen deel — een reisgenoot schoot dat voor.`}
+                ? `Via de bank ging ${euro(costs.reconcile)} méér af dan je eigen deel. Dat is wat je voorschoot en (nog) niet terugkreeg — of een verrekening die nog niet gekoppeld is.`
+                : `Via de bank ging ${euro(-costs.reconcile)} minder af dan je eigen deel. Dat klopt als een reisgenoot voorschoot en jij contant of buiten deze rekening terugbetaalde — of je eigen pinbetalingen zijn nog niet aan deze vakantie gekoppeld.`}
             </p>
           )}
           {costs.openClaimCount > 0 && (
@@ -239,10 +239,12 @@ export function TripDetailSheet({ tripId, onClose }) {
           item={(items ?? []).find(i => i.id === item.id) ?? item}
           transactions={txs ?? []}
           myName={trip.splitser?.myName}
+          startIn={vakantieCat?.key ?? null}
           onClose={() => setItem(null)}
         />
       )}
-      {editTx && <TransactionForm existing={editTx} onClose={() => setEditTx(null)} />}
+      {/* Vanuit een vakantie opent de kiezer meteen in Vakantie › … */}
+      {editTx && <TransactionForm existing={editTx} pickerStartIn={vakantieCat?.key ?? null} onClose={() => setEditTx(null)} />}
       {formOpen && <TripFormSheet trip={trip} onClose={() => setFormOpen(false)} />}
       {splitserOpen && <SplitserImportSheet trip={trip} onClose={() => setSplitserOpen(false)} />}
       {kiezerOpen && (

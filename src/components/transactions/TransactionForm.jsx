@@ -17,8 +17,10 @@ import { flagsOf } from '../../utils/trips/country'
  *  - existing: bestaande transactie (bewerken)
  *  - prefill: beginwaarden voor een nieuwe transactie (bijv. vanuit een bon)
  *  - onSaved(id): na opslaan, met het id van de (nieuwe) transactie
+ *  - pickerStartIn: categoriekiezer meteen op het subniveau van deze categorie
+ *    openen (vanuit een vakantie: Vakantie)
  */
-export function TransactionForm({ onClose, existing, prefill, onSaved }) {
+export function TransactionForm({ onClose, existing, prefill, onSaved, pickerStartIn = null }) {
   const { catMap } = useCategories()
   const start = existing ?? prefill ?? {}
   const [date, setDate] = useState(start.date ?? today())
@@ -292,6 +294,7 @@ export function TransactionForm({ onClose, existing, prefill, onSaved }) {
         // Een deeldeclaratie moet in een uitgavencategorie blijven staan: anders
         // zou hij als inkomen gaan meetellen in plaats van als negatieve uitgave.
         filterType={partial ? 'expense' : undefined}
+        startIn={pickerStartIn}
       />
     </>
   )

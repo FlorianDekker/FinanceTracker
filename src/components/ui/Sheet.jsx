@@ -74,7 +74,13 @@ function SheetInner({
       <div
         ref={sheetRef}
         className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-y-auto overscroll-contain animate-slide-up"
-        style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-sheet)', maxHeight }}
+        // Nooit tot onder de notch/statusbalk: een hoge sheet stopt op de
+        // veilige bovenrand, hoe groot maxHeight ook is.
+        style={{
+          background: 'var(--color-surface)',
+          boxShadow: 'var(--shadow-sheet)',
+          maxHeight: `min(${maxHeight}, calc(100vh - env(safe-area-inset-top) - 12px))`,
+        }}
       >
         {/* Kop blijft staan tijdens scrollen, inclusief het greepje */}
         <div
