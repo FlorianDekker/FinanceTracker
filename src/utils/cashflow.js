@@ -57,6 +57,9 @@ export function cashflowPerMonth(txs, catMap, transferKey, months) {
   for (const tx of txs ?? []) {
     if (!countsInTotals(tx)) continue
     if (transferKey && tx.category === transferKey) continue
+    // Overboekingen (sparen, investeren) zijn geen uitgave én geen inkomen:
+    // het geld is er nog, het staat alleen ergens anders.
+    if (catMap?.[tx.category]?.type === 'transfer') continue
     if (tx.category === VOORSCHOT_KEY) continue
 
     const emmer = emmers.get(String(tx.date ?? '').slice(0, 7))

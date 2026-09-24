@@ -3,6 +3,7 @@ import { PageWrapper } from '../components/layout/PageWrapper'
 import { WealthHeader } from '../components/wealth/WealthHeader'
 import { BufferSheet } from '../components/wealth/BufferSheet'
 import { ProjectionChart } from '../components/wealth/ProjectionChart'
+import { WealthHistoryChart } from '../components/wealth/WealthHistoryChart'
 import { AccountsCard } from '../components/wealth/AccountsCard'
 import { ReservationsCard } from '../components/wealth/ReservationsCard'
 import { GoalsCard } from '../components/wealth/GoalsCard'
@@ -21,7 +22,7 @@ import { euro } from '../utils/formatters'
 import { activeAccounts, totalWealth } from '../utils/wealth/accounts'
 import { allocateGoals } from '../utils/wealth/goals'
 import { wealthHistory } from '../utils/wealth/history'
-import { monthLabelLong, monthOf, monthsBetween, round2 } from '../utils/wealth/months'
+import { monthOf, monthsBetween, round2 } from '../utils/wealth/months'
 import { projectWealth } from '../utils/wealth/projection'
 import { freeWealth, reservationTotals } from '../utils/wealth/reservations'
 
@@ -41,6 +42,7 @@ export function WealthPage() {
   const buffer = useWealthBuffer()
   const projectionMonths = useProjectionMonths()
   const [bufferOpen, setBufferOpen] = useState(false)
+  const [projectieOpen, setProjectieOpen] = useState(false)
   const gestart = useRef(false)
 
   // Hoe ver moeten we terugkijken? Tot het oudste spaardoel begon.
@@ -102,53 +104,51 @@ export function WealthPage() {
           onBuffer={() => setBufferOpen(true)}
         />
 
+        {/* Verloop van je vermogen: de hoofdgrafiek. */}
         <div className="px-4">
-          <div className="flex items-center justify-between mb-2 px-1">
-            <h2 className="text-[10px] font-semibold uppercase tracking-widest m-0" style={{ color: 'var(--color-muted)' }}>
-              Red ik het?
-            </h2>
-            <button onClick={() => setBufferOpen(true)} className="text-xs font-medium" style={{ color: 'var(--color-accent)' }}>
-              {projectionMonths} mnd
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            <Kengetal
-              label="Per maand"
-              waarde={euro(perMaand)}
-              onder={laatste6.months > 0 ? `gem. ${laatste6.months} mnd` : 'nog geen maanden'}
-            />
-            <Kengetal
-              label="Laagste punt"
-              waarde={euro(projectie.low.balance)}
-              onder={monthLabelLong(projectie.low.month)}
-              toon={projectie.low.balance < buffer ? 'red' : 'green'}
-            />
-            <Kengetal
-              label="Onder buffer"
-              waarde={projectie.firstBelow ? monthLabelLong(projectie.firstBelow) : 'Nee'}
-              onder={projectie.firstBelow ? 'let op' : 'blijft boven buffer'}
-              toon={projectie.firstBelow ? 'red' : 'green'}
-              klein
-            />
-          </div>
-
+          <h2 className="text-[10px] font-semibold uppercase tracking-widest mb-2 px-1" style={{ color: 'var(--color-muted)' }}>
+            Verloop
+          </h2>
           <div className="card p-3">
-            <ProjectionChart projection={projectie} />
+            <WealthHistoryChart history={verloop} />
             <p className="text-[11px] text-center mt-2" style={{ color: 'var(--color-muted)' }}>
-              Vanaf volgende maand: {euro(perMaand)} erbij, reserveringen eraf. De stippellijn is je buffer.
+              Som van je rekeningen per dag. Groeit vanzelf: elke keer dat je hier komt of een saldo bijwerkt.
             </p>
-            {projectie.unplanned > 0 && (
-              <div className="mt-2 rounded-xl px-3 py-2 text-[11px] flex justify-between"
-                style={{ background: 'var(--color-orange-dim)', color: 'var(--color-text)' }}>
-                <span>Nog ongepland (&ldquo;ooit&rdquo;)</span>
-                <span className="tabular-nums font-semibold">{euro(projectie.unplanned)}</span>
-              </div>
-            )}
           </div>
         </div>
 
-        <AccountsCard accounts={accounts} history={verloop} />
+        {/* Projectie: ingeklapt, voor als je wilt weten of je het redt. */}
+        <div className="px-4">
+          <button
+            onClick={() => setProjectieOpen(o => !o)}
+            className="w-full flex items-center justify-between px-1 mb-2"
+          >
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest m-0" style={{ color: 'var(--color-muted)' }}>
+              {projectieOpen ? '▾' : '▸'} Vooruitkijken · red ik het?
+            </h2>
+            <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
+              {euro(perMaand)}/mnd · {projectionMonths} mnd
+            </span>
+          </button>
+          {projectieOpen && (
+            <div className="card p-3">
+              <ProjectionChart projection={projectie} />
+              <p className="text-[11px] text-center mt-2" style={{ color: 'var(--color-muted)' }}>
+                Vanaf volgende maand: {euro(perMaand)} erbij (gemiddeld gespaard, laatste {laatste6.months} mnd), reserveringen eraf op hun maand. Stippellijn = buffer.
+                {' '}<button onClick={() => setBufferOpen(true)} style={{ color: 'var(--color-accent)' }}>Buffer en horizon</button>
+              </p>
+              {projectie.unplanned > 0 && (
+                <div className="mt-2 rounded-xl px-3 py-2 text-[11px] flex justify-between"
+                  style={{ background: 'var(--color-orange-dim)', color: 'var(--color-text)' }}>
+                  <span>Nog ongepland (&ldquo;ooit&rdquo;)</span>
+                  <span className="tabular-nums font-semibold">{euro(projectie.unplanned)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <AccountsCard accounts={accounts} />
         <ReservationsCard reservations={reservations} />
         <GoalsCard goals={goals} allocations={verdeling} />
       </div>
@@ -157,18 +157,5 @@ export function WealthPage() {
         <BufferSheet buffer={buffer} months={projectionMonths} onClose={() => setBufferOpen(false)} />
       )}
     </PageWrapper>
-  )
-}
-
-function Kengetal({ label, waarde, onder, toon = 'neutral', klein = false }) {
-  const kleur = toon === 'red' ? 'var(--color-red)' : toon === 'green' ? 'var(--color-green)' : 'var(--color-text)'
-  return (
-    <div className="card p-3 text-center">
-      <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-muted)' }}>{label}</div>
-      <div className={`${klein ? 'text-sm' : 'text-base'} font-extrabold tabular-nums leading-tight mt-1`} style={{ color: kleur }}>
-        {waarde}
-      </div>
-      <div className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{onder}</div>
-    </div>
   )
 }

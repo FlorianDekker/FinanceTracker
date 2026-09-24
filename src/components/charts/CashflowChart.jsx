@@ -131,23 +131,22 @@ export function CashflowChart() {
 
   const monthPct = pct(monthRate(current))
   const geenInkomen = monthPct == null
-  // Zonder inkomen deze maand zegt "gespaard deze maand" niets; dan tonen we
-  // het jaar. Met inkomen: het echte maandsaldo (kan negatief zijn).
+  // Het jaar staat groot; de lopende maand er klein onder (kan negatief zijn).
   const maandSaldo = (current?.income ?? 0) - (current?.expenses ?? 0)
-  const getoond = geenInkomen ? jaar.saved : maandSaldo
-  const toon = getoond >= 0 ? 'green' : 'red'
+  const toon = jaar.saved >= 0 ? 'green' : 'red'
+  const maandTekst = geenInkomen
+    ? 'deze maand nog geen inkomen'
+    : `deze maand ${maandSaldo < 0 ? '−' : ''}${euro(Math.abs(maandSaldo))} · ${monthPct}%`
 
   return (
     <div>
       {/* Stats card */}
       <div className="card p-5 mb-4">
         <StatCard
-          label={geenInkomen ? 'Gespaard dit jaar' : 'Gespaard deze maand'}
-          value={Math.abs(getoond)}
+          label="Gespaard dit jaar"
+          value={Math.abs(jaar.saved)}
           tone={toon}
-          delta={geenInkomen
-            ? `${yearPct}% van je inkomen dit jaar`
-            : `${monthPct}% deze maand · ${yearPct}% dit jaar`}
+          delta={`${yearPct}% van je inkomen · ${maandTekst}`}
           deltaTone={toon}
           deltaOpacity={0.3}
         />
@@ -164,20 +163,15 @@ export function CashflowChart() {
         </div>
         <div className="flex justify-between mt-2">
           <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
-            {euro(geenInkomen ? jaar.expenses : (current?.expenses ?? 0))} uitgaven
+            {euro(jaar.expenses)} uitgaven
           </span>
           <span className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
-            balk: spaarpercentage {new Date().getFullYear()}
+            {new Date().getFullYear()} · {jaar.months} mnd met inkomen
           </span>
           <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
-            {euro(geenInkomen ? jaar.income : (current?.income ?? 0))} inkomen
+            {euro(jaar.income)} inkomen
           </span>
         </div>
-        {geenInkomen && (
-          <p className="text-[11px] text-center mt-2" style={{ color: 'var(--color-muted)' }}>
-            Nog geen inkomen deze maand ({euro(current?.expenses ?? 0)} uitgegeven) — de maand telt pas mee zodra je salaris binnen is.
-          </p>
-        )}
       </div>
 
       {/* Chart */}

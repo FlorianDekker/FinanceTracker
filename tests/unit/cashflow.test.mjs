@@ -123,5 +123,20 @@ t('zonder transfer-categorie gaat het gewoon door', () => {
   assert.deepEqual(C.cashflowPerMonth(null, catMap, null, M)[0].income, 0)
 })
 
+
+t('type Overboeking (bijv. Investeren) telt niet als uitgave en drukt het spaarpercentage niet', () => {
+  const catMap = { salaris: { type: 'income' }, boodschappen: { type: 'expense' }, investeren: { type: 'transfer' } }
+  const txs = [
+    { date: '2026-03-01', amount: 3000, type: 'credit', category: 'salaris' },
+    { date: '2026-03-05', amount: 400, type: 'debit', category: 'boodschappen' },
+    { date: '2026-03-06', amount: 500, type: 'debit', category: 'investeren' },
+    { date: '2026-03-20', amount: 50, type: 'credit', category: 'investeren' },
+  ]
+  const [m] = C.cashflowPerMonth(txs, catMap, null, [{ year: 2026, month: 3 }])
+  assert.equal(m.expenses, 400)
+  assert.equal(m.income, 3000)
+  assert.equal(m.saved, 2600)
+})
+
 console.log(`\n${pass} ok, ${fail} fout`)
 process.exit(fail ? 1 : 0)

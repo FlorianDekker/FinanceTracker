@@ -25,8 +25,10 @@ export function useBudgetStats(year, month) {
       const catType = catMap[tx.category]?.type
       // Skip income credits (salary) — they're not spending
       if (tx.type === 'credit' && catType === 'income') continue
-      // Skip de overboekingscategorie (rol 'transfer') volledig
+      // Skip de overboekingscategorie (rol 'transfer') en alles van het type
+      // Overboeking (sparen, investeren): geen uitgave, het geld is er nog.
       if (transferKey && tx.category === transferKey) continue
+      if (catType === 'transfer') continue
       const amount = tx.type === 'credit' ? -tx.amount : tx.amount
       const m = Number(tx.date.slice(5, 7))
       if (tx.date.startsWith(prefix)) {

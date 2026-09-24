@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { AccountSheet } from './AccountSheet'
-import { WealthHistoryChart } from './WealthHistoryChart'
 import { euro, fmtDate } from '../../utils/formatters'
 import { kindOf } from '../../utils/wealth/accounts'
 
@@ -8,9 +7,8 @@ import { kindOf } from '../../utils/wealth/accounts'
  * Je rekeningen met hun saldo, en daaronder — ingeklapt — het verloop van je
  * totale vermogen. Gearchiveerde rekeningen staan onderaan en tellen niet mee.
  */
-export function AccountsCard({ accounts, history }) {
+export function AccountsCard({ accounts }) {
   const [sheet, setSheet] = useState(null)        // { account } of { nieuw: true }
-  const [verloopOpen, setVerloopOpen] = useState(false)
   const [archiefOpen, setArchiefOpen] = useState(false)
 
   const actief = (accounts ?? []).filter(a => !a.archived)
@@ -53,18 +51,6 @@ export function AccountsCard({ accounts, history }) {
             </>
           )}
 
-          <button
-            onClick={() => setVerloopOpen(o => !o)}
-            className="w-full px-4 py-2.5 text-left text-[11px] font-medium"
-            style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-accent)' }}
-          >
-            {verloopOpen ? '▾ Verloop verbergen' : '▸ Verloop van je vermogen'}
-          </button>
-          {verloopOpen && (
-            <div className="px-3 pb-3">
-              <WealthHistoryChart history={history} />
-            </div>
-          )}
         </div>
       </div>
 
