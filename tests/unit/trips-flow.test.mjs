@@ -165,5 +165,30 @@ await t('verwijderen laat de transacties staan, zonder vakantie', async () => {
   assert.equal(await db.transactions.count(), 6, 'geen transactie verdwenen')
 })
 
+
+await t('automatch trekt mijn losse pinbetaling uit de periode de vakantie in en koppelt hem', async () => {
+  const tripId = await T.createTrip({ name: 'Brugge-test', from: '2026-07-21', to: '2026-07-22', countries: ['BEL'], transactionIds: [] })
+  // Mijn pinbetaling staat al in de bank, maar hangt nog aan géén vakantie.
+  const txId = await db.transactions.add({
+    date: '2026-07-23', amount: 29.3, type: 'debit', category: 'boodschappen', subcategory: '',
+    note: 'LE PAIN QUOTIDIEN BRUGGE Land: BEL', claimStatus: null, claimBatchId: null, tripId: null,
+  })
+  // Een ander bedrag in de periode blijft los.
+  const anderId = await db.transactions.add({
+    date: '2026-07-22', amount: 12, type: 'debit', category: 'boodschappen', subcategory: '',
+    note: 'IETS ANDERS Land: BEL', claimStatus: null, claimBatchId: null, tripId: null,
+  })
+  await T.importSplitserRows(tripId, {
+    rows: [{ date: '2026-07-22', description: 'Le pain quotidien', amount: 29.3, payer: 'Florian',
+      participants: [{ name: 'Florian', share: 14.65 }, { name: 'Sterre', share: 14.65 }] }],
+    myName: 'Florian',
+  })
+  const tx = await db.transactions.get(txId)
+  assert.equal(tx.tripId, tripId, 'de pinbetaling hangt nu aan de vakantie')
+  const item = (await db.tripItems.where('tripId').equals(tripId).toArray())[0]
+  assert.equal(item.matchedTxId, txId, 'en is gekoppeld aan de Splitser-regel (datum 1 dag later mag)')
+  assert.equal((await db.transactions.get(anderId)).tripId, null, 'het andere bedrag blijft los')
+})
+
 console.log(`\n${pass} geslaagd, ${fail} mislukt`)
 process.exit(fail ? 1 : 0)

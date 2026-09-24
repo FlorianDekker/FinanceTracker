@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Sheet } from '../ui/Sheet'
 import { TripCategoryDonut } from './TripCategoryDonut'
 import { TripItemSheet } from './TripItemSheet'
@@ -15,6 +15,8 @@ import {
   useTripCandidates,
   useTripItems,
   useTripTransactions,
+  autoMatchTripItems,
+  useTripCandidateTransactions,
 } from '../../hooks/useTrips'
 import { tripCosts } from '../../utils/trips/costs'
 import { findTripCategory, needsTripCategory, subLabelOf } from '../../utils/trips/subcategory'
@@ -38,6 +40,11 @@ export function TripDetailSheet({ tripId, onClose }) {
   const trip = useTrip(tripId)
   const items = useTripItems(tripId)
   const txs = useTripTransactions(tripId)
+  const kandidaten = useTripCandidateTransactions(trip)
+
+  // Bij openen: Splitser-regels die jij betaalde alsnog aan bankregels
+  // koppelen — ook aan betalingen die pas later zijn geïmporteerd.
+  useEffect(() => { autoMatchTripItems(tripId).catch(() => {}) }, [tripId])
 
   const [tab, setTab] = useState('regels')
   const [item, setItem] = useState(null)
@@ -237,7 +244,7 @@ export function TripDetailSheet({ tripId, onClose }) {
       {item && (
         <TripItemSheet
           item={(items ?? []).find(i => i.id === item.id) ?? item}
-          transactions={txs ?? []}
+          transactions={kandidaten ?? txs ?? []}
           myName={trip.splitser?.myName}
           startIn={vakantieCat?.key ?? null}
           onClose={() => setItem(null)}

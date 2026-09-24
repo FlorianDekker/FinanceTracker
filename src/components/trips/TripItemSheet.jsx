@@ -91,11 +91,12 @@ export function TripItemSheet({ item, transactions = [], myName, startIn = null,
               checked={item.matchedTxId == null}
               onSelect={() => setTripItemMatch(item.id, null)}
             />
-            {transactions.filter(tx => tx.type === 'debit').map(tx => (
+            {/* Beste kandidaten bovenaan: zelfde bedrag, datum dichtbij. */}
+            {sorteerKandidaten(transactions, item).map(({ tx, voorstel, los }) => (
               <Keuze
                 key={tx.id}
-                label={tx.note || catMap[tx.category]?.label || tx.category}
-                meta={`${fmtDate(tx.date)} · ${euro(tx.amount)}`}
+                label={`${voorstel ? '★ ' : ''}${tx.note || catMap[tx.category]?.label || tx.category}`}
+                meta={`${fmtDate(tx.date)} · ${euro(tx.amount)}${voorstel ? ' · voorstel' : ''}${los ? ' · nog niet in deze vakantie' : ''}`}
                 checked={item.matchedTxId === tx.id}
                 onSelect={() => setTripItemMatch(item.id, tx.id)}
               />
@@ -134,6 +135,22 @@ export function TripItemSheet({ item, transactions = [], myName, startIn = null,
       />
     </>
   )
+}
+
+/**
+ * Afschrijvingen gesorteerd op hoe goed ze bij de regel passen: eerst gelijk
+ * bedrag (dichtste datum eerst, gemarkeerd als voorstel), dan de rest op datum.
+ */
+function sorteerKandidaten(transactions, item) {
+  const dagen = (a, b) => Math.abs((Date.parse(`${a}T00:00:00`) - Date.parse(`${b}T00:00:00`)) / 86400000)
+  return (transactions ?? [])
+    .filter(tx => tx.type === 'debit')
+    .map(tx => {
+      const gelijk = Math.abs((Number(tx.amount) || 0) - (Number(item.amount) || 0)) <= 0.01
+      const afstand = dagen(item.date, tx.date)
+      return { tx, afstand, voorstel: gelijk && afstand <= 3, los: tx.tripId == null }
+    })
+    .sort((a, b) => (a.voorstel !== b.voorstel ? (a.voorstel ? -1 : 1) : a.afstand - b.afstand))
 }
 
 function Keuze({ label, meta, checked, onSelect }) {

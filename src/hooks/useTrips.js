@@ -215,6 +215,8 @@ export async function deleteTrip(tripId) {
 /** Zet precies deze transacties op de vakantie; de rest laat hem los. */
 export async function setTripTransactions(tripId, ids) {
   await db.transaction('rw', db.transactions, () => koppel(tripId, ids))
+  // Nieuwe bankregels kunnen Splitser-regels dekken die nog los stonden.
+  await autoMatchTripItems(tripId)
 }
 
 // Binnen een lopende Dexie-transactie: verschil bepalen en alleen dat schrijven.
@@ -292,22 +294,55 @@ export async function importSplitserRows(tripId, { rows = [], myName, fileName =
 }
 
 /**
- * Koppelt Splitser-regels die ík voorschoot aan hun banktransactie.
+ * Banktransacties die bij deze vakantie kúnnen horen: al gekoppeld, óf nog
+ * los (geen vakantie) en in de periode ± `marge` dagen. Splitser weet wat jij
+ * pinde; daarmee vinden we je betalingen ook als je ze nog niet zelf had
+ * gekoppeld.
+ */
+export async function tripCandidateTransactions(trip, { marge = 3 } = {}) {
+  if (!trip) return []
+  const gekoppeld = await db.transactions.where('tripId').equals(trip.id).toArray()
+  if (!trip.from || !trip.to) return gekoppeld
+  const los = await db.transactions
+    .where('date').between(shiftDate(trip.from, -marge), shiftDate(trip.to, marge), true, true)
+    .filter(tx => tx.tripId == null && tx.type === 'debit')
+    .toArray()
+  return [...gekoppeld, ...los]
+}
+
+export function useTripCandidateTransactions(trip) {
+  const key = trip ? `${trip.id}|${trip.from}|${trip.to}` : ''
+  return useLiveQuery(() => tripCandidateTransactions(trip), [key], null)
+}
+
+/**
+ * Koppelt Splitser-regels die ík voorschoot aan hun banktransactie: zelfde
+ * bedrag, datum dichtbij. Kijkt óók naar bankregels die nog niet aan de
+ * vakantie hangen — die worden dan meteen aan de vakantie gekoppeld.
  * Bestaande (handmatige) koppelingen blijven met rust.
+ * @returns {Promise<number>} aantal nieuwe koppelingen
  */
 export async function autoMatchTripItems(tripId, myName) {
-  const naam = myName ?? (await db.trips.get(tripId))?.splitser?.myName ?? (await getSplitserName())
+  const trip = await db.trips.get(tripId)
+  if (!trip) return 0
+  const naam = myName ?? trip.splitser?.myName ?? (await getSplitserName())
   const items = await db.tripItems.where('tripId').equals(tripId).toArray()
-  const txs = await db.transactions.where('tripId').equals(tripId).toArray()
-
-  const bezet = new Set(items.map(i => i.matchedTxId).filter(id => id != null))
   const open = items.filter(i => i.matchedTxId == null)
-  const vrij = txs.filter(tx => !bezet.has(tx.id))
+  if (!open.length) return 0
 
-  const matches = suggestMatches(open, vrij, naam)
+  const kandidaten = await tripCandidateTransactions(trip)
+  const bezet = new Set(items.map(i => i.matchedTxId).filter(id => id != null))
+  const vrij = kandidaten.filter(tx => !bezet.has(tx.id))
+
+  const matches = suggestMatches(open, vrij, naam, { dagen: 3 })
   if (!matches.size) return 0
-  await db.transaction('rw', db.tripItems, async () => {
-    for (const [itemId, txId] of matches) await db.tripItems.update(itemId, { matchedTxId: txId })
+  const perId = new Map(vrij.map(tx => [tx.id, tx]))
+  await db.transaction('rw', db.tripItems, db.transactions, async () => {
+    for (const [itemId, txId] of matches) {
+      await db.tripItems.update(itemId, { matchedTxId: txId })
+      // Een losse bankregel hoort vanaf nu bij deze vakantie.
+      if (perId.get(txId)?.tripId == null) await db.transactions.update(txId, { tripId })
+    }
   })
   return matches.size
 }
@@ -320,13 +355,16 @@ export async function updateTripItem(itemId, patch = {}) {
 export async function setTripItemMatch(itemId, txId) {
   const item = await db.tripItems.get(itemId)
   if (!item) return
-  await db.transaction('rw', db.tripItems, async () => {
+  await db.transaction('rw', db.tripItems, db.transactions, async () => {
     // Eén banktransactie hoort bij hoogstens één Splitser-regel.
     if (txId != null) {
       const anderen = await db.tripItems.where('tripId').equals(item.tripId).toArray()
       for (const a of anderen) {
         if (a.id !== itemId && a.matchedTxId === txId) await db.tripItems.update(a.id, { matchedTxId: null })
       }
+      // Een bankregel die nog los stond hoort vanaf nu bij deze vakantie.
+      const tx = await db.transactions.get(txId)
+      if (tx && tx.tripId == null) await db.transactions.update(txId, { tripId: item.tripId })
     }
     await db.tripItems.update(itemId, { matchedTxId: txId ?? null })
   })
