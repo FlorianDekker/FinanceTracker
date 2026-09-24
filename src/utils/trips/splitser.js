@@ -209,6 +209,15 @@ export function parseSplitserPdf(input) {
   }
   if (rest) overgeslagen.push(rest)
 
+  // Een in Splitser verwijderde uitgave staat doorgestreept in de PDF, maar
+  // in de tekstlaag als gewone regel. Als precies één regel het verschil met
+  // "Total spent" (en de balans per lid) verklaart, is dat die regel.
+  const verwijderd = findDeletedRow(rows, totalSpent, balance)
+  if (verwijderd) {
+    rows.splice(rows.indexOf(verwijderd), 1)
+    warnings.push(`Doorgestreepte regel overgeslagen: "${verwijderd.description}" €${verwijderd.amount.toFixed(2)} (verwijderd in Splitser).`)
+  }
+
   const sumAmounts = round2(rows.reduce((s, r) => s + r.amount, 0))
   const datums = rows.map(r => r.date).sort()
 
@@ -230,6 +239,26 @@ export function parseSplitserPdf(input) {
     to: datums[datums.length - 1] ?? null,
     warnings,
   }
+}
+
+/**
+ * Welke regel is in Splitser verwijderd (doorgestreept)? Alleen als het
+ * verschil tussen de regels en "Total spent" door precies één regel wordt
+ * verklaard — en, als de Balance-sectie er is, ook ieders aandeel klopt.
+ * @returns de rij, of null
+ */
+export function findDeletedRow(rows, totalSpent, balance = {}) {
+  if (totalSpent == null || !rows?.length) return null
+  const som = round2(rows.reduce((s, r) => s + r.amount, 0))
+  const verschil = round2(som - totalSpent)
+  if (verschil <= 0.01) return null
+  const kandidaten = rows.filter(r => Math.abs(r.amount - verschil) <= 0.01)
+  const leden = Object.keys(balance ?? {}).filter(m => balance[m]?.expensesMinus != null)
+  const passend = kandidaten.filter(r => leden.every(m => {
+    const aandeel = round2(rows.reduce((s, x) => s + shareOf(x, m), 0))
+    return Math.abs(round2(aandeel - shareOf(r, m)) - balance[m].expensesMinus) <= 0.01
+  }))
+  return passend.length === 1 ? passend[0] : null
 }
 
 /** Het aandeel van `naam` in één regel (0 als hij niet meedeed). */

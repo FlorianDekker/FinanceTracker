@@ -1,0 +1,39 @@
+Settlement - Brugge
+24 September, 2026
+Settlement
+Florian is owed €7.20 by Sterre €7.20
+Sterre owes €7.20 to Florian €7.20
+Settlement - Brugge
+24 September, 2026
+Balance
+Expenses Incomes Payments
+Member Balance + - + - + -
+Florian €7.20 €137.20 €130.00 €0.00 €0.00 €0.00 €0.00
+Sterre -€7.20 €122.80 €130.00 €0.00 €0.00 €0.00 €0.00
+Settlement - Brugge
+24 September, 2026
+Expenses
+Payer Description Amount Date Participants
+Sterre De garre €10.00 22-07-2026 Florian (€5.00), Sterre (€5.00)
+Sterre De garre €13.00 22-07-2026 Florian (€6.50), Sterre (€6.50)
+Sterre De garre €30.00 22-07-2026 Florian (€6.50), Sterre (€23.50)
+Sterre Eten €11.90 22-07-2026 Florian (€5.95), Sterre (€5.95)
+Florian Frietje 1 €7.00 22-07-2026 Florian (€3.50), Sterre (€3.50)
+Florian Joeys cafe €9.40 22-07-2026 Florian (€4.70), Sterre (€4.70)
+Sterre Koffietj €10.20 22-07-2026 Florian (€5.10), Sterre (€5.10)
+Florian Koffietje zaterdag €9.50 22-07-2026 Florian (€4.75), Sterre (€4.75)
+Florian Le pain quotidien €29.30 22-07-2026 Florian (€14.65), Sterre (€14.65)
+Sterre Museum 1 €26.00 22-07-2026 Florian (€13.00), Sterre (€13.00)
+Sterre Museum 2 €26.00 22-07-2026 Florian (€13.00), Sterre (€13.00)
+Florian Nuba cafe €8.40 22-07-2026 Florian (€4.20), Sterre (€4.20)
+Continuing on next page
+Settlement - Brugge
+24 September, 2026
+Payer Description Amount Date Participants
+Florian Olive streetfood €17.40 22-07-2026 Florian (€8.70), Sterre (€8.70)
+Sterre Proeverij €15.00 22-07-2026 Florian (€7.50), Sterre (€7.50)
+Florian Restant indiaas (deel contant) €25.50 22-07-2026 Florian (€12.75), Sterre (€12.75)
+Florian Slechte bakker €5.70 22-07-2026 Florian (€2.85), Sterre (€2.85)
+Sterre Sportsbar €10.70 22-07-2026 Florian (€5.35), Sterre (€5.35)
+Florian Contant €25.00 21-07-2026 Florian (€12.50), Sterre (€12.50)
+Total spent €260.00

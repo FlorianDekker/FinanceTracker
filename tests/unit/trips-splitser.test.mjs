@@ -154,5 +154,33 @@ await t('twee identieke regels in één settlement blijven twee regels', () => {
   assert.deepEqual(d.toRemove, [])
 })
 
+
+await t('Brugge: de doorgestreepte (verwijderde) regel wordt herkend en overgeslagen', async () => {
+  const brugge = readFileSync(new URL('../../docs/voorbeelden/splitser-brugge.txt', import.meta.url), 'utf8')
+  const r = S.parseSplitserPdf(brugge)
+  assert.equal(r.rows.length, 17, '18 regels in de tekst, 1 doorgestreept')
+  assert.equal(r.sumAmounts, 260)
+  assert.equal(r.totalSpent, 260)
+  assert.ok(!r.rows.some(x => x.amount === 30 && x.description === 'De garre'), 'De garre €30 is weg')
+  assert.ok(r.rows.some(x => x.amount === 10 && x.description === 'De garre'), 'de andere De garre-regels blijven')
+  assert.equal(S.totalShareOf(r.rows, 'Florian'), 130)
+  assert.equal(S.checkMyShare(r, 'Florian').ok, true)
+  assert.ok(r.warnings.some(w => /Doorgestreepte regel/.test(w)))
+  assert.ok(!r.warnings.some(w => /tellen op tot/.test(w)), 'geen totaal-waarschuwing meer')
+  assert.deepEqual(r.members, ['Florian', 'Sterre'])
+  assert.equal(r.from, '2026-07-21'); assert.equal(r.to, '2026-07-22')
+})
+
+await t('findDeletedRow: twee kandidaten met hetzelfde bedrag → geen gok', () => {
+  const rows = [
+    { description: 'A', amount: 10, participants: [{ name: 'F', share: 5 }, { name: 'S', share: 5 }] },
+    { description: 'B', amount: 10, participants: [{ name: 'F', share: 5 }, { name: 'S', share: 5 }] },
+    { description: 'C', amount: 4, participants: [{ name: 'F', share: 2 }, { name: 'S', share: 2 }] },
+  ]
+  assert.equal(S.findDeletedRow(rows, 14, {}), null)
+  assert.equal(S.findDeletedRow(rows, 24, {}), null, 'geen verschil → niets')
+  assert.equal(S.findDeletedRow(rows, 20, {})?.description, 'C')
+})
+
 console.log(`\n${pass} geslaagd, ${fail} mislukt`)
 process.exit(fail ? 1 : 0)
