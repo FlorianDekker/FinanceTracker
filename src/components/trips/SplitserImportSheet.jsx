@@ -75,7 +75,10 @@ export function SplitserImportSheet({ trip, onClose }) {
     } catch (err) {
       // Welke stap ging mis? Dat scheelt gokken als het op een telefoon gebeurt.
       const kop = fase === 'lezen' ? 'De PDF kon niet worden gelezen' : 'De tekst kon niet worden verwerkt'
-      setError(`${kop}: ${err?.message ?? err}`)
+      // De eerste regel van de stack wijst naar de plek in de (gebundelde) code;
+      // op een telefoon is dat de enige manier om te zien wáár het misging.
+      const waar = String(err?.stack ?? '').split('\n').find(r => /@|at /.test(r) && /\.m?js/.test(r))
+      setError(`${kop}: ${err?.message ?? err}${waar ? ` — ${waar.trim().slice(0, 160)}` : ''}`)
     } finally {
       setBezig(false)
     }
