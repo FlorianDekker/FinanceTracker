@@ -170,3 +170,85 @@ Kleine keuzes die de spec openliet:
 ## Buiten scope (nu)
 
 Meerdere valuta (Splitser rekent al in €), foto's, delen met reisgenoten.
+
+## Uitbreiding (24 sep 2026): vakantie-subcategorieën en twee waarheden
+
+Besluit met Florian: binnen een vakantie werken we met **subcategorieën van
+de categorie Vakantie**, en de twee bronnen (Splitser = wat het jou kostte,
+bank = wat er van je rekening ging) blijven zichtbaar naast elkaar.
+
+### 1. Vaste subcategorieën van Vakantie
+Standaard-subs (in `src/constants/categories.js` bij `vakantie`, en eenmalig
+toegevoegd aan een bestaande Vakantie-categorie die nog géén subs heeft — via
+een `ensureTripSubcategories()` die bij het openen van de Vakanties-pagina
+draait; bestaande subs nooit overschrijven of hernoemen):
+
+| key | label |
+|---|---|
+| `vlucht` | Vlucht |
+| `vervoer` | Vervoer |
+| `overnachting` | Overnachting |
+| `eten_drinken` | Eten & drinken |
+| `activiteiten` | Activiteiten |
+| `boodschappen_vakantie` | Boodschappen |
+| `overig_vakantie` | Overig |
+
+De Vakantie-categorie wordt gevonden via key `vakantie`, anders op label
+"Vakantie" (hoofdletterongevoelig). Bestaat hij niet: dan niets doen en in de
+UI melden dat er geen Vakantie-categorie is.
+
+### 2. Sub raden op omschrijving (puur, getest)
+`src/utils/trips/subcategory.js`: `guessTripSub(text)` → sub-key of `overig_vakantie`.
+Trefwoorden (NL/EN/FR/DE/ES, lowercase, substring):
+- vlucht: vlucht, flight, klm, transavia, ryanair, easyjet, vueling, wizz, lufthansa, airline, airways, luchthaven, airport, schiphol
+- vervoer: trein, train, ns , sncf, db , thalys, eurostar, metro, tram, bus, taxi, uber, bolt, huurauto, rental, hertz, sixt, avis, europcar, tol, toll, parkeren, parking, benzine, tank, fuel, veerboot, ferry, ov, fiets, bike
+- overnachting: hotel, hostel, airbnb, booking, b&b, camping, appartement, apartment, verblijf, toeristenbelasting, city tax, overnacht
+- eten_drinken: eten, diner, dinner, lunch, ontbijt, breakfast, restaurant, cafe, café, koffie, coffee, bar, bier, beer, wijn, wine, pizza, burger, frietje, friet, ijs, gelato, bakker, boulangerie, patisserie, tapas, snack, brunch, borrel, cocktail, drank, proeverij, sushi, streetfood, food, eat
+- activiteiten: museum, musea, ticket, entree, entrance, tour, rondleiding, excursie, boot, kayak, kajak, klimmen, huur (zonder auto), concert, theater, show, zwembad, strand, park, tuin, kasteel, castle, kathedraal, cathedral, toren, tower, bezoek, attractie, zoo, aquarium, wellness, spa, sauna, ski, duik, surf
+- boodschappen_vakantie: supermarkt, supermarket, albert heijn, jumbo, lidl, aldi, carrefour, spar, monoprix, mercadona, delhaize, colruyt, tesco, sainsbury, rewe, edeka, boodschappen, groceries
+Meerdere treffers: de sub met de meeste treffers; gelijkspel → volgorde hierboven.
+Geleerde correcties (bestaande `recordEvent`/`categorizeWithLearning` op de
+omschrijving) gaan vóór het raden, mits het geleerde in Vakantie ligt; leert
+de app iets buiten Vakantie (bijv. Kleding), dan volgen we dat óók — de
+gebruiker koos dat bewust.
+
+### 3. Splitser-regels: altijd categorie `vakantie` + geraden sub
+Vervangt de huidige fallback-logica in `SplitserImportSheet`: categorie is
+altijd de Vakantie-key; sub via geleerd → `guessTripSub(description)`.
+Correctie in `TripItemSheet` blijft leren via `recordEvent`.
+
+### 4. Banktransacties in één keer op Vakantie
+- `recategorizeTripTransactions(tripId)` in `useTrips.js`: voor elke
+  gekoppelde **afschrijving** die nog niet in Vakantie staat: categorie =
+  Vakantie, sub = van de gematchte Splitser-regel (`tripItems.matchedTxId`),
+  anders `guessTripSub(tx.note)`. Bijschrijvingen (verrekeningen) blijven
+  ongemoeid. Lopende declaraties (`isOpenClaim`) ook. Per gewijzigde
+  transactie `recordEvent(note, 'vakantie', sub, amount, 'debit', null,
+  { was: true, from: oudeCategorie })` zodat de herkenning het onthoudt.
+  Retourneert aantal gewijzigd.
+- In het vakantiedetail een knop **"Zet gekoppelde uitgaven op Vakantie"**
+  (met bevestiging die het aantal noemt); verborgen als er niets te doen is.
+- In `TripFormSheet` bij een **nieuwe** vakantie een vinkje "Gekoppelde
+  uitgaven op Vakantie zetten" (standaard aan); bij bewerken niet tonen.
+  Uitvoeren ná het koppelen en ná een eventuele Splitser-match.
+- Nooit automatisch bij het los koppelen van transacties achteraf.
+
+### 5. Twee waarheden in het detail
+`tripCosts` levert per (sub)categorie twee bedragen: `mine` (Splitser-aandeel
++ niet-gedekte bankuitgaven, zoals nu) en `bank` (Σ trip-afschrijvingen in die
+categorie, incl. gedekte; open declaraties uitgesloten). Sleutel voor de
+verdeling: `category|subcategory`; toon het label van de sub als de categorie
+Vakantie is, anders het categorielabel. De donut blijft `mine`. Onder de
+donut een lijst per rij: label · **Voor jou** · *Bank* (muted). Zonder
+Splitser zijn beide kolommen gelijk (bank = mine + verrekeningen); toon dan
+alleen één kolom.
+
+### Tests
+- `guessTripSub` (per sub minstens twee voorbeelden, o.a. "Museum 1",
+  "Koffietje zaterdag", "Toeristenbelasting" → overnachting, "Le pain
+  quotidien" → eten_drinken, "Contant" → overig).
+- `ensureTripSubcategories`: voegt subs toe aan een Vakantie zonder subs;
+  laat een Vakantie met eigen subs ongemoeid; doet niets zonder Vakantie.
+- `recategorizeTripTransactions`: gematchte regel wint, bijschrijving en open
+  declaratie blijven, learning-event met `was/from`.
+- `tripCosts`: `bank` naast `mine` per sleutel; Brugge-fixture doorrekenen.
