@@ -29,12 +29,14 @@ import { isOpenClaim } from '../claims'
 export const TRIP_SUBS = [
   {
     key: 'vlucht',
+    icon: '✈️',
     label: 'Vlucht',
     kw: ['vlucht', 'flight', 'klm', 'transavia', 'ryanair', 'easyjet', 'vueling', 'wizz',
       'lufthansa', 'airline', 'airways', 'luchthaven', 'airport', 'schiphol'],
   },
   {
     key: 'vervoer',
+    icon: '🚆',
     label: 'Vervoer',
     kw: ['trein', 'train', 'ns ', 'sncf', 'db ', 'thalys', 'eurostar', 'metro', 'tram', 'bus',
       'taxi', 'uber', 'bolt', 'huurauto', 'rental', 'hertz', 'sixt', 'avis', 'europcar',
@@ -43,12 +45,14 @@ export const TRIP_SUBS = [
   },
   {
     key: 'overnachting',
+    icon: '🏨',
     label: 'Overnachting',
     kw: ['hotel', 'hostel', 'airbnb', 'booking', 'b&b', 'camping', 'appartement', 'apartment',
       'verblijf', 'toeristenbelasting', 'city tax', 'overnacht'],
   },
   {
     key: 'eten_drinken',
+    icon: '🍽️',
     label: 'Eten & drinken',
     kw: ['eten', 'diner', 'dinner', 'lunch', 'ontbijt', 'breakfast', 'restaurant', 'cafe', 'café',
       'koffie', 'coffee', 'bar', 'bier', 'beer', 'wijn', 'wine', 'pizza', 'burger', 'frietje',
@@ -57,6 +61,7 @@ export const TRIP_SUBS = [
   },
   {
     key: 'activiteiten',
+    icon: '🎟️',
     label: 'Activiteiten',
     kw: ['museum', 'musea', 'ticket', 'entree', 'entrance', 'tour', 'rondleiding', 'excursie',
       'boot', 'kayak', 'kajak', 'klimmen', 'huur', 'concert', 'theater', 'show', 'zwembad',
@@ -65,12 +70,13 @@ export const TRIP_SUBS = [
   },
   {
     key: 'boodschappen_vakantie',
+    icon: '🛒',
     label: 'Boodschappen',
     kw: ['supermarkt', 'supermarket', 'albert heijn', 'jumbo', 'lidl', 'aldi', 'carrefour', 'spar',
       'monoprix', 'mercadona', 'delhaize', 'colruyt', 'tesco', 'sainsbury', 'rewe', 'edeka',
       'boodschappen', 'groceries'],
   },
-  { key: 'overig_vakantie', label: 'Overig', kw: [] },
+  { key: 'overig_vakantie', icon: '📦', label: 'Overig', kw: [] },
 ]
 
 /** Waar alles in belandt wat we niet herkennen. */
@@ -178,4 +184,16 @@ export function pickTripCategory(geleerd, { cat = null, description = '' } = {})
   if (uitLeren && geleerd.cat !== cat.key) return { category: geleerd.cat, subcategory: geleerd.sub ?? '' }
   const sub = uitLeren && geleerd.sub ? geleerd.sub : tripSubKey(cat, guessTripSub(description))
   return { category: cat.key, subcategory: sub }
+}
+
+/**
+ * Icoon voor een vakantie-sub (op kanonieke sleutel, anders op label); zonder
+ * treffer het icoon van de categorie zelf.
+ */
+export function subIconOf(cat, subKey) {
+  if (!subKey) return cat?.icon ?? '📦'
+  const sub = (cat?.subs ?? []).find(x => x.key === subKey)
+  const kanoniek = TRIP_SUBS.find(t => t.key === subKey)
+    ?? TRIP_SUBS.find(t => sub && t.label.toLowerCase() === String(sub.label ?? '').toLowerCase())
+  return kanoniek?.icon ?? cat?.icon ?? '📦'
 }

@@ -45,6 +45,7 @@ export function TripDetailSheet({ tripId, onClose }) {
   const txs = useTripTransactions(tripId)
   const bankKandidaten = useTripCandidateTransactions(trip)
   const [alleenOpen, setAlleenOpen] = useState(false)
+  const [catKeuze, setCatKeuze] = useState(null)   // rij uit de donut: toon de regels erachter
   const alleTrips = useTrips()
   const tripNamen = Object.fromEntries((alleTrips ?? []).map(t => [t.id, t.name]))
 
@@ -118,6 +119,11 @@ export function TripDetailSheet({ tripId, onClose }) {
     contant: mijnItems.filter(i => statusVan(i) === 'contant').length,
     open: mijnItems.filter(i => statusVan(i) === 'open').length,
   }
+  const sleutelVan = r => (r.soort === 'splitser'
+    ? `${r.item.category ?? ''}|${r.item.subcategory ?? ''}`
+    : `${r.tx.category ?? ''}|${r.tx.subcategory ?? ''}`)
+  const regelsVanCat = catKeuze ? regels.filter(r => sleutelVan(r) === catKeuze.key) : []
+
   const zichtbaar = alleenOpen
     ? regels.filter(r => r.soort === 'splitser' && statusVan(r.item) === 'open')
     : regels
@@ -163,7 +169,7 @@ export function TripDetailSheet({ tripId, onClose }) {
           )}
 
           <div className="card p-4 mt-3">
-            <TripCategoryDonut perCategory={costs.perCategory} showBank={costs.hasSplitser} />
+            <TripCategoryDonut perCategory={costs.perCategory} showBank={costs.hasSplitser} onSelect={r => setCatKeuze(r)} />
           </div>
 
           <div className="flex gap-1 mt-3 p-1 rounded-xl" style={{ background: 'var(--color-surface-2)' }}>
@@ -305,6 +311,42 @@ export function TripDetailSheet({ tripId, onClose }) {
         {trip.note && <p className="px-4 pt-3 text-xs text-muted">{trip.note}</p>}
       </Sheet>
 
+      {catKeuze && (
+        <Sheet
+          open
+          onClose={() => setCatKeuze(null)}
+          title={vakLabel(catKeuze.category ?? catKeuze.key, catKeuze.subcategory)}
+          subtitle={`Voor jou ${euro(catKeuze.amount ?? 0)}${costs.hasSplitser ? ` · bank ${euro(catKeuze.bank ?? 0)}` : ''}`}
+        >
+          {regelsVanCat.length === 0 ? (
+            <p className="text-center text-muted py-8 text-sm px-6">Geen regels met een eigen aandeel in deze categorie.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {regelsVanCat.map(r => (r.soort === 'splitser' ? (
+                <Rij
+                  key={r.sleutel}
+                  icoon={catMap[r.item.category]?.icon ?? '🧾'}
+                  label={r.item.description}
+                  meta={`${fmtDate(r.item.date)} · ${euro(r.item.amount)} totaal`}
+                  pills={pillsVoor(r.item)}
+                  amount={r.item.myShare ?? 0}
+                  onClick={() => setItem(r.item)}
+                />
+              ) : (
+                <Rij
+                  key={r.sleutel}
+                  icoon={catMap[r.tx.category]?.icon ?? '💸'}
+                  label={r.tx.note || catMap[r.tx.category]?.label || r.tx.category}
+                  meta={fmtDate(r.tx.date)}
+                  badge="bank"
+                  amount={r.tx.amount}
+                  onClick={() => setEditTx(r.tx)}
+                />
+              )))}
+            </div>
+          )}
+        </Sheet>
+      )}
       {item && (
         <TripItemSheet
           item={(items ?? []).find(i => i.id === item.id) ?? item}
