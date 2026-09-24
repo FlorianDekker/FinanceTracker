@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Sheet } from '../ui/Sheet'
 import { CategoryPicker, CategoryIcon } from '../categories/CategoryPicker'
 import { useCategories } from '../../hooks/useCategories'
-import { setTripItemMatch, updateTripItem } from '../../hooks/useTrips'
+import { setTripItemMatch, setTripItemNoBank, updateTripItem } from '../../hooks/useTrips'
 import { recordEvent } from '../../utils/merchantLearning'
 import { euro, fmtDate } from '../../utils/formatters'
 
@@ -66,30 +66,44 @@ export function TripItemSheet({ item, transactions = [], myName, startIn = null,
           <span className="text-muted">›</span>
         </button>
 
-        <button
-          onClick={() => setMatchOpen(v => !v)}
-          className="w-full flex items-center gap-3 rounded-lg px-3 py-2 mt-2 text-left"
-          style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
-        >
-          <span className="text-lg">🏦</span>
-          <span className="flex-1 text-sm">
-            {gekoppeld ? (gekoppeld.note || 'Banktransactie') : 'Welke banktransactie is dit?'}
-            <span className="block text-[11px] text-muted">
-              {gekoppeld
-                ? `${fmtDate(gekoppeld.date)} · ${euro(gekoppeld.amount)} · telt niet dubbel mee`
-                : 'Geen bankregel gekoppeld'}
-            </span>
-          </span>
-          <span className="text-muted">{matchOpen ? '▾' : '›'}</span>
-        </button>
+        {!ikBetaalde && (
+          <div className="rounded-lg px-3 py-2 mt-2 text-[11px] text-muted" style={{ background: 'var(--color-surface-2)' }}>
+            {item.payer} betaalde dit — er is geen bankregel van jou; alleen je aandeel telt.
+          </div>
+        )}
 
-        {matchOpen && (
+        {ikBetaalde && (
+          <button
+            onClick={() => setMatchOpen(v => !v)}
+            className="w-full flex items-center gap-3 rounded-lg px-3 py-2 mt-2 text-left"
+            style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+          >
+            <span className="text-lg">🏦</span>
+            <span className="flex-1 text-sm">
+              {gekoppeld ? (gekoppeld.note || 'Banktransactie') : item.noBank ? 'Contant / niet via deze rekening' : 'Welke banktransactie is dit?'}
+              <span className="block text-[11px] text-muted">
+                {gekoppeld
+                  ? `${fmtDate(gekoppeld.date)} · ${euro(gekoppeld.amount)} · telt niet dubbel mee`
+                  : item.noBank ? 'Bewust geen bankregel' : 'Nog geen bankregel gekoppeld'}
+              </span>
+            </span>
+            <span className="text-muted">{matchOpen ? '▾' : '›'}</span>
+          </button>
+        )}
+
+        {ikBetaalde && matchOpen && (
           <div className="mt-2 rounded-xl overflow-hidden divide-y divide-border" style={{ background: 'var(--color-surface-2)' }}>
             <Keuze
-              label="Geen"
-              meta="Deze uitgave staat niet los op mijn rekening"
-              checked={item.matchedTxId == null}
-              onSelect={() => setTripItemMatch(item.id, null)}
+              label="Contant / niet via deze rekening"
+              meta="Bewust geen bankregel; telt als afgehandeld in de controle"
+              checked={item.matchedTxId == null && !!item.noBank}
+              onSelect={() => setTripItemNoBank(item.id, true)}
+            />
+            <Keuze
+              label="Nog niet gekoppeld"
+              meta="Later koppelen; blijft in de controle staan"
+              checked={item.matchedTxId == null && !item.noBank}
+              onSelect={() => setTripItemNoBank(item.id, false)}
             />
             {loading && <div className="px-3 py-3 text-xs text-muted">Afschrijvingen zoeken…</div>}
             {!loading && sorteerKandidaten(transactions, item).length === 0 && (

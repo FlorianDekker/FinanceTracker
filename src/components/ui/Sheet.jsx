@@ -49,6 +49,13 @@ function accentBackground(accent) {
  * `accent` maakt de kop gekleurd met witte tekst — een hex-kleur wordt een
  * verloop (zoals de categoriesheets), een CSS-variabele blijft vlak.
  */
+/** Alles vanaf 80vh wordt begrensd op de veilige bovenrand plus een marge. */
+function capMaxHeight(maxHeight) {
+  const m = /^(\d+(?:\.\d+)?)vh$/.exec(String(maxHeight ?? '').trim())
+  if (m && Number(m[1]) >= 80) return 'calc(100vh - env(safe-area-inset-top) - 36px)'
+  return maxHeight
+}
+
 export function Sheet({ open, onClose, ...rest }) {
   if (!open) return null
   return <SheetInner onClose={onClose} {...rest} />
@@ -74,12 +81,13 @@ function SheetInner({
       <div
         ref={sheetRef}
         className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-y-auto overscroll-contain animate-slide-up"
-        // Nooit tot onder de notch/statusbalk: een hoge sheet stopt op de
-        // veilige bovenrand, hoe groot maxHeight ook is.
+        // Nooit tot onder de notch/statusbalk: een hoge sheet stopt ruim onder
+        // de veilige bovenrand. Bewust zonder CSS min(): op oudere iOS-versies
+        // viel die hele declaratie weg en had de sheet géén maximum meer.
         style={{
           background: 'var(--color-surface)',
           boxShadow: 'var(--shadow-sheet)',
-          maxHeight: `min(${maxHeight}, calc(100vh - env(safe-area-inset-top) - 12px))`,
+          maxHeight: capMaxHeight(maxHeight),
         }}
       >
         {/* Kop blijft staan tijdens scrollen, inclusief het greepje */}

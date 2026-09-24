@@ -373,8 +373,17 @@ export async function setTripItemMatch(itemId, txId) {
       const tx = await db.transactions.get(txId)
       if (tx && tx.tripId !== item.tripId) await db.transactions.update(txId, { tripId: item.tripId })
     }
-    await db.tripItems.update(itemId, { matchedTxId: txId ?? null })
+    // Een echte koppeling maakt een eerdere "contant"-markering ongedaan.
+    await db.tripItems.update(itemId, txId != null ? { matchedTxId: txId, noBank: false } : { matchedTxId: null })
   })
+}
+
+/**
+ * "Contant / niet via deze rekening": deze regel hoort géén bankregel te
+ * krijgen. Zo blijft de controle "alles wat ik betaalde is gekoppeld" schoon.
+ */
+export async function setTripItemNoBank(itemId, value) {
+  await db.tripItems.update(itemId, value ? { noBank: true, matchedTxId: null } : { noBank: false })
 }
 
 /* ------------------------------------------------------------------ *

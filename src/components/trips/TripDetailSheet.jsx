@@ -18,6 +18,8 @@ import {
   autoMatchTripItems,
   useTripCandidateTransactions,
   useTrips,
+  DEFAULT_SPLITSER_NAME,
+  setTripItemNoBank,
 } from '../../hooks/useTrips'
 import { tripCosts } from '../../utils/trips/costs'
 import { findTripCategory, needsTripCategory, subLabelOf } from '../../utils/trips/subcategory'
@@ -42,6 +44,7 @@ export function TripDetailSheet({ tripId, onClose }) {
   const items = useTripItems(tripId)
   const txs = useTripTransactions(tripId)
   const bankKandidaten = useTripCandidateTransactions(trip)
+  const [alleenOpen, setAlleenOpen] = useState(false)
   const alleTrips = useTrips()
   const tripNamen = Object.fromEntries((alleTrips ?? []).map(t => [t.id, t.name]))
 
@@ -103,6 +106,31 @@ export function TripDetailSheet({ tripId, onClose }) {
     onClose()
   }
 
+  // Controle: elke Splitser-regel die ík betaalde hoort een bankregel te
+  // hebben — of is bewust contant.
+  const mijnNaam = String(trip.splitser?.myName ?? DEFAULT_SPLITSER_NAME).toLowerCase()
+  const isMijn = it => String(it?.payer ?? '').toLowerCase() === mijnNaam
+  const statusVan = it => (!isMijn(it) ? 'ander' : it.matchedTxId != null ? 'gekoppeld' : it.noBank ? 'contant' : 'open')
+  const mijnItems = (items ?? []).filter(isMijn)
+  const controle = {
+    totaal: mijnItems.length,
+    gekoppeld: mijnItems.filter(i => statusVan(i) === 'gekoppeld').length,
+    contant: mijnItems.filter(i => statusVan(i) === 'contant').length,
+    open: mijnItems.filter(i => statusVan(i) === 'open').length,
+  }
+  const zichtbaar = alleenOpen
+    ? regels.filter(r => r.soort === 'splitser' && statusVan(r.item) === 'open')
+    : regels
+  // Rustige kleuren: wie betaalde, en voor mijn betalingen de bankstatus.
+  const pillsVoor = it => {
+    const status = statusVan(it)
+    const pills = [status === 'ander' ? { text: it.payer, tone: 'neutral' } : { text: 'jij', tone: 'accent' }]
+    if (status === 'gekoppeld') pills.push({ text: 'bank ✓', tone: 'green' })
+    if (status === 'contant') pills.push({ text: 'contant', tone: 'neutral' })
+    if (status === 'open') pills.push({ text: 'nog koppelen', tone: 'orange' })
+    return pills
+  }
+
   return (
     <>
       <Sheet
@@ -155,19 +183,52 @@ export function TripDetailSheet({ tripId, onClose }) {
 
         {!laden && tab === 'regels' && (
           <div className="px-4 pt-3">
-            {regels.length === 0 ? (
+            {controle.totaal > 0 && (
+              <div className="card px-4 py-3 mb-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold">
+                    {controle.open === 0 ? '✓ Alles wat jij betaalde is gekoppeld' : `${controle.open} eigen ${controle.open === 1 ? 'betaling' : 'betalingen'} nog te koppelen`}
+                  </div>
+                  <div className="text-[11px] text-muted">
+                    {controle.gekoppeld} gekoppeld · {controle.contant} contant · {controle.totaal} betaalde jij in totaal
+                  </div>
+                </div>
+                {controle.open > 0 && (
+                  <button
+                    onClick={() => setAlleenOpen(v => !v)}
+                    className="rounded-full px-3 py-1.5 text-[11px] font-semibold shrink-0"
+                    style={alleenOpen
+                      ? { background: 'var(--color-accent)', color: 'white' }
+                      : { background: 'var(--color-surface-2)', color: 'var(--color-muted)' }}
+                  >
+                    Alleen open
+                  </button>
+                )}
+              </div>
+            )}
+            {zichtbaar.length === 0 ? (
               <p className="text-center text-muted py-8 text-sm px-6">
                 Nog geen regels. Kies transacties of importeer je Splitser-settlement.
               </p>
             ) : (
               <div className="card overflow-hidden divide-y divide-border">
-                {regels.map(r => (r.soort === 'splitser' ? (
+                {zichtbaar.map(r => (r.soort === 'splitser' ? (
                   <Rij
                     key={r.sleutel}
                     icoon={catMap[r.item.category]?.icon ?? '🧾'}
                     label={r.item.description}
-                    meta={`${fmtDate(r.item.date)} · ${r.item.payer} betaalde ${euro(r.item.amount)}`}
-                    badge="Splitser"
+                    meta={`${fmtDate(r.item.date)} · ${euro(r.item.amount)} totaal`}
+                    pills={pillsVoor(r.item)}
+                    trailing={statusVan(r.item) === 'open' && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setTripItemNoBank(r.item.id, true) }}
+                        className="rounded-full px-2 py-1 text-[10px] font-semibold shrink-0"
+                        style={{ background: 'var(--color-surface-2)', color: 'var(--color-muted)' }}
+                        title="Contant of niet via deze rekening"
+                      >
+                        contant
+                      </button>
+                    )}
                     amount={r.item.myShare ?? 0}
                     onClick={() => setItem(r.item)}
                   />
@@ -302,25 +363,39 @@ function Knop({ onClick, children }) {
   )
 }
 
-function Rij({ icoon, label, meta, badge, amount, sign = '', gedimd = false, onClick }) {
+const PILL_TONES = {
+  neutral: { background: 'var(--color-surface-2)', color: 'var(--color-muted)' },
+  accent: { background: 'var(--color-accent-dim)', color: 'var(--color-accent)' },
+  green: { background: 'var(--color-green-dim)', color: 'var(--color-green)' },
+  orange: { background: 'var(--color-orange-dim)', color: 'var(--color-orange)' },
+}
+
+function Pill({ text, tone = 'neutral' }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-3 text-left">
-      <span className="text-xl w-7 text-center shrink-0">{icoon}</span>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm truncate">{label}</div>
-        <div className="text-[11px] text-muted flex items-center gap-1.5">
-          <span className="truncate">{meta}</span>
-          {badge && (
-            <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold whitespace-nowrap shrink-0"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-muted)' }}>
-              {badge}
-            </span>
-          )}
+    <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold whitespace-nowrap shrink-0" style={PILL_TONES[tone] ?? PILL_TONES.neutral}>
+      {text}
+    </span>
+  )
+}
+
+function Rij({ icoon, label, meta, badge, pills = [], trailing = null, amount, sign = '', gedimd = false, onClick }) {
+  return (
+    <div className="w-full flex items-center gap-3 px-4 py-3">
+      <button onClick={onClick} className="flex-1 min-w-0 flex items-center gap-3 text-left">
+        <span className="text-xl w-7 text-center shrink-0">{icoon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm truncate">{label}</div>
+          <div className="text-[11px] text-muted flex items-center gap-1.5 flex-wrap">
+            <span className="truncate">{meta}</span>
+            {badge && <Pill text={badge} />}
+            {pills.map((p, i) => <Pill key={i} text={p.text} tone={p.tone} />)}
+          </div>
         </div>
-      </div>
-      <span className={`text-sm font-semibold shrink-0 tabular-nums ${gedimd ? 'text-muted' : ''}`}>
-        {sign}{euro(amount)}
-      </span>
-    </button>
+        <span className={`text-sm font-semibold shrink-0 tabular-nums ${gedimd ? 'text-muted' : ''}`}>
+          {sign}{euro(amount)}
+        </span>
+      </button>
+      {trailing || null}
+    </div>
   )
 }
