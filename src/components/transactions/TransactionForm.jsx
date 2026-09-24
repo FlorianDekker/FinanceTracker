@@ -9,8 +9,8 @@ import { CLAIM_STATUS_LABELS, claimStatusOf, isPartialClaim } from '../../utils/
 import { useSubmittedBatches } from '../../hooks/useClaims'
 import { LinkPayoutSheet } from '../claims/LinkPayoutSheet'
 import { ReceiptRow } from '../receipts/ReceiptRow'
-import { useTrip } from '../../hooks/useTrips'
-import { flagsOf } from '../../utils/trips/country'
+import { useTrip, useTrips } from '../../hooks/useTrips'
+import { tripIcon } from '../../utils/trips/country'
 
 /**
  * Props:
@@ -30,6 +30,8 @@ export function TransactionForm({ onClose, existing, prefill, onSaved, pickerSta
   const [subcategory, setSubcategory] = useState(start.subcategory ?? '')
   const [note, setNote] = useState(start.note ?? '')
   const [claimStatus, setClaimStatus] = useState(claimStatusOf(existing))
+  const [tripId, setTripId] = useState(start.tripId ?? null)   // vakantie waar deze transactie bij hoort
+  const [tripOpen, setTripOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
@@ -48,7 +50,7 @@ export function TransactionForm({ onClose, existing, prefill, onSaved, pickerSta
     const amt = parseFloat(String(amount).replace(',', '.'))
     if (!date || isNaN(amt) || !category) return
     setSaving(true)
-    const tx = { date, amount: amt, type, category, subcategory, note, claimStatus }
+    const tx = { date, amount: amt, type, category, subcategory, note, claimStatus, tripId }
     if (!existing) tx.claimBatchId = null
     let savedId = existing?.id ?? null
     if (existing) {
@@ -243,7 +245,8 @@ export function TransactionForm({ onClose, existing, prefill, onSaved, pickerSta
 
           {/* Vakantie: alleen tonen. Koppelen doe je bij Vakanties, want daar
               staat de hele selectie van transacties bij elkaar. */}
-          {existing?.tripId != null && <TripRegel tripId={existing.tripId} />}
+          {/* Vakantie: elke transactie kan bij één (bestaande) vakantie horen. */}
+          <TripRegel tripId={tripId} onClick={() => setTripOpen(true)} />
 
           {/* Note */}
           <label className="block">
@@ -286,6 +289,18 @@ export function TransactionForm({ onClose, existing, prefill, onSaved, pickerSta
         />
       )}
 
+      <TripKiezer
+        open={tripOpen}
+        value={tripId}
+        onClose={() => setTripOpen(false)}
+        onSelect={async id => {
+          setTripId(id)
+          setTripOpen(false)
+          // Bestaande transactie: meteen bewaren, ook als je het formulier daarna sluit.
+          if (existing?.id != null) await updateTransaction(existing.id, { tripId: id })
+        }}
+      />
+
       <CategoryPicker
         open={pickerOpen}
         value={{ category, subcategory }}
@@ -300,19 +315,51 @@ export function TransactionForm({ onClose, existing, prefill, onSaved, pickerSta
   )
 }
 
-function TripRegel({ tripId }) {
+function TripRegel({ tripId, onClick }) {
   const trip = useTrip(tripId)
-  if (!trip) return null
   return (
-    <div
-      className="w-full flex items-center gap-3 rounded-lg px-3 py-2"
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left"
       style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
     >
-      <span className="text-lg">🧳</span>
+      <span className="text-lg">{trip ? tripIcon(trip) : '🧳'}</span>
       <span className="flex-1 text-sm truncate">
-        {flagsOf(trip.countries)} {trip.name}
-        <span className="block text-[11px] text-muted">wijzigen via Vakanties</span>
+        {trip ? trip.name : 'Vakantie'}
+        <span className="block text-[11px] text-muted">
+          {trip ? 'telt mee in wat deze vakantie je kostte · tik om te wijzigen' : 'hoort deze bij een vakantie? tik om te koppelen'}
+        </span>
       </span>
-    </div>
+      <span className="text-muted">›</span>
+    </button>
+  )
+}
+
+/** Kies een bestaande vakantie (nieuwste eerst) of "geen". */
+function TripKiezer({ open, value, onSelect, onClose }) {
+  const trips = useTrips()
+  if (!open) return null
+  const lijst = [...(trips ?? [])].sort((a, b) => String(b.from ?? '').localeCompare(String(a.from ?? '')))
+  return (
+    <Sheet open onClose={onClose} title="Bij welke vakantie hoort dit?" maxHeight="70vh">
+      <div className="divide-y divide-border">
+        <button onClick={() => onSelect(null)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+          <span className="text-xl w-7 text-center">—</span>
+          <span className="flex-1 text-sm text-muted">Geen vakantie</span>
+          {value == null && <span className="text-sm" style={{ color: 'var(--color-accent)' }}>✓</span>}
+        </button>
+        {lijst.map(t => (
+          <button key={t.id} onClick={() => onSelect(t.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+            <span className="text-xl w-7 text-center">{tripIcon(t)}</span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm truncate">{t.name}</span>
+              <span className="block text-[11px] text-muted">{t.from} – {t.to}</span>
+            </span>
+            {value === t.id && <span className="text-sm" style={{ color: 'var(--color-accent)' }}>✓</span>}
+          </button>
+        ))}
+        {lijst.length === 0 && <p className="text-center text-muted py-8 text-sm px-6">Nog geen vakanties. Maak er eerst een aan via Budget → Vakanties.</p>}
+      </div>
+    </Sheet>
   )
 }
