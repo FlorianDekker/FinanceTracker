@@ -40,7 +40,7 @@ export function TripDetailSheet({ tripId, onClose }) {
   const trip = useTrip(tripId)
   const items = useTripItems(tripId)
   const txs = useTripTransactions(tripId)
-  const kandidaten = useTripCandidateTransactions(trip)
+  const bankKandidaten = useTripCandidateTransactions(trip)
 
   // Bij openen: Splitser-regels die jij betaalde alsnog aan bankregels
   // koppelen — ook aan betalingen die pas later zijn geïmporteerd.
@@ -244,7 +244,7 @@ export function TripDetailSheet({ tripId, onClose }) {
       {item && (
         <TripItemSheet
           item={(items ?? []).find(i => i.id === item.id) ?? item}
-          transactions={kandidaten ?? txs ?? []}
+          transactions={bankKandidaten ?? txs ?? []}
           myName={trip.splitser?.myName}
           startIn={vakantieCat?.key ?? null}
           onClose={() => setItem(null)}
