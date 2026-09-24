@@ -56,12 +56,14 @@ export function SplitserImportSheet({ trip, onClose }) {
     }
     if (!file) return
     setBezig(true)
+    let fase = 'lezen'
     try {
       const buffer = await file.arrayBuffer()
       // Een .txt met dezelfde tekst mag ook: handig om een export te controleren.
       const tekst = /\.pdf$/i.test(file.name)
         ? (await extractPdfText(buffer)).text
         : new TextDecoder().decode(buffer)
+      fase = 'verwerken'
       const uit = parseSplitserPdf(tekst)
       if (!uit.rows.length) {
         setError('Geen uitgaven gevonden. Is dit het "Settlement"-bestand uit Splitser?')
@@ -71,7 +73,9 @@ export function SplitserImportSheet({ trip, onClose }) {
         if (!uit.members.includes(mijnNaam)) setNaam(uit.members[0] ?? mijnNaam)
       }
     } catch (err) {
-      setError(err?.message ?? 'Het bestand kon niet worden gelezen.')
+      // Welke stap ging mis? Dat scheelt gokken als het op een telefoon gebeurt.
+      const kop = fase === 'lezen' ? 'De PDF kon niet worden gelezen' : 'De tekst kon niet worden verwerkt'
+      setError(`${kop}: ${err?.message ?? err}`)
     } finally {
       setBezig(false)
     }

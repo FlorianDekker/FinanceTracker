@@ -117,3 +117,38 @@ export function suggestTripTransactions(txs, {
 
   return { suggested, others, countries }
 }
+
+/* ------------------------------------------------------------------ *
+ * Negeerlijst: "dit is geen vakantie"                                  *
+ * ------------------------------------------------------------------ */
+
+/** Omschrijving zonder hoofdletters, dubbele spaties en het landdeel. */
+export function noteKey(note) {
+  return String(note ?? '')
+    .replace(/\bLand:\s*[A-Z]{3}\b/g, ' ')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+/**
+ * Haalt genegeerde transacties uit de kandidaten: op id (die ene betaling) en
+ * op omschrijving (die partij, bijv. een buitenlandse incasso, ook in de
+ * toekomst).
+ * @param ignore { txIds: number[], notes: string[] }
+ */
+export function filterIgnored(txs, ignore) {
+  const ids = new Set(Array.isArray(ignore?.txIds) ? ignore.txIds : [])
+  const notes = new Set((Array.isArray(ignore?.notes) ? ignore.notes : []).filter(Boolean))
+  if (!ids.size && !notes.size) return txs ?? []
+  return (txs ?? []).filter(tx => !ids.has(tx.id) && !notes.has(noteKey(tx.note)))
+}
+
+/** Wat komt er op de negeerlijst bij als je dit cluster afwijst? */
+export function ignoreEntriesFor(cluster) {
+  const txs = cluster?.transactions ?? []
+  return {
+    txIds: txs.map(tx => tx.id).filter(id => id != null),
+    notes: [...new Set(txs.map(tx => noteKey(tx.note)).filter(Boolean))],
+  }
+}

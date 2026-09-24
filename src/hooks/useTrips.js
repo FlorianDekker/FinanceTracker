@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { clusterTrips, shiftDate, suggestTripTransactions } from '../utils/trips/suggest'
+import { clusterTrips, shiftDate, suggestTripTransactions, filterIgnored, ignoreEntriesFor } from '../utils/trips/suggest'
 import { diffSplitserRows, round2, shareOf } from '../utils/trips/splitser'
 import { suggestMatches, tripCosts } from '../utils/trips/costs'
 
@@ -93,12 +93,51 @@ export function useTripsOverview() {
   }))
 }
 
+/* ------------------------------------------------------------------ *
+ * Negeerlijst: betalingen en partijen die nooit een vakantie zijn      *
+ * (bijv. een incasso van een bedrijf dat in het buitenland zit).       *
+ * ------------------------------------------------------------------ */
+
+export const TRIP_IGNORE_SETTING = 'tripIgnored'
+const LEGE_NEGEERLIJST = { txIds: [], notes: [] }
+
+export async function getTripIgnore() {
+  const row = await db.settings.get(TRIP_IGNORE_SETTING)
+  const v = row?.value
+  return {
+    txIds: Array.isArray(v?.txIds) ? v.txIds : [],
+    notes: Array.isArray(v?.notes) ? v.notes : [],
+  }
+}
+
+export function useTripIgnore() {
+  return useLiveQuery(getTripIgnore, [], LEGE_NEGEERLIJST)
+}
+
+/** "Geen vakantie": deze betalingen én deze partijen niet meer voorstellen. */
+export async function ignoreTripCluster(cluster) {
+  const huidig = await getTripIgnore()
+  const extra = ignoreEntriesFor(cluster)
+  await db.settings.put({
+    key: TRIP_IGNORE_SETTING,
+    value: {
+      txIds: [...new Set([...huidig.txIds, ...extra.txIds])],
+      notes: [...new Set([...huidig.notes, ...extra.notes])],
+    },
+  })
+  return extra
+}
+
+export async function clearTripIgnore() {
+  await db.settings.put({ key: TRIP_IGNORE_SETTING, value: { txIds: [], notes: [] } })
+}
+
 /** Reisvoorstellen uit losse buitenlandse betalingen zonder vakantie. */
 export function useTripSuggestions({ gapDays = 3 } = {}) {
   return useLiveQuery(async () => {
     const vanaf = shiftDate(new Date().toISOString().slice(0, 10), -365 * VOORSTEL_JAREN)
     const txs = await db.transactions.where('date').above(vanaf).toArray()
-    return clusterTrips(txs, { gapDays })
+    return clusterTrips(filterIgnored(txs, await getTripIgnore()), { gapDays })
   }, [gapDays])
 }
 
@@ -133,6 +172,7 @@ function schoonTrip(input = {}) {
     to: input.to ?? input.from ?? null,
     countries: (Array.isArray(input.countries) ? input.countries : []).filter(Boolean),
     note: String(input.note ?? ''),
+    icon: String(input.icon ?? '').trim(),   // leeg = vlag(gen) van de landen
   }
 }
 

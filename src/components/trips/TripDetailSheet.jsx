@@ -16,7 +16,7 @@ import {
   useTripTransactions,
 } from '../../hooks/useTrips'
 import { tripCosts } from '../../utils/trips/costs'
-import { flagsOf } from '../../utils/trips/country'
+import { tripIcon } from '../../utils/trips/country'
 import { euro, euroParts, fmtDate } from '../../utils/formatters'
 import { isOpenClaim } from '../../utils/claims'
 
@@ -83,7 +83,7 @@ export function TripDetailSheet({ tripId, onClose }) {
       <Sheet
         open
         onClose={onClose}
-        title={`${flagsOf(trip.countries)} ${trip.name}`}
+        title={`${tripIcon(trip)} ${trip.name}`}
         subtitle={`${fmtDate(trip.from)} – ${fmtDate(trip.to)} · ${costs.days} ${costs.days === 1 ? 'dag' : 'dagen'}`}
         maxHeight="92vh"
       >

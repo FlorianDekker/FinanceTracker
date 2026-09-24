@@ -25,8 +25,11 @@ export function loadPdfjs() {
         const spec = 'pdfjs-dist/legacy/build/pdf.mjs'
         return await import(/* @vite-ignore */ spec)
       }
-      const mod = await import('pdfjs-dist/build/pdf.mjs')
-      const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
+      // De legacy-build: de moderne build leunt op Promise.withResolvers en
+      // Iterator-helpers, en die ontbreken op iOS-versies die verder prima
+      // zijn ("undefined is not a function (near '...e of t...')" in Safari).
+      const mod = await import('pdfjs-dist/legacy/build/pdf.mjs')
+      const worker = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')
       mod.GlobalWorkerOptions.workerSrc = worker.default
       return mod
     })().catch(err => { pdfjsPromise = null; throw err })

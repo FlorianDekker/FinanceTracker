@@ -4,7 +4,8 @@ import { CountryPickerSheet } from './CountryPickerSheet'
 import { TripTransactionsSheet } from './TripTransactionsSheet'
 import { useCategories } from '../../hooks/useCategories'
 import { createTrip, updateTrip, useTripCandidates, useTripTransactions } from '../../hooks/useTrips'
-import { countryLabel } from '../../utils/trips/country'
+import { EmojiPickerLite } from '../ui/EmojiPickerLite'
+import { countryLabel, flagsOf } from '../../utils/trips/country'
 import { tripDays } from '../../utils/trips/suggest'
 import { euro, today } from '../../utils/formatters'
 
@@ -25,6 +26,8 @@ export function TripFormSheet({ trip = null, prefill = null, onClose, onSaved })
   const [to, setTo] = useState(start.to ?? start.from ?? today())
   const [countries, setCountries] = useState(start.countries ?? [])
   const [note, setNote] = useState(start.note ?? '')
+  const [icon, setIcon] = useState(start.icon ?? '')          // leeg = vlag
+  const [iconOpen, setIconOpen] = useState(false)
   const [ids, setIds] = useState(() => start.transactionIds ?? [])
   const [landenOpen, setLandenOpen] = useState(false)
   const [kiezerOpen, setKiezerOpen] = useState(false)
@@ -75,7 +78,7 @@ export function TripFormSheet({ trip = null, prefill = null, onClose, onSaved })
     setBusy(true)
     setError(null)
     try {
-      const velden = { name, from, to, countries, note, transactionIds: ids }
+      const velden = { name, from, to, countries, note, icon, transactionIds: ids }
       const id = trip ? (await updateTrip(trip.id, velden), trip.id) : await createTrip(velden)
       onSaved?.(id)
       onClose()
@@ -107,6 +110,32 @@ export function TripFormSheet({ trip = null, prefill = null, onClose, onSaved })
               style={{ fontSize: '16px', background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
             />
           </label>
+
+          {/* Icoon: standaard de vlag(gen) van de landen, of een eigen emoji. */}
+          <div>
+            <button
+              onClick={() => setIconOpen(o => !o)}
+              className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left"
+              style={{ background: 'var(--color-surface-2)', minHeight: 44 }}
+            >
+              <span className="text-lg">{icon || flagsOf(countries)}</span>
+              <span className="flex-1 text-sm">
+                Icoon
+                <span className="block text-[11px] text-muted">{icon ? 'eigen keuze · tik om te wijzigen' : 'vlag van het land · tik voor een eigen icoon'}</span>
+              </span>
+              <span className="text-muted">{iconOpen ? '⌃' : '›'}</span>
+            </button>
+            {iconOpen && (
+              <div className="mt-2 rounded-lg p-3" style={{ background: 'var(--color-surface-2)' }}>
+                <EmojiPickerLite value={icon} onChange={e => { setIcon(e); setIconOpen(false) }} />
+                {icon && (
+                  <button onClick={() => { setIcon(''); setIconOpen(false) }} className="text-xs mt-2" style={{ color: 'var(--color-accent)' }}>
+                    Vlag gebruiken
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="flex gap-2">
             <label className="flex-1">

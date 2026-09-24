@@ -176,5 +176,28 @@ await t('elke banktransactie wordt hoogstens één keer gebruikt', () => {
   assert.equal(m.size, 1)
 })
 
+
+await t('landen: Sri Lanka heeft een vlag en naam; eigen icoon wint van de vlag', async () => {
+  const C = await import(`${SRC}/utils/trips/country.js`)
+  assert.equal(C.countryName('LKA'), 'Sri Lanka')
+  assert.equal(C.flagOf('LKA'), '🇱🇰')
+  assert.equal(C.tripIcon({ countries: ['LKA'] }), '🇱🇰')
+  assert.equal(C.tripIcon({ countries: ['LKA'], icon: '🏝️' }), '🏝️')
+  assert.equal(C.tripIcon({ countries: [] }), '🧳')
+})
+
+await t('negeerlijst: op id en op partij (zonder het landdeel), incasso komt niet meer terug', async () => {
+  const S = await import(`${SRC}/utils/trips/suggest.js`)
+  const incasso = { id: 1, date: '2026-05-03', amount: 12, type: 'debit', note: 'FOO INSURANCE LTD Land: IRL' }
+  const incasso2 = { id: 2, date: '2026-06-03', amount: 12, type: 'debit', note: 'FOO INSURANCE LTD  Land: IRL' }
+  const cafe = { id: 3, date: '2026-07-12', amount: 8, type: 'debit', note: 'CAFE ROMA PARIS Land: FRA' }
+  const ignore = S.ignoreEntriesFor({ transactions: [incasso] })
+  assert.deepEqual(ignore.txIds, [1])
+  assert.deepEqual(ignore.notes, ['foo insurance ltd'])
+  const over = S.filterIgnored([incasso, incasso2, cafe], ignore)
+  assert.deepEqual(over.map(t => t.id), [3], 'ook de latere incasso van dezelfde partij valt weg')
+  assert.equal(S.filterIgnored([cafe], { txIds: [], notes: [] }).length, 1)
+})
+
 console.log(`\n${pass} geslaagd, ${fail} mislukt`)
 process.exit(fail ? 1 : 0)
