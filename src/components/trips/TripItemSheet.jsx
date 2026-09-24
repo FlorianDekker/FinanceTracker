@@ -11,7 +11,7 @@ import { euro, fmtDate } from '../../utils/formatters'
  * het importeren van een bankbestand) en aanwijzen welke banktransactie erbij
  * hoort. Die koppeling bepaalt of de bankregel nog los meetelt in de kosten.
  */
-export function TripItemSheet({ item, transactions = [], myName, startIn = null, onClose }) {
+export function TripItemSheet({ item, transactions = [], myName, startIn = null, tripId = null, tripNames = {}, loading = false, onClose }) {
   const { catMap } = useCategories()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [matchOpen, setMatchOpen] = useState(false)
@@ -91,16 +91,27 @@ export function TripItemSheet({ item, transactions = [], myName, startIn = null,
               checked={item.matchedTxId == null}
               onSelect={() => setTripItemMatch(item.id, null)}
             />
+            {loading && <div className="px-3 py-3 text-xs text-muted">Afschrijvingen zoeken…</div>}
+            {!loading && sorteerKandidaten(transactions, item).length === 0 && (
+              <div className="px-3 py-3 text-xs text-muted">
+                Geen afschrijvingen gevonden rond {fmtDate(item.date)} (± 3 dagen). Staat deze betaling al in de app?
+                Importeer anders eerst je bankafschrift van die periode.
+              </div>
+            )}
             {/* Beste kandidaten bovenaan: zelfde bedrag, datum dichtbij. */}
-            {sorteerKandidaten(transactions, item).map(({ tx, voorstel, los }) => (
-              <Keuze
-                key={tx.id}
-                label={`${voorstel ? '★ ' : ''}${tx.note || catMap[tx.category]?.label || tx.category}`}
-                meta={`${fmtDate(tx.date)} · ${euro(tx.amount)}${voorstel ? ' · voorstel' : ''}${los ? ' · nog niet in deze vakantie' : ''}`}
-                checked={item.matchedTxId === tx.id}
-                onSelect={() => setTripItemMatch(item.id, tx.id)}
-              />
-            ))}
+            {!loading && sorteerKandidaten(transactions, item).map(({ tx, voorstel }) => {
+              const elders = tx.tripId != null && tripId != null && tx.tripId !== tripId
+              const waar = tx.tripId == null ? 'nog niet in deze vakantie' : elders ? `in ${tripNames[tx.tripId] ?? 'een andere vakantie'}` : ''
+              return (
+                <Keuze
+                  key={tx.id}
+                  label={`${voorstel ? '★ ' : ''}${tx.note || catMap[tx.category]?.label || tx.category}`}
+                  meta={`${fmtDate(tx.date)} · ${euro(tx.amount)}${voorstel ? ' · voorstel' : ''}${waar ? ` · ${waar}` : ''}`}
+                  checked={item.matchedTxId === tx.id}
+                  onSelect={() => setTripItemMatch(item.id, tx.id)}
+                />
+              )
+            })}
           </div>
         )}
 
@@ -148,7 +159,7 @@ function sorteerKandidaten(transactions, item) {
     .map(tx => {
       const gelijk = Math.abs((Number(tx.amount) || 0) - (Number(item.amount) || 0)) <= 0.01
       const afstand = dagen(item.date, tx.date)
-      return { tx, afstand, voorstel: gelijk && afstand <= 3, los: tx.tripId == null }
+      return { tx, afstand, voorstel: gelijk && afstand <= 3 }
     })
     .sort((a, b) => (a.voorstel !== b.voorstel ? (a.voorstel ? -1 : 1) : a.afstand - b.afstand))
 }

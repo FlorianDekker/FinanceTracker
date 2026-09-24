@@ -303,11 +303,14 @@ export async function tripCandidateTransactions(trip, { marge = 3 } = {}) {
   if (!trip) return []
   const gekoppeld = await db.transactions.where('tripId').equals(trip.id).toArray()
   if (!trip.from || !trip.to) return gekoppeld
-  const los = await db.transactions
+  // Alle afschrijvingen in de periode die niet al aan déze vakantie hangen:
+  // los, of per ongeluk in een andere vakantie (dan gemarkeerd, en bij kiezen
+  // verhuist hij).
+  const rest = await db.transactions
     .where('date').between(shiftDate(trip.from, -marge), shiftDate(trip.to, marge), true, true)
-    .filter(tx => tx.tripId == null && tx.type === 'debit')
+    .filter(tx => tx.tripId !== trip.id && tx.type === 'debit')
     .toArray()
-  return [...gekoppeld, ...los]
+  return [...gekoppeld, ...rest]
 }
 
 export function useTripCandidateTransactions(trip) {
@@ -332,7 +335,9 @@ export async function autoMatchTripItems(tripId, myName) {
 
   const kandidaten = await tripCandidateTransactions(trip)
   const bezet = new Set(items.map(i => i.matchedTxId).filter(id => id != null))
-  const vrij = kandidaten.filter(tx => !bezet.has(tx.id))
+  // Automatisch alleen eigen en losse regels; wat in een andere vakantie zit
+  // laten we staan (dat kies je desnoods met de hand).
+  const vrij = kandidaten.filter(tx => !bezet.has(tx.id) && (tx.tripId == null || tx.tripId === tripId))
 
   const matches = suggestMatches(open, vrij, naam, { dagen: 3 })
   if (!matches.size) return 0
@@ -362,9 +367,9 @@ export async function setTripItemMatch(itemId, txId) {
       for (const a of anderen) {
         if (a.id !== itemId && a.matchedTxId === txId) await db.tripItems.update(a.id, { matchedTxId: null })
       }
-      // Een bankregel die nog los stond hoort vanaf nu bij deze vakantie.
+      // Een bankregel die los stond (of in een andere vakantie) hoort vanaf nu bij deze.
       const tx = await db.transactions.get(txId)
-      if (tx && tx.tripId == null) await db.transactions.update(txId, { tripId: item.tripId })
+      if (tx && tx.tripId !== item.tripId) await db.transactions.update(txId, { tripId: item.tripId })
     }
     await db.tripItems.update(itemId, { matchedTxId: txId ?? null })
   })

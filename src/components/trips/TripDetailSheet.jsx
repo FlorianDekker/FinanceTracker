@@ -17,6 +17,7 @@ import {
   useTripTransactions,
   autoMatchTripItems,
   useTripCandidateTransactions,
+  useTrips,
 } from '../../hooks/useTrips'
 import { tripCosts } from '../../utils/trips/costs'
 import { findTripCategory, needsTripCategory, subLabelOf } from '../../utils/trips/subcategory'
@@ -41,6 +42,8 @@ export function TripDetailSheet({ tripId, onClose }) {
   const items = useTripItems(tripId)
   const txs = useTripTransactions(tripId)
   const bankKandidaten = useTripCandidateTransactions(trip)
+  const alleTrips = useTrips()
+  const tripNamen = Object.fromEntries((alleTrips ?? []).map(t => [t.id, t.name]))
 
   // Bij openen: Splitser-regels die jij betaalde alsnog aan bankregels
   // koppelen — ook aan betalingen die pas later zijn geïmporteerd.
@@ -245,6 +248,9 @@ export function TripDetailSheet({ tripId, onClose }) {
         <TripItemSheet
           item={(items ?? []).find(i => i.id === item.id) ?? item}
           transactions={bankKandidaten ?? txs ?? []}
+          loading={bankKandidaten == null}
+          tripId={trip.id}
+          tripNames={tripNamen}
           myName={trip.splitser?.myName}
           startIn={vakantieCat?.key ?? null}
           onClose={() => setItem(null)}
