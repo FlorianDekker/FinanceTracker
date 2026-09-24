@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -6,10 +7,21 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8'))
 
+// Build-stempel (commit + tijd) voor in Instellingen: zo zie je op een
+// telefoon meteen of de PWA de nieuwste versie draait of nog een oude vasthoudt.
+function buildStamp() {
+  let hash = 'dev'
+  try { hash = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() } catch { /* geen git */ }
+  const d = new Date()
+  const pad = n => String(n).padStart(2, '0')
+  return `${hash} · ${pad(d.getDate())}-${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export default defineConfig({
   base: '/FinanceTracker/',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_STAMP__: JSON.stringify(buildStamp()),
   },
   plugins: [
     react(),
