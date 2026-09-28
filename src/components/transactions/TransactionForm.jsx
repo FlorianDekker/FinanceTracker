@@ -11,6 +11,7 @@ import { LinkPayoutSheet } from '../claims/LinkPayoutSheet'
 import { ReceiptRow } from '../receipts/ReceiptRow'
 import { useTrip, useTrips } from '../../hooks/useTrips'
 import { tripIcon } from '../../utils/trips/country'
+import { TxSplitserLinks } from '../trips/TxSplitserLinks'
 
 /**
  * Props:
@@ -247,6 +248,7 @@ export function TransactionForm({ onClose, existing, prefill, onSaved, pickerSta
               staat de hele selectie van transacties bij elkaar. */}
           {/* Vakantie: elke transactie kan bij één (bestaande) vakantie horen. */}
           <TripRegel tripId={tripId} onClick={() => setTripOpen(true)} />
+          {existing && existing.tripId === tripId && <TxSplitserLinks tx={existing} />}
 
           {/* Note */}
           <label className="block">

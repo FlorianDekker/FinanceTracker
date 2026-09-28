@@ -8,6 +8,9 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 let sheetStack = []
 const stackListeners = new Set()
 
+// Pixels die een vinger mag bewegen voordat een tik een veeg wordt.
+const TAP_SLOP = 6
+
 function notifyStack() {
   for (const listener of stackListeners) listener()
 }
@@ -79,12 +82,16 @@ export function useSheetGestures(onClose) {
 
   useEffect(() => {
     if (!isTop) return
+    let startX = 0
     let startY = 0
     let dragStartY = null
     let isDragging = false
+    let moved = false
 
     const onStart = e => {
+      startX = e.touches[0].clientX
       startY = e.touches[0].clientY
+      moved = false
       const sheet = sheetRef.current
       if (sheet && sheet.scrollTop <= 0) {
         dragStartY = e.touches[0].clientY
@@ -100,6 +107,17 @@ export function useSheetGestures(onClose) {
       if (!sheet.contains(e.target)) { e.preventDefault(); return }
 
       const dy = e.touches[0].clientY - startY
+
+      // Een tik trilt altijd een paar pixels. preventDefault() op zo'n
+      // touchmove laat iOS de klik weggooien (dan moest je twee, drie keer
+      // tikken), dus binnen de tik-marge doen we niets. Die marge ligt onder
+      // de drempel waarop iOS zelf gaat scrollen, zodat de events daarna nog
+      // af te vangen zijn.
+      if (!moved) {
+        const dx = e.touches[0].clientX - startX
+        if (Math.abs(dx) < TAP_SLOP && Math.abs(dy) < TAP_SLOP) return
+        moved = true
+      }
 
       // Live drag: follow finger when pulling down at scroll top
       if (dragStartY !== null && dy > 0 && sheet.scrollTop <= 0) {

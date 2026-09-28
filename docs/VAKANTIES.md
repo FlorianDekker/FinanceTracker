@@ -335,3 +335,6 @@ Splitser als diner en wijn gezet).
   levert de eerste regel met een sub de subcategorie.
 - Tests: `tests/unit/trips-links.test.mjs` (migratie, `matchGroup`, kosten in
   beide richtingen) en `trips-flow.test.mjs` (toggle, contant ↔ koppelen).
+- **Ook vanaf de bankkant** (`TxSplitserLinks` in het transactieformulier):
+  bij een afschrijving die aan een vakantie met Splitser-regels hangt, vink je
+  aan welke van jouw regels je ermee betaalde. Dezelfde `toggleTripItemMatch`.
