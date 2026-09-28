@@ -39,11 +39,58 @@ export function countsInTrip(tx) {
 }
 
 /**
+ * De banktransacties achter een Splitser-regel. Een regel kan er meer hebben
+ * (hotel in twee afschrijvingen betaald) en een banktransactie kan bij meer
+ * regels horen (één keer gepind, in Splitser als diner en wijn gezet).
+ * Leest ook het oude veld `matchedTxId` van vóór schema v8, zodat een oude
+ * backup of een half gemigreerde rij gewoon werkt.
+ */
+export function matchedIdsOf(item) {
+  if (Array.isArray(item?.matchedTxIds)) return item.matchedTxIds.filter(id => id != null)
+  return item?.matchedTxId != null ? [item.matchedTxId] : []
+}
+
+/**
+ * Alles wat via koppelingen met deze regel samenhangt: de regel, zijn
+ * banktransacties, de andere regels die aan die banktransacties hangen, hún
+ * banktransacties, enzovoort. Alleen over zo'n groep is te zeggen of Splitser
+ * en bank op elkaar aansluiten.
+ *
+ * @returns {{ items: Array, transactions: Array, itemSum: number, txSum: number, diff: number }}
+ *          `diff` = bank − Splitser; ≈ 0 als de koppeling klopt.
+ */
+export function matchGroup(itemId, items, transactions) {
+  const regels = (items ?? []).filter(Boolean)
+  const perTx = new Map((transactions ?? []).filter(Boolean).map(tx => [tx.id, tx]))
+  const groepItems = new Set()
+  const groepTxs = new Set()
+  const rij = [itemId]
+  while (rij.length) {
+    const id = rij.pop()
+    if (groepItems.has(id)) continue
+    const item = regels.find(i => i.id === id)
+    if (!item) continue
+    groepItems.add(id)
+    for (const txId of matchedIdsOf(item)) {
+      if (groepTxs.has(txId)) continue
+      groepTxs.add(txId)
+      for (const ander of regels) if (matchedIdsOf(ander).includes(txId)) rij.push(ander.id)
+    }
+  }
+  const uitItems = regels.filter(i => groepItems.has(i.id))
+  const uitTxs = [...groepTxs].map(id => perTx.get(id)).filter(Boolean)
+  const itemSum = round2(uitItems.reduce((s, i) => s + (Number(i.amount) || 0), 0))
+  const txSum = round2(uitTxs.reduce((s, tx) => s + bedrag(tx), 0))
+  return { items: uitItems, transactions: uitTxs, itemSum, txSum, diff: round2(txSum - itemSum) }
+}
+
+/**
  * Welke banktransactie hoort bij welke Splitser-regel?
  *
  * Alleen regels die ík heb voorgeschoten kunnen een bankregel zijn. Match op
  * bedrag (± 1 cent) en datum (± 2 dagen); bij meerdere kandidaten wint de
- * dichtstbijzijnde datum. Elke banktransactie wordt hoogstens één keer gebruikt.
+ * dichtstbijzijnde datum. Elke banktransactie wordt hoogstens één keer gebruikt:
+ * automatisch koppelen blijft één op één, samenvoegen doe je met de hand.
  *
  * @returns {Map<any, number>} itemId (of index) → transactie-id
  */
@@ -113,7 +160,7 @@ export function tripCosts({ items = [], transactions = [], from = null, to = nul
   const txs = (transactions ?? []).filter(Boolean)
   const meetellend = txs.filter(countsInTrip)
 
-  const gedekt = new Set(regels.map(i => i.matchedTxId).filter(id => id != null))
+  const gedekt = new Set(regels.flatMap(matchedIdsOf))
   const splitserShare = round2(regels.reduce((s, i) => s + (Number(i.myShare) || 0), 0))
 
   const debits = meetellend.filter(tx => tx.type === 'debit')

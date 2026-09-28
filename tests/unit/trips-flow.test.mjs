@@ -85,11 +85,11 @@ await t('het importlogboek en mijn naam staan op de vakantie', async () => {
 })
 await t('regels die ik voorschoot zijn aan hun bankregel gekoppeld', async () => {
   const items = await db.tripItems.where('tripId').equals(tripId).toArray()
-  assert.equal(items.find(i => i.description === 'Avondeten indiaas').matchedTxId, indiaas)
-  assert.equal(items.find(i => i.description === 'Eerste dag uitgaven').matchedTxId, cafe)
+  assert.deepEqual(items.find(i => i.description === 'Avondeten indiaas').matchedTxIds, [indiaas])
+  assert.deepEqual(items.find(i => i.description === 'Eerste dag uitgaven').matchedTxIds, [cafe])
   // Regels van Dani horen nooit bij een afschrijving van mij.
-  assert.equal(items.find(i => i.description === 'Eten libanees').matchedTxId, null)
-  assert.equal(items.filter(i => i.matchedTxId != null).length, 2)
+  assert.deepEqual(items.find(i => i.description === 'Eten libanees').matchedTxIds, [])
+  assert.equal(items.filter(i => i.matchedTxIds.length).length, 2)
 })
 
 console.log('\n--- de cijfers ---')
@@ -110,15 +110,48 @@ await t('myCost = mijn Splitser-aandeel + de niet-gedekte bankregels', async () 
 })
 
 console.log('\n--- handmatig bijsturen ---')
-await t('een andere banktransactie kiezen maakt de oude vrij', async () => {
-  const item = (await db.tripItems.where('tripId').equals(tripId).toArray())
-    .find(i => i.description === 'Eten libanees')
-  await T.setTripItemMatch(item.id, indiaas)
+await t('één bankregel mag bij twee Splitser-regels horen', async () => {
+  const alle = await db.tripItems.where('tripId').equals(tripId).toArray()
+  const item = alle.find(i => i.description === 'Eten libanees')
+  const indiaasItem = alle.find(i => i.description === 'Avondeten indiaas')
+  await T.toggleTripItemMatch(item.id, indiaas)
   const na = await db.tripItems.where('tripId').equals(tripId).toArray()
-  assert.equal(na.find(i => i.description === 'Eten libanees').matchedTxId, indiaas)
-  assert.equal(na.find(i => i.description === 'Avondeten indiaas').matchedTxId, null, 'één bankregel, één Splitser-regel')
-  await T.setTripItemMatch(item.id, null)
-  assert.equal((await db.tripItems.get(item.id)).matchedTxId, null)
+  assert.deepEqual(na.find(i => i.id === item.id).matchedTxIds, [indiaas])
+  assert.deepEqual(na.find(i => i.id === indiaasItem.id).matchedTxIds, [indiaas], 'de eerste koppeling blijft staan')
+  const groep = K.matchGroup(item.id, na, await db.transactions.toArray())
+  assert.deepEqual(groep.items.map(i => i.id).sort(), [item.id, indiaasItem.id].sort())
+  assert.equal(groep.txSum, 58.5)
+  // Nog een keer tikken zet hem weer uit.
+  await T.toggleTripItemMatch(item.id, indiaas)
+  assert.deepEqual((await db.tripItems.get(item.id)).matchedTxIds, [])
+  assert.deepEqual((await db.tripItems.get(indiaasItem.id)).matchedTxIds, [indiaas])
+})
+await t('één Splitser-regel mag twee bankregels hebben', async () => {
+  const item = (await db.tripItems.where('tripId').equals(tripId).toArray())
+    .find(i => i.description === 'Avondeten indiaas')
+  await T.toggleTripItemMatch(item.id, trein)
+  assert.deepEqual((await db.tripItems.get(item.id)).matchedTxIds, [indiaas, trein])
+  const c = K.tripCosts({
+    items: await db.tripItems.where('tripId').equals(tripId).toArray(),
+    transactions: await db.transactions.where('tripId').equals(tripId).toArray(),
+  })
+  assert.equal(c.bankNotCovered, 0, 'de trein telt nu als gedekt')
+  assert.ok(c.coveredTxIds.includes(trein))
+  await T.clearTripItemMatches(item.id)
+  assert.deepEqual((await db.tripItems.get(item.id)).matchedTxIds, [])
+  await T.toggleTripItemMatch(item.id, indiaas)
+})
+await t('contant zetten haalt de koppelingen weg, koppelen haalt contant weg', async () => {
+  const item = (await db.tripItems.where('tripId').equals(tripId).toArray())
+    .find(i => i.description === 'Eerste dag uitgaven')
+  await T.setTripItemNoBank(item.id, true)
+  let na = await db.tripItems.get(item.id)
+  assert.deepEqual(na.matchedTxIds, [])
+  assert.equal(na.noBank, true)
+  await T.toggleTripItemMatch(item.id, cafe)
+  na = await db.tripItems.get(item.id)
+  assert.deepEqual(na.matchedTxIds, [cafe])
+  assert.equal(na.noBank, false)
 })
 await t('categorie van een regel bijwerken', async () => {
   const item = (await db.tripItems.where('tripId').equals(tripId).toArray())
@@ -141,7 +174,7 @@ await t('bestaande regels houden hun categorie en koppeling', async () => {
   assert.equal(items.some(i => i.description === 'Omtbijt'), false)
   const na = items.find(i => i.description === 'Eerste dag uitgaven')
   assert.equal(na.id, voor.id)
-  assert.equal(na.matchedTxId, voor.matchedTxId)
+  assert.deepEqual(na.matchedTxIds, voor.matchedTxIds)
   assert.equal((await db.trips.get(tripId)).splitser.imported.length, 2)
 })
 
@@ -186,7 +219,7 @@ await t('automatch trekt mijn losse pinbetaling uit de periode de vakantie in en
   const tx = await db.transactions.get(txId)
   assert.equal(tx.tripId, tripId, 'de pinbetaling hangt nu aan de vakantie')
   const item = (await db.tripItems.where('tripId').equals(tripId).toArray())[0]
-  assert.equal(item.matchedTxId, txId, 'en is gekoppeld aan de Splitser-regel (datum 1 dag later mag)')
+  assert.deepEqual(item.matchedTxIds, [txId], 'en is gekoppeld aan de Splitser-regel (datum 1 dag later mag)')
 
   // Een bank die pas dagen later boekt: exact bedrag binnen 10 dagen koppelt ook.
   const laatId = await db.transactions.add({
@@ -203,7 +236,7 @@ await t('automatch trekt mijn losse pinbetaling uit de periode de vakantie in en
     myName: 'Florian',
   })
   const friet = (await db.tripItems.where('tripId').equals(tripId).toArray()).find(i => i.description === 'Frietje 1')
-  assert.equal(friet.matchedTxId, laatId, 'zes dagen later geboekt, toch gekoppeld')
+  assert.deepEqual(friet.matchedTxIds, [laatId], 'zes dagen later geboekt, toch gekoppeld')
   assert.equal((await db.transactions.get(laatId)).tripId, tripId)
   assert.equal((await db.transactions.get(anderId)).tripId, null, 'het andere bedrag blijft los')
 })

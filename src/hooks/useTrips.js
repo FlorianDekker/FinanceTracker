@@ -3,7 +3,7 @@ import { db } from '../db/db'
 import { addSub } from './useCategories'
 import { clusterTrips, shiftDate, suggestTripTransactions, filterIgnored, ignoreEntriesFor } from '../utils/trips/suggest'
 import { diffSplitserRows, round2, shareOf } from '../utils/trips/splitser'
-import { suggestMatches, tripCosts } from '../utils/trips/costs'
+import { matchedIdsOf, suggestMatches, tripCosts } from '../utils/trips/costs'
 import { findTripCategory, guessTripSub, needsTripCategory, tripSubKey, TRIP_SUBS } from '../utils/trips/subcategory'
 import { recordEvent } from '../utils/merchantLearning'
 
@@ -270,7 +270,7 @@ export async function importSplitserRows(tripId, { rows = [], myName, fileName =
       myShare: shareOf(row, myName),
       category: gekozen.category ?? '',
       subcategory: gekozen.subcategory ?? '',
-      matchedTxId: null,
+      matchedTxIds: [],
       source: 'splitser',
     })
   }
@@ -330,11 +330,11 @@ export async function autoMatchTripItems(tripId, myName) {
   if (!trip) return 0
   const naam = myName ?? trip.splitser?.myName ?? (await getSplitserName())
   const items = await db.tripItems.where('tripId').equals(tripId).toArray()
-  const open = items.filter(i => i.matchedTxId == null)
+  const open = items.filter(i => matchedIdsOf(i).length === 0)
   if (!open.length) return 0
 
   const kandidaten = await tripCandidateTransactions(trip)
-  const bezet = new Set(items.map(i => i.matchedTxId).filter(id => id != null))
+  const bezet = new Set(items.flatMap(matchedIdsOf))
   // Automatisch alleen eigen en losse regels; wat in een andere vakantie zit
   // laten we staan (dat kies je desnoods met de hand).
   const vrij = kandidaten.filter(tx => !bezet.has(tx.id) && (tx.tripId == null || tx.tripId === tripId))
@@ -346,7 +346,7 @@ export async function autoMatchTripItems(tripId, myName) {
   const perId = new Map(vrij.map(tx => [tx.id, tx]))
   await db.transaction('rw', db.tripItems, db.transactions, async () => {
     for (const [itemId, txId] of matches) {
-      await db.tripItems.update(itemId, { matchedTxId: txId })
+      await db.tripItems.update(itemId, { matchedTxIds: [txId] })
       // Een losse bankregel hoort vanaf nu bij deze vakantie.
       if (perId.get(txId)?.tripId == null) await db.transactions.update(txId, { tripId })
     }
@@ -358,24 +358,32 @@ export async function updateTripItem(itemId, patch = {}) {
   await db.tripItems.update(itemId, patch)
 }
 
-/** "Welke banktransactie is dit?" — of null voor 'geen'. */
-export async function setTripItemMatch(itemId, txId) {
+/**
+ * "Welke banktransacties horen hierbij?": zet één banktransactie aan of uit
+ * bij deze regel. Een regel mag er meer hebben (hotel in twee keer betaald) en
+ * een banktransactie mag bij meer regels horen (één keer gepind, in Splitser
+ * als diner en wijn gezet); of het dan klopt, laat `matchGroup` zien.
+ */
+export async function toggleTripItemMatch(itemId, txId) {
   const item = await db.tripItems.get(itemId)
-  if (!item) return
+  if (!item || txId == null) return
+  const huidig = matchedIdsOf(item)
   await db.transaction('rw', db.tripItems, db.transactions, async () => {
-    // Eén banktransactie hoort bij hoogstens één Splitser-regel.
-    if (txId != null) {
-      const anderen = await db.tripItems.where('tripId').equals(item.tripId).toArray()
-      for (const a of anderen) {
-        if (a.id !== itemId && a.matchedTxId === txId) await db.tripItems.update(a.id, { matchedTxId: null })
-      }
-      // Een bankregel die los stond (of in een andere vakantie) hoort vanaf nu bij deze.
-      const tx = await db.transactions.get(txId)
-      if (tx && tx.tripId !== item.tripId) await db.transactions.update(txId, { tripId: item.tripId })
+    if (huidig.includes(txId)) {
+      await db.tripItems.update(itemId, { matchedTxIds: huidig.filter(id => id !== txId) })
+      return
     }
+    // Een bankregel die los stond (of in een andere vakantie) hoort vanaf nu bij deze.
+    const tx = await db.transactions.get(txId)
+    if (tx && tx.tripId !== item.tripId) await db.transactions.update(txId, { tripId: item.tripId })
     // Een echte koppeling maakt een eerdere "contant"-markering ongedaan.
-    await db.tripItems.update(itemId, txId != null ? { matchedTxId: txId, noBank: false } : { matchedTxId: null })
+    await db.tripItems.update(itemId, { matchedTxIds: [...huidig, txId], noBank: false })
   })
+}
+
+/** "Nog niet gekoppeld": alle banktransacties van deze regel los. */
+export async function clearTripItemMatches(itemId) {
+  await db.tripItems.update(itemId, { matchedTxIds: [] })
 }
 
 /**
@@ -383,7 +391,7 @@ export async function setTripItemMatch(itemId, txId) {
  * krijgen. Zo blijft de controle "alles wat ik betaalde is gekoppeld" schoon.
  */
 export async function setTripItemNoBank(itemId, value) {
-  await db.tripItems.update(itemId, value ? { noBank: true, matchedTxId: null } : { noBank: false })
+  await db.tripItems.update(itemId, value ? { noBank: true, matchedTxIds: [] } : { noBank: false })
 }
 
 /* ------------------------------------------------------------------ *
@@ -436,7 +444,14 @@ export async function recategorizeTripTransactions(tripId) {
 
   const txs = await db.transactions.where('tripId').equals(tripId).toArray()
   const items = await db.tripItems.where('tripId').equals(tripId).toArray()
-  const perTx = new Map(items.filter(i => i.matchedTxId != null).map(i => [i.matchedTxId, i]))
+  // Hangt een banktransactie aan meer regels, dan wint de eerste met een sub.
+  const perTx = new Map()
+  for (const i of items) {
+    for (const txId of matchedIdsOf(i)) {
+      const al = perTx.get(txId)
+      if (!al || (!al.subcategory && i.subcategory)) perTx.set(txId, i)
+    }
+  }
 
   const wijzigingen = txs
     .filter(tx => needsTripCategory(tx, cat.key))

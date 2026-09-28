@@ -218,7 +218,9 @@ await t('transactions.tripId en tripItems.tripId verhuizen mee naar het nieuwe i
   const items = await db.tripItems.toArray()
   assert.equal(items.length, 1, 'een regel van een niet-meegekomen vakantie valt af')
   assert.equal(items[0].tripId, parijs.id)
-  assert.equal(items[0].matchedTxId, tx.id, 'de gekoppelde banktransactie schuift ook mee')
+  // De backup is van vóór v8 (één matchedTxId); na herstel is het een lijst.
+  assert.deepEqual(items[0].matchedTxIds, [tx.id], 'de gekoppelde banktransactie schuift ook mee')
+  assert.equal('matchedTxId' in items[0], false, 'het oude veld is weg')
   assert.equal(r.stats.tripItems.added, 1)
   assert.equal(r.stats.tripItems.skipped, 1)
 })

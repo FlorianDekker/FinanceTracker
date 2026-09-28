@@ -4,10 +4,11 @@
 import { spawnSync } from 'node:child_process'
 import { readdirSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const REGISTER = path.join(HERE, 'register.mjs')
+// Als file://-URL: op Windows ziet --import een kaal pad 'C:\…' als URL-schema 'c:'.
+const REGISTER = pathToFileURL(path.join(HERE, 'register.mjs')).href
 
 const only = process.argv.slice(2).filter(a => !a.startsWith('-'))
 const bestanden = readdirSync(HERE)

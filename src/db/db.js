@@ -101,6 +101,13 @@ db.version(7).stores({
   goals: '++id, order',
 })
 
+// v8: een Splitser-regel kan aan meer banktransacties hangen (en andersom),
+// dus `matchedTxId` wordt de lijst `matchedTxIds`. Geen nieuwe indexen.
+db.version(8).stores({}).upgrade(tx => tx.table('tripItems').toCollection().modify(item => {
+  if (!Array.isArray(item.matchedTxIds)) item.matchedTxIds = item.matchedTxId != null ? [item.matchedTxId] : []
+  delete item.matchedTxId
+}))
+
 // Bootstrap learning from existing transactions (runs once, lazy-loaded to avoid circular imports)
 db.on('ready', async () => {
   const { bootstrapFromHistory } = await import('../utils/merchantLearning')

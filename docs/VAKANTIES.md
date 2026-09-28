@@ -301,3 +301,37 @@ tests/unit/trips-subs.test.mjs
 - **Donut.** Alle vakantie-subs delen de kleur van Vakantie, dus krijgt elke sub
   een oplopende tint van die kleur — anders is de ring één massief vlak. De
   bankkolom staat alleen naast "Voor jou" als er Splitser-regels zijn.
+
+## Uitbreiding (28 sep 2026): samengevoegde koppelingen bank ↔ Splitser
+
+Besluit met Florian: koppelen mag **beide kanten op**. Eén Splitser-regel kan
+meer banktransacties hebben (hotel in twee afschrijvingen betaald) en één
+banktransactie kan bij meer Splitser-regels horen (één keer gepind, in
+Splitser als diner en wijn gezet).
+
+- **Schema v8.** `tripItems.matchedTxId` (één id) wordt `matchedTxIds` (lijst).
+  De upgrade zet het oude veld om en haalt het weg; `matchedIdsOf(item)` in
+  `costs.js` leest beide vormen, zodat backups van vóór v8 gewoon herstellen
+  (`backup.js` zet ze om, ook bij samenvoegen met hernummerde transacties).
+- **Rekenregels ongewijzigd.** `tripCosts` rekende al met "welke bankregels
+  zijn gedekt"; dat is nu de vereniging over alle regels. Een bankregel die
+  aan twee Splitser-regels hangt telt één keer.
+- **Controle per groep.** `matchGroup(itemId, items, txs)` volgt de
+  koppelingen door (regel → bankregels → andere regels aan die bankregels …)
+  en geeft `itemSum`, `txSum` en `diff = bank − Splitser`. Alleen over zo'n
+  groep valt te zeggen of het aansluit.
+- **Automatisch koppelen blijft één op één** (`suggestMatches`); samenvoegen
+  gebeurt met de hand.
+- **Schermen.** In `TripItemSheet` zijn de bankregels vinkjes (aan/uit via
+  `toggleTripItemMatch`; "Nog niet gekoppeld" = `clearTripItemMatches`). Al
+  gekoppelde staan bovenaan; is er deels gekoppeld, dan is precies het open
+  bedrag ook een voorstel. Per bankregel staat "ook bij …" als hij al aan een
+  andere regel hangt, en onder de knop een regel "Samen met …" plus
+  Splitser = bank (grijs) of het verschil (oranje). In het vakantiedetail
+  wordt de pil `bank ✓` bij een verschil `bank −€ x` (oranje), telt de
+  controlekaart afwijkende koppelingen mee en heet het filter "Alleen te doen"
+  (open én afwijkend).
+- `recategorizeTripTransactions`: hangt een bankregel aan meer regels, dan
+  levert de eerste regel met een sub de subcategorie.
+- Tests: `tests/unit/trips-links.test.mjs` (migratie, `matchGroup`, kosten in
+  beide richtingen) en `trips-flow.test.mjs` (toggle, contant ↔ koppelen).

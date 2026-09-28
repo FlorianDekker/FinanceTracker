@@ -2,6 +2,7 @@ import { db } from '../db/db'
 import { defaultCategoryDef, makeCategoryRow } from '../constants/categories'
 import { receiptItemRows } from './receipts/items'
 import { dedupKey } from './importHelpers'
+import { matchedIdsOf } from './trips/costs'
 import { downloadFile } from './download'
 
 /**
@@ -304,12 +305,13 @@ function normalizeTrips(rows) {
 function normalizeTripItems(rows) {
   return rows
     .filter(row => row && row.tripId != null)
-    .map(row => ({
+    .map(({ matchedTxId, ...row }) => ({
       ...row,
       participants: Array.isArray(row.participants) ? row.participants : [],
       myShare: Number(row.myShare) || 0,
       amount: Number(row.amount) || 0,
-      matchedTxId: row.matchedTxId ?? null,
+      // Backups van vóór schema v8 kennen één `matchedTxId`.
+      matchedTxIds: matchedIdsOf({ ...row, matchedTxId }),
       source: row.source ?? 'splitser',
     }))
 }
@@ -504,7 +506,7 @@ export async function restoreBackup(input, { mode = 'merge' } = {}) {
       .map(item => ({
         ...item,
         tripId: tripIdMap.get(item.tripId) ?? null,
-        matchedTxId: item.matchedTxId == null ? null : (txMerge.idMap.get(item.matchedTxId) ?? null),
+        matchedTxIds: item.matchedTxIds.map(id => txMerge.idMap.get(id)).filter(id => id != null),
       }))
       .filter(item => item.tripId != null)
     const tripItemMerge = await mergeRows(db.tripItems, incomingTripItems, tripItemKey)

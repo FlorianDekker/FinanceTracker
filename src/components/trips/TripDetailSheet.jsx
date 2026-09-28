@@ -21,7 +21,7 @@ import {
   DEFAULT_SPLITSER_NAME,
   setTripItemNoBank,
 } from '../../hooks/useTrips'
-import { tripCosts } from '../../utils/trips/costs'
+import { matchedIdsOf, matchGroup, tripCosts } from '../../utils/trips/costs'
 import { findTripCategory, needsTripCategory, subLabelOf } from '../../utils/trips/subcategory'
 import { tripIcon } from '../../utils/trips/country'
 import { euro, euroParts, fmtDate } from '../../utils/formatters'
@@ -111,27 +111,39 @@ export function TripDetailSheet({ tripId, onClose }) {
   // hebben — of is bewust contant.
   const mijnNaam = String(trip.splitser?.myName ?? DEFAULT_SPLITSER_NAME).toLowerCase()
   const isMijn = it => String(it?.payer ?? '').toLowerCase() === mijnNaam
-  const statusVan = it => (!isMijn(it) ? 'ander' : it.matchedTxId != null ? 'gekoppeld' : it.noBank ? 'contant' : 'open')
+  const statusVan = it => (!isMijn(it) ? 'ander' : matchedIdsOf(it).length ? 'gekoppeld' : it.noBank ? 'contant' : 'open')
+  // Bij een koppeling in delen of een gedeelde betaling: sluiten bank en
+  // Splitser over de hele groep op elkaar aan? `diff` = bank − Splitser.
+  const verschilVan = it => (statusVan(it) === 'gekoppeld'
+    ? matchGroup(it.id, items ?? [], bankKandidaten ?? txs ?? []).diff
+    : 0)
   const mijnItems = (items ?? []).filter(isMijn)
   const controle = {
     totaal: mijnItems.length,
     gekoppeld: mijnItems.filter(i => statusVan(i) === 'gekoppeld').length,
     contant: mijnItems.filter(i => statusVan(i) === 'contant').length,
     open: mijnItems.filter(i => statusVan(i) === 'open').length,
+    afwijkend: mijnItems.filter(i => Math.abs(verschilVan(i)) > 0.01).length,
   }
+  const nogTeDoen = it => statusVan(it) === 'open' || Math.abs(verschilVan(it)) > 0.01
   const sleutelVan = r => (r.soort === 'splitser'
     ? `${r.item.category ?? ''}|${r.item.subcategory ?? ''}`
     : `${r.tx.category ?? ''}|${r.tx.subcategory ?? ''}`)
   const regelsVanCat = catKeuze ? regels.filter(r => sleutelVan(r) === catKeuze.key) : []
 
   const zichtbaar = alleenOpen
-    ? regels.filter(r => r.soort === 'splitser' && statusVan(r.item) === 'open')
+    ? regels.filter(r => r.soort === 'splitser' && nogTeDoen(r.item))
     : regels
   // Rustige kleuren: wie betaalde, en voor mijn betalingen de bankstatus.
   const pillsVoor = it => {
     const status = statusVan(it)
     const pills = [status === 'ander' ? { text: it.payer, tone: 'neutral' } : { text: 'jij', tone: 'accent' }]
-    if (status === 'gekoppeld') pills.push({ text: 'bank ✓', tone: 'green' })
+    if (status === 'gekoppeld') {
+      const diff = verschilVan(it)
+      pills.push(Math.abs(diff) <= 0.01
+        ? { text: 'bank ✓', tone: 'green' }
+        : { text: `bank ${diff > 0 ? '+' : '−'}${euro(Math.abs(diff))}`, tone: 'orange' })
+    }
     if (status === 'contant') pills.push({ text: 'contant', tone: 'neutral' })
     if (status === 'open') pills.push({ text: 'nog koppelen', tone: 'orange' })
     return pills
@@ -193,13 +205,17 @@ export function TripDetailSheet({ tripId, onClose }) {
               <div className="card px-4 py-3 mb-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold">
-                    {controle.open === 0 ? '✓ Alles wat jij betaalde is gekoppeld' : `${controle.open} eigen ${controle.open === 1 ? 'betaling' : 'betalingen'} nog te koppelen`}
+                    {controle.open > 0
+                      ? `${controle.open} eigen ${controle.open === 1 ? 'betaling' : 'betalingen'} nog te koppelen`
+                      : controle.afwijkend > 0
+                        ? `${controle.afwijkend} ${controle.afwijkend === 1 ? 'koppeling sluit' : 'koppelingen sluiten'} niet aan op de bank`
+                        : '✓ Alles wat jij betaalde is gekoppeld'}
                   </div>
                   <div className="text-[11px] text-muted">
-                    {controle.gekoppeld} gekoppeld · {controle.contant} contant · {controle.totaal} betaalde jij in totaal
+                    {controle.gekoppeld} gekoppeld{controle.afwijkend > 0 ? ` (${controle.afwijkend} met verschil)` : ''} · {controle.contant} contant · {controle.totaal} betaalde jij in totaal
                   </div>
                 </div>
-                {controle.open > 0 && (
+                {(controle.open > 0 || controle.afwijkend > 0) && (
                   <button
                     onClick={() => setAlleenOpen(v => !v)}
                     className="rounded-full px-3 py-1.5 text-[11px] font-semibold shrink-0"
@@ -207,7 +223,7 @@ export function TripDetailSheet({ tripId, onClose }) {
                       ? { background: 'var(--color-accent)', color: 'white' }
                       : { background: 'var(--color-surface-2)', color: 'var(--color-muted)' }}
                   >
-                    Alleen open
+                    Alleen te doen
                   </button>
                 )}
               </div>
@@ -350,6 +366,7 @@ export function TripDetailSheet({ tripId, onClose }) {
       {item && (
         <TripItemSheet
           item={(items ?? []).find(i => i.id === item.id) ?? item}
+          items={items ?? []}
           transactions={bankKandidaten ?? txs ?? []}
           loading={bankKandidaten == null}
           tripId={trip.id}
