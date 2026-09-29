@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -11,24 +12,41 @@ import {
 import { euro, euroCompact, fmtDate } from '../../utils/formatters'
 import { gridTheme, tickTheme, tooltipTheme } from '../../utils/theme'
 import { accentColor, alpha } from '../../utils/wealth/colors'
+import { DEFAULT_HISTORY_PERIOD, HISTORY_PERIODS, filterHistoryPeriod } from '../../utils/wealth/history'
+import { round2 } from '../../utils/wealth/months'
 
 ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip)
 
+/** '29 sep 2025' — net als fmtDate, met het jaartal erbij: nodig zodra de reeks meer dan een jaar beslaat. */
+function fmtDateMetJaar(date) {
+  return `${fmtDate(date)} ${String(date ?? '').slice(0, 4)}`
+}
+
 /**
- * Het verloop van je totale vermogen: één punt per dag waarop er iets gemeten
- * is. Zolang je nog maar één meting hebt is er niets te tekenen — dan zie je
- * alleen de uitleg.
+ * Het verloop van je totale vermogen. Bankrekeningen tekenen terug tot hun
+ * eerste import-anker, handmatige rekeningen vanaf hun eerste saldo-invoer
+ * (zie `combinedWealthHistory`). Leeg alleen als er echt geen enkel punt is;
+ * met maar één rekening of één punt werkt hij ook, dan is er alleen niets om
+ * de verandering mee te vergelijken.
  */
 export function WealthHistoryChart({ history }) {
-  const punten = history ?? []
-  if (punten.length < 2) {
+  const [periode, setPeriode] = useState(DEFAULT_HISTORY_PERIOD)
+  const alles = history?.points ?? []
+
+  if (alles.length === 0) {
     return (
       <p className="text-xs text-muted px-4 py-6 text-center">
-        Het verloop verschijnt zodra er meerdere metingen zijn. Elke dag dat je dit scherm opent,
-        wordt de stand van vandaag vastgelegd.
+        Het verloop verschijnt zodra er iets bekend is: importeer je bank of werk het saldo van een rekening bij.
       </p>
     )
   }
+
+  const punten = filterHistoryPeriod(alles, periode)
+  const eerste = punten[0]
+  const laatste = punten[punten.length - 1]
+  const verandering = round2(laatste.total - eerste.total)
+  // Compleet-vanaf ligt vóór wat we nu tonen? Dan is de uitleg niet meer relevant.
+  const compleetLater = history?.completeFrom && history.completeFrom > eerste.date
 
   const accent = accentColor()
   const data = {
@@ -40,7 +58,7 @@ export function WealthHistoryChart({ history }) {
       backgroundColor: alpha(accent, 0.12),
       borderWidth: 2,
       fill: true,
-      tension: 0.25,
+      tension: 0.3,
       pointRadius: punten.length > 30 ? 0 : 2,
       pointHoverRadius: 5,
     }],
@@ -56,7 +74,10 @@ export function WealthHistoryChart({ history }) {
       legend: { display: false },
       tooltip: {
         ...tooltipTheme(),
-        callbacks: { label: ctx => euro(ctx.parsed.y) },
+        callbacks: {
+          title: ctx => fmtDateMetJaar(punten[ctx[0]?.dataIndex]?.date),
+          label: ctx => euro(ctx.parsed.y),
+        },
       },
     },
     scales: {
@@ -69,5 +90,37 @@ export function WealthHistoryChart({ history }) {
     },
   }
 
-  return <Line data={data} options={options} />
+  return (
+    <div>
+      <div className="flex gap-1.5 mb-2">
+        {HISTORY_PERIODS.map(p => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => setPeriode(p.key)}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-medium"
+            style={p.key === periode
+              ? { background: 'var(--color-accent)', color: 'white' }
+              : { background: 'var(--color-surface-2)', color: 'var(--color-muted)' }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <Line data={data} options={options} />
+
+      <p className="text-[11px] text-center mt-2" style={{ color: 'var(--color-muted)' }}>
+        {punten.length > 1
+          ? `${verandering >= 0 ? '+' : ''}${euro(verandering)} sinds ${fmtDateMetJaar(eerste.date)}`
+          : `${euro(laatste.total)} op ${fmtDateMetJaar(laatste.date)}`}
+      </p>
+      {compleetLater && (
+        <p className="text-[11px] text-center mt-1" style={{ color: 'var(--color-muted)' }}>
+          Totaal pas compleet vanaf {fmtDateMetJaar(history.completeFrom)}: daarvoor ontbrak het saldo van
+          een rekening die later is toegevoegd.
+        </p>
+      )}
+    </div>
+  )
 }

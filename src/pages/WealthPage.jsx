@@ -14,14 +14,13 @@ import {
   useGoals,
   useProjectionMonths,
   useReservations,
-  useSnapshots,
   useWealthBuffer,
+  useWealthHistory,
 } from '../hooks/useWealth'
 import { periodSavings } from '../utils/savings'
 import { euro } from '../utils/formatters'
-import { activeAccounts, totalWealth } from '../utils/wealth/accounts'
+import { totalWealth } from '../utils/wealth/accounts'
 import { allocateGoals } from '../utils/wealth/goals'
-import { wealthHistory } from '../utils/wealth/history'
 import { monthOf, monthsBetween, round2 } from '../utils/wealth/months'
 import { projectWealth } from '../utils/wealth/projection'
 import { freeWealth, reservationTotals } from '../utils/wealth/reservations'
@@ -36,7 +35,7 @@ const MAX_VENSTER = 120
  */
 export function WealthPage() {
   const accounts = useAccounts()
-  const snapshots = useSnapshots()
+  const verloop = useWealthHistory()
   const reservations = useReservations()
   const goals = useGoals()
   const buffer = useWealthBuffer()
@@ -63,9 +62,9 @@ export function WealthPage() {
     initWealth().catch(() => {})
   }, [])
 
-  const laden = accounts == null || reservations == null || goals == null
+  const laden = accounts == null || verloop == null || reservations == null || goals == null
+  const heeftRekeningen = (accounts ?? []).length > 0
 
-  const actief = activeAccounts(accounts ?? [])
   const totaal = totalWealth(accounts ?? [])
   const totalen = reservationTotals(reservations ?? [])
   const vrij = freeWealth(totaal, buffer, reservations ?? [])
@@ -83,7 +82,6 @@ export function WealthPage() {
     buffer,
   })
   const verdeling = allocateGoals(volleMaanden, goals ?? []).goals
-  const verloop = wealthHistory(snapshots ?? [], actief.map(a => a.key))
 
   if (laden) {
     return (
@@ -102,6 +100,7 @@ export function WealthPage() {
           buffer={buffer}
           reserved={totalen.open}
           onBuffer={() => setBufferOpen(true)}
+          hasAccounts={heeftRekeningen}
         />
 
         {/* Verloop van je vermogen: de hoofdgrafiek. */}
@@ -111,9 +110,6 @@ export function WealthPage() {
           </h2>
           <div className="card p-3">
             <WealthHistoryChart history={verloop} />
-            <p className="text-[11px] text-center mt-2" style={{ color: 'var(--color-muted)' }}>
-              Som van je rekeningen per dag. Groeit vanzelf: elke keer dat je hier komt of een saldo bijwerkt.
-            </p>
           </div>
         </div>
 

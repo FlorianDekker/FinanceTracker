@@ -2,7 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { today } from '../utils/formatters'
 import { parseBalanceInput } from '../utils/balance'
-import { importAccountBalances, importAccountKey, maskAccount, sortAccounts } from '../utils/wealth/accounts'
+import { activeAccounts, importAccountBalances, importAccountKey, maskAccount, sortAccounts } from '../utils/wealth/accounts'
+import { combinedWealthHistory } from '../utils/wealth/history'
 import { monthOf, round2 } from '../utils/wealth/months'
 
 /* ------------------------------------------------------------------ *
@@ -61,17 +62,19 @@ export async function setProjectionMonths(months) {
  * hun saldo uit de bankimport (zelfde rekensom als de saldocontrole), de rest
  * houdt het saldo dat je zelf invoerde.
  */
+async function loadResolvedAccounts() {
+  const rijen = sortAccounts(await db.accounts.toArray())
+  if (!rijen.some(a => a.source === 'abn-import')) return rijen
+  const saldi = importAccountBalances(await db.transactions.toArray())
+  return rijen.map(a => {
+    const uitImport = a.source === 'abn-import' ? saldi[a.account] : null
+    if (!uitImport || uitImport.balance == null) return a
+    return { ...a, balance: uitImport.balance, balanceAt: uitImport.anchorDate, fromImport: uitImport }
+  })
+}
+
 export function useAccounts() {
-  return useLiveQuery(async () => {
-    const rijen = sortAccounts(await db.accounts.toArray())
-    if (!rijen.some(a => a.source === 'abn-import')) return rijen
-    const saldi = importAccountBalances(await db.transactions.toArray())
-    return rijen.map(a => {
-      const uitImport = a.source === 'abn-import' ? saldi[a.account] : null
-      if (!uitImport || uitImport.balance == null) return a
-      return { ...a, balance: uitImport.balance, balanceAt: uitImport.anchorDate, fromImport: uitImport }
-    })
-  }, [], null)
+  return useLiveQuery(loadResolvedAccounts, [], null)
 }
 
 async function nextOrder() {
@@ -210,6 +213,23 @@ export async function initWealth() {
 
 export function useSnapshots() {
   return useLiveQuery(() => db.accountSnapshots.toArray(), [], null)
+}
+
+/**
+ * Het vermogensverloop voor de grafiek: bankrekeningen uit hun transacties
+ * (met terugwerkende kracht), handmatige rekeningen uit hun momentopnames.
+ * Zie `combinedWealthHistory` in `utils/wealth/history.js`.
+ * @returns { points, completeFrom, accountCount } | null tijdens het laden
+ */
+export function useWealthHistory() {
+  return useLiveQuery(async () => {
+    const [rijen, snapshots, txs] = await Promise.all([
+      loadResolvedAccounts(),
+      db.accountSnapshots.toArray(),
+      db.transactions.toArray(),
+    ])
+    return combinedWealthHistory(activeAccounts(rijen), snapshots, txs)
+  }, [], null)
 }
 
 /* ------------------------------------------------------------------ *

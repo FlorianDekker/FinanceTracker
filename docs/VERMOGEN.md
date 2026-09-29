@@ -54,9 +54,43 @@ aanraken, standaard 1000), `wealthProjectionMonths` (standaard 24).
 - Handmatige rekeningen: naam, soort, saldo. "Saldo bijwerken" → nieuw saldo +
   datum (standaard vandaag) → upsert snapshot + `balance/balanceAt` op de rekening.
 - Totaal vermogen = Σ saldo van niet-gearchiveerde rekeningen.
-- Verloop: lijn per dag over alle snapshots (som over rekeningen; voor een
-  rekening zonder snapshot op een dag geldt de laatste bekende). Puur:
-  `src/utils/wealth/history.js`, getest.
+- Verloop: met terugwerkende kracht, niet alleen vanaf vandaag. De
+  bankimport bewaart bij elke transactie `tx.balance` (saldo ná die mutatie)
+  en `tx.account` (IBAN) — daaruit is het verloop van een `abn-import`-
+  rekening te reconstrueren tot aan het eerste import-anker, in plaats van te
+  wachten op dagelijkse momentopnames die pas vanaf nu bestaan.
+  - `src/utils/wealth/bankHistory.js` → `bankAccountHistories(txs)`: per IBAN
+    één punt per dag-met-mutatie (saldo ná de láátste mutatie van die dag,
+    volgorde datum dan id). Handmatige transacties (zonder `balance`) ná het
+    laatste anker verschuiven het saldo verder, per dag, net als
+    `expectedBalance` in `src/utils/balance.js` — alleen bij de rekening met
+    het meest recente anker (zo'n regel heeft zelf geen rekeningnummer, net
+    als bij `importAccountBalances`).
+  - `src/utils/wealth/history.js` → `combinedWealthHistory(accounts, snapshots, txs)`:
+    voor `abn-import`-rekeningen telt **alleen** de bankreeks (de momentopnames
+    van zo'n rekening worden genegeerd — ze zijn altijd een deelverzameling
+    van wat de bankreeks al laat zien, en meenemen zou alleen een dubbel punt
+    per dag riskeren als de handmatige regels erna zijn gewijzigd); handmatige
+    rekeningen blijven op hun momentopnames. Een rekening telt pas mee vanaf
+    zijn eigen eerste punt — **weggelaten**, niet als 0 geteld, vóór dat punt:
+    een 0 zou een valse dip geven zodra je een rekening met historie toevoegt.
+    `completeFrom` is de eerste dag waarop alle meegegeven rekeningen
+    meetellen; de grafiek legt uit dat het totaal daarvóór nog niet compleet
+    is.
+  - `filterHistoryPeriod(points, period)` beperkt tot 3 maanden / 1 jaar
+    (standaard) / alles, teruggerekend vanaf de láátste dag in de reeks (niet
+    per se vandaag, zodat de functie puur blijft); zonder punt precies op de
+    grens schuift het laatst bekende punt ervóór naar de grens, zodat de lijn
+    niet uit het niets lijkt te beginnen.
+  - `WealthHistoryChart` (`src/components/wealth/WealthHistoryChart.jsx`) toont
+    de periodeknoppen, de lijn (met vulling, tooltip met datum + jaar en
+    bedrag) en onder de grafiek de verandering over de gekozen periode
+    ("+€1.234,56 sinds 29 sep 2025"); leeg alleen als er echt geen punt is.
+  - Puur getest in `tests/unit/wealth-history.test.mjs`.
+- Zonder één rekening is "vrij vermogen" zinloos (totaal 0, min de buffer
+  wordt dat negatief): `WealthHeader` toont dan een uitnodiging om een
+  rekening toe te voegen of de bank te importeren in plaats van een rood
+  bedrag.
 
 ## Reserveringen
 
