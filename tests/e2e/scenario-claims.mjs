@@ -65,7 +65,7 @@ export async function scenarioClaims({ page, OUT, logs, ensureMonth }) {
   }, label)
 
   // Eén transactie via het formulier op de transactiepagina.
-  async function nieuweTransactie({ bedrag, richting = 'Af', categorie, sub, omschrijving, declaratie = false, datum = null }) {
+  async function nieuweTransactie({ bedrag, richting = 'Af', categorie, sub, omschrijving, declaratie = false, datum = new Date().toISOString().slice(0, 10) }) {
     await nav(1)
     await page.locator('button.fixed.right-4').click(); await sleep(900)
     // Een nieuwe transactie krijgt de datum van de bekeken maand; voor een
@@ -161,7 +161,7 @@ export async function scenarioClaims({ page, OUT, logs, ensureMonth }) {
   let boodschappenVoor = null
   {
     const i = logs.length
-    await nieuweTransactie({ bedrag: '30', richting: 'Bij', categorie: 'Salaris', omschrijving: 'Declaratie werk sept', datum: new Date().toISOString().slice(0, 10) })
+    await nieuweTransactie({ bedrag: '30', richting: 'Bij', categorie: 'Salaris', omschrijving: 'Declaratie werk sept' })
     await nav(0)
     await ensureMonth(page, DEZE_MAAND)
     boodschappenVoor = await kaartBedrag('Boodschappen')

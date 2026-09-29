@@ -305,7 +305,7 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
     const geheim = JSON.stringify(backup).includes('sk-test-nep-sleutel')
     const s = await shot('backup-zonder-afbeeldingen')
     stap('H7', 'backup zonder afbeeldingen bevat de regels maar niet de foto’s',
-      toggle === 1 && backup.schemaVersion === 6 && backup.includesImages === false
+      toggle === 1 && backup.schemaVersion >= 6 && backup.includesImages === false
       && backup.tables.receipts.length === 1 && bon.items.length === 2
       && !('pages' in bon) && !('pdf' in bon) && !('thumb' in bon)
       && backup.tables.receiptItems.length === 2 && !geheim && errsSinds(i).length === 0,

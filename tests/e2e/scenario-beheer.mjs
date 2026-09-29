@@ -145,6 +145,8 @@ export async function beheerScenario({ page, OUT, logs, DUMP, dialogs, aantalCat
     const subNiveau = await top().locator('button').allInnerTexts()
     await top().locator('button', { hasText: /^Voer$/ }).first().click(); await sleep(700)
     await page.locator('input[placeholder="0,00"]').fill('12,50')
+    // Nieuwe transacties krijgen de bekeken maand; deze hoort bij vandaag.
+    await page.locator('input[type="date"]').last().fill(new Date().toISOString().slice(0, 10)); await sleep(200)
     const knopTekst = await page.locator('button', { hasText: 'Huisdier' }).first().innerText()
     const s = await shot('transactie-formulier')
     await page.locator('button', { hasText: /^Opslaan$/ }).first().click(); await sleep(1400)
