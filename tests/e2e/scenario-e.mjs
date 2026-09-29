@@ -361,6 +361,8 @@ export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMon
     await page.locator('a', { hasText: 'Weergave' }).first().click(); await sleep(800)
     await page.locator('button', { hasText: /^Donker$/ }).click(); await sleep(700)
     await page.locator('button', { hasText: /^Licht$/ }).click(); await sleep(900)
+    // De regel "N transacties in de app" staat onderaan het overzicht.
+    await nav(4); await sleep(900)
     const c = await page.evaluate(() => {
       const parse = s => (s.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
       const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
