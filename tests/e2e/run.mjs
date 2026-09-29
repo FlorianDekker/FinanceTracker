@@ -309,7 +309,9 @@ const nav = async (page, i) => { await sluitSheets(page); await page.locator('na
 
 async function newContext(userDataDir) {
   return chromium.launchPersistentContext(userDataDir, {
-    channel: 'chrome', headless: true,
+    // E2E_CHANNEL=chromium gebruikt de Chromium van Playwright in plaats van de
+    // lokale Chrome (handig als een nieuwe Chrome-versie headless crasht).
+    channel: process.env.E2E_CHANNEL === 'chromium' ? undefined : (process.env.E2E_CHANNEL || 'chrome'), headless: true,
     viewport: { width: 390, height: 844 }, deviceScaleFactor: 2,
     hasTouch: true,            // nodig voor echte browser-touch via CDP (scroll/swipe)
     acceptDownloads: true,
