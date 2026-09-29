@@ -279,9 +279,11 @@ export async function scenarioClaims({ page, OUT, logs, ensureMonth }) {
     await nieuweTransactie({ bedrag: '18', categorie: 'Voorschot', omschrijving: 'NS Utrecht' })
     await nieuweTransactie({ bedrag: '15', categorie: 'Voorschot', omschrijving: 'Tikkie Jan' })
 
-    // Instellingen -> de eenmalige omzetting (de bevestiging wordt automatisch geaccepteerd)
+    // Instellingen -> Declaraties -> de eenmalige omzetting (de bevestiging
+    // wordt automatisch geaccepteerd). Zit sinds de opsplitsing op /settings/claims.
     await nav(4)
-    const kaart = await page.locator('h2:text-is("Declaraties")').locator('xpath=following-sibling::div').first().innerText()
+    await page.locator('a', { hasText: 'Declaraties' }).first().click(); await sleep(900)
+    const kaart = await page.locator('div.card').first().innerText()
     const sA = await shot('instellingen-omzetting')
     await page.locator('button', { hasText: 'Zet Voorschot-uitgaven om naar declaraties' }).click(); await sleep(1500)
     const toast = await page.locator('div.mx-4.mt-4').first().innerText().catch(() => '')

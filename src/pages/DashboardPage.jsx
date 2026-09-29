@@ -126,7 +126,7 @@ export function DashboardPage() {
               )
             })()}
             {!heeftBudget && (
-              <Link to="/settings" className="inline-block mt-3 text-xs font-medium" style={{ color: 'var(--color-accent)' }}>
+              <Link to="/settings/budgets" className="inline-block mt-3 text-xs font-medium" style={{ color: 'var(--color-accent)' }}>
                 Stel maandbudgetten in ›
               </Link>
             )}

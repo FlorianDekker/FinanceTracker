@@ -14,6 +14,7 @@ import { TripsPage } from './pages/TripsPage'
 import { WealthPage } from './pages/WealthPage'
 import { MonthProvider } from './hooks/useMonth'
 import { CategoriesProvider } from './hooks/useCategories'
+import { ToastProvider } from './hooks/useToast'
 import { applyAccentColor, applySheetMargin, DEFAULT_SHEET_MARGIN } from './utils/theme'
 
 const BASENAME = '/FinanceTracker'
@@ -68,25 +69,28 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter basename={BASENAME}>
-      <CategoriesProvider>
-        <MonthProvider>
-          <div className="flex flex-col min-h-screen bg-bg" style={{ color: 'var(--color-text)' }}>
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/transactions" element={<TransactionsPage />} />
-              <Route path="/charts" element={<ChartsPage />} />
-              <Route path="/import" element={<ImportPage />} />
-              <Route path="/declaraties" element={<ClaimsPage />} />
-              <Route path="/bon" element={<ReceiptsPage />} />
-              <Route path="/vakanties" element={<TripsPage />} />
-              <Route path="/vermogen" element={<WealthPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Routes>
-            <BottomNav />
-          </div>
-        </MonthProvider>
-      </CategoriesProvider>
-    </BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter basename={BASENAME}>
+        <CategoriesProvider>
+          <MonthProvider>
+            <div className="flex flex-col min-h-screen bg-bg" style={{ color: 'var(--color-text)' }}>
+              <Routes>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/transactions" element={<TransactionsPage />} />
+                <Route path="/charts" element={<ChartsPage />} />
+                <Route path="/import" element={<ImportPage />} />
+                <Route path="/declaraties" element={<ClaimsPage />} />
+                <Route path="/bon" element={<ReceiptsPage />} />
+                <Route path="/vakanties" element={<TripsPage />} />
+                <Route path="/vermogen" element={<WealthPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/settings/:sectie" element={<SettingsPage />} />
+              </Routes>
+              <BottomNav />
+            </div>
+          </MonthProvider>
+        </CategoriesProvider>
+      </BrowserRouter>
+    </ToastProvider>
   )
 }

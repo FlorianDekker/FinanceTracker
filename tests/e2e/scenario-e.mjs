@@ -264,9 +264,11 @@ export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMon
       await new Promise(res => setTimeout(res, 200))
       db.close()
     })
+    // Backup/restore zit sinds de opsplitsing onder /settings/data ("Data").
     await nav(4); await sleep(1000)
+    await page.locator('a', { hasText: 'Data' }).first().click(); await sleep(900)
 
-    const secties = await page.evaluate(() => [...document.querySelectorAll('h2')].map(h => h.textContent.trim()))
+    const paginaTitel = await page.locator('h1').first().innerText().catch(() => '')
     const backupKnop = await page.locator('button', { hasText: 'Backup maken' }).count()
     const restoreKnop = await page.locator('text=Backup terugzetten…').count()
     // "Wis alle transacties" zit onder Geavanceerd
@@ -315,16 +317,18 @@ export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMon
       && naHerstel.categories.length === aantalCategorieen && b.boodschappen === 333 && errsSinds(i).length === 0,
       `na wissen ${naWis.transactionCount} transacties (categorieen blijven: ${naWis.categories.length}); samenvattingssheet: "${samenvatting}"; na terugzetten ${naHerstel.transactionCount} transacties, ${naHerstel.categories.length} categorieen, boodschappen=${b.boodschappen}, woning=${b.woning}, reiskosten=${b.reiskosten}, hobbys=${b.hobbys}; ai-keys na replace-restore: ${aiNa.length}; errors=${errsSinds(i).length}`, sC + ', ' + sD + ', ' + sE)
 
-    stappen.push({ id: 'E5-secties', titel: 'info', pass: true, bewijs: `secties=${JSON.stringify(secties)}, backupKnop=${backupKnop}, restoreKnop=${restoreKnop}, wisKnop=${wisKnop}`, screenshot: sA })
-    stap('E5c', 'Instellingen-indeling (Data + Geavanceerd)',
-      secties.includes('Data') && backupKnop === 1 && restoreKnop >= 1 && wisKnop === 1,
-      `secties=${secties.join(' / ')}; "Backup maken"=${backupKnop}, "Backup terugzetten…"=${restoreKnop}, "Wis alle transacties" onder Geavanceerd=${wisKnop}`, sA)
+    stappen.push({ id: 'E5-secties', titel: 'info', pass: true, bewijs: `paginaTitel="${paginaTitel}", backupKnop=${backupKnop}, restoreKnop=${restoreKnop}, wisKnop=${wisKnop}`, screenshot: sA })
+    stap('E5c', 'Instellingen-indeling (subscherm Data + Geavanceerd)',
+      paginaTitel === 'Data' && backupKnop === 1 && restoreKnop >= 1 && wisKnop === 1,
+      `paginaTitel="${paginaTitel}"; "Backup maken"=${backupKnop}, "Backup terugzetten…"=${restoreKnop}, "Wis alle transacties" onder Geavanceerd=${wisKnop}`, sA)
   }
 
   /* ================= E6: herkenningsregels ================= */
   {
     const i = logs.length
+    // Herkenningsregels zit sinds de opsplitsing onder /settings/categories ("Categorieën").
     await nav(4); await sleep(900)
+    await page.locator('a', { hasText: 'Categorieën' }).first().click(); await sleep(900)
     await page.locator('button', { hasText: 'Herkenningsregels' }).click(); await sleep(900)
     await top().locator('input[placeholder="Trefwoorden, komma-gescheiden"]').fill('coffee company')
     await top().locator('button', { hasText: 'Kies categorie' }).click(); await sleep(800)
@@ -352,7 +356,9 @@ export async function scenarioE({ page, cdp, OUT, logs, DUMP, dialogs, ensureMon
   /* ================= E7: contrast licht thema ================= */
   {
     const i = logs.length
+    // Thema staat sinds de opsplitsing van Instellingen op /settings/appearance ("Weergave").
     await nav(4); await sleep(800)
+    await page.locator('a', { hasText: 'Weergave' }).first().click(); await sleep(800)
     await page.locator('button', { hasText: /^Donker$/ }).click(); await sleep(700)
     await page.locator('button', { hasText: /^Licht$/ }).click(); await sleep(900)
     const c = await page.evaluate(() => {

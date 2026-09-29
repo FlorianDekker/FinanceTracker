@@ -118,7 +118,6 @@ export function AiReceiptsCard({ onStatus }) {
 
   return (
     <section className="px-4 pt-4 pb-2">
-      <h2 className="text-xs text-muted uppercase tracking-wider mb-3">AI &amp; bonnetjes</h2>
       <div className="card divide-y divide-border overflow-hidden">
         {/* Provider */}
         <div className="px-4 py-3">

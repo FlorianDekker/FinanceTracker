@@ -350,8 +350,12 @@ async function chartsFlow(page, prefix) {
   return { paceText, jaarText }
 }
 
+// Instellingen is sinds de opsplitsing een overzicht met subschermen; het
+// maandbudget staat nu op /settings/budgets ("Budgetten").
 async function settingsFlow(page, prefix, doShot = true) {
   await nav(page, 4)
+  await sleep(900)
+  await page.locator('a', { hasText: 'Budgetten' }).first().click()
   await sleep(900)
   if (doShot) await shot(page, `${prefix}-settings`)
   const budgets = await page.evaluate(() => {

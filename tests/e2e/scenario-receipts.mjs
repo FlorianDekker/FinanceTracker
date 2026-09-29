@@ -143,8 +143,10 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
   /* ================= H1: sleutel invullen + test verbinding ================= */
   {
     const i = logs.length
+    // Bonnetjes & AI zit sinds de opsplitsing op /settings/receipts.
     await nav(4)
-    await page.locator('text=AI & bonnetjes').first().scrollIntoViewIfNeeded()
+    await page.locator('a', { hasText: 'Bonnetjes & AI' }).first().click(); await sleep(900)
+    await page.locator('input[type="password"]').first().scrollIntoViewIfNeeded()
     await page.locator('input[type="password"]').fill('sk-test-nep-sleutel')
     await page.locator('input[type="password"]').blur()
     await sleep(500)
@@ -288,7 +290,9 @@ export async function scenarioReceipts({ page, OUT, logs, BASE, DATA }) {
   /* ================= H7: backup zonder afbeeldingen ================= */
   {
     const i = logs.length
+    // Backup zit sinds de opsplitsing op /settings/data ("Data").
     await nav(4)
+    await page.locator('a', { hasText: 'Data' }).first().click(); await sleep(900)
     const toggle = await page.locator('text=Met bon-afbeeldingen (groter bestand)').count()
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 20000 }),

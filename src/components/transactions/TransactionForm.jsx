@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { addTransaction, updateTransaction, deleteTransaction } from '../../hooks/useTransactions'
+import { addTransaction, updateTransaction, deleteTransaction, restoreTransaction } from '../../hooks/useTransactions'
 import { useCategories } from '../../hooks/useCategories'
+import { useToast } from '../../hooks/useToast'
 import { today } from '../../utils/formatters'
 import { Sheet } from '../ui/Sheet'
 import { recordEvent } from '../../utils/merchantLearning'
@@ -37,6 +38,7 @@ export function TransactionForm({ onClose, existing, prefill, onSaved, pickerSta
   const [pickerOpen, setPickerOpen] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
   const submittedBatches = useSubmittedBatches()
+  const showToast = useToast()
 
   // Alleen een nog niet ingediende declaratie mag je hier aan- en uitzetten;
   // vanaf 'Ingediend' loopt de status via het declaratiescherm.
@@ -79,8 +81,13 @@ export function TransactionForm({ onClose, existing, prefill, onSaved, pickerSta
 
   async function handleDelete() {
     if (!existing) return
-    await deleteTransaction(existing.id)
+    const verwijderd = await deleteTransaction(existing.id)
     onClose()
+    if (!verwijderd) return
+    showToast('Transactie verwijderd', {
+      actionLabel: 'Herstel',
+      onAction: () => restoreTransaction(verwijderd),
+    })
   }
 
   return (
@@ -338,7 +345,7 @@ function TripRegel({ tripId, onClick }) {
 }
 
 /** Kies een bestaande vakantie (nieuwste eerst) of "geen". */
-function TripKiezer({ open, value, onSelect, onClose }) {
+export function TripKiezer({ open, value, onSelect, onClose }) {
   const trips = useTrips()
   if (!open) return null
   const lijst = [...(trips ?? [])].sort((a, b) => String(b.from ?? '').localeCompare(String(a.from ?? '')))

@@ -51,7 +51,9 @@ export async function beheerScenario({ page, OUT, logs, DUMP, dialogs, aantalCat
   /* --- 1. beheer-sheet openen --- */
   {
     const i = logs.length
+    // Categorieën beheren zit sinds de opsplitsing op /settings/categories ("Categorieën").
     await page.locator('nav a').nth(4).click(); await sleep(900)
+    await page.locator('a', { hasText: 'Categorieën' }).first().click(); await sleep(900)
     await page.locator('button', { hasText: 'Categorieën beheren' }).first().click()
     await sleep(900)
     const titel = await top().locator('div.text-base.font-semibold').first().innerText().catch(() => '')
@@ -163,6 +165,7 @@ export async function beheerScenario({ page, OUT, logs, DUMP, dialogs, aantalCat
     const i = logs.length
     const dialogsVoor = dialogs.length
     await page.locator('nav a').nth(4).click(); await sleep(900)
+    await page.locator('a', { hasText: 'Categorieën' }).first().click(); await sleep(900)
     await page.locator('button', { hasText: 'Categorieën beheren' }).first().click(); await sleep(900)
     await opinRij('Huisdier')
     await top().locator('button', { hasText: /^Inkomen$/ }).last().click(); await sleep(500)   // rol-rij staat onder Type
@@ -261,9 +264,13 @@ export async function beheerScenario({ page, OUT, logs, DUMP, dialogs, aantalCat
     const i = logs.length
     await page.locator('button[aria-label="Sluiten"]').last().click().catch(() => {})
     await sleep(500)
+    // Thema zit sinds de opsplitsing op /settings/appearance ("Weergave"); de
+    // regel "transacties in de app" staat op het Instellingen-overzicht zelf.
     await page.locator('nav a').nth(4).click(); await sleep(800)
+    await page.locator('a', { hasText: 'Weergave' }).first().click(); await sleep(800)
     await page.locator('button', { hasText: /^Donker$/ }).click(); await sleep(700)
     await page.locator('button', { hasText: /^Licht$/ }).click(); await sleep(900)
+    await page.locator('nav a').nth(4).click(); await sleep(800)
     const contrast = await page.evaluate(() => {
       const el = [...document.querySelectorAll('div')].find(d => /transacties in de app$/.test(d.textContent.trim()) && d.children.length === 0)
       if (!el) return { gevonden: false }
