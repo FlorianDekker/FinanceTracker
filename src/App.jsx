@@ -14,7 +14,7 @@ import { TripsPage } from './pages/TripsPage'
 import { WealthPage } from './pages/WealthPage'
 import { MonthProvider } from './hooks/useMonth'
 import { CategoriesProvider } from './hooks/useCategories'
-import { applyAccentColor, applySheetMargin, DEFAULT_SHEET_MARGIN, SHEET_MARGIN_SETTING } from './utils/theme'
+import { applyAccentColor, applySheetMargin, DEFAULT_SHEET_MARGIN } from './utils/theme'
 
 const BASENAME = '/FinanceTracker'
 
@@ -34,9 +34,8 @@ export default function App() {
     db.settings.get('accentColor').then(row => {
       if (row?.value) applyAccentColor(row.value)
     })
-    db.settings.get(SHEET_MARGIN_SETTING).then(row => {
-      applySheetMargin(row?.value ?? DEFAULT_SHEET_MARGIN)
-    })
+    // Vaste marge (8 px, door Florian gekozen); een oude instelling telt niet meer.
+    applySheetMargin(DEFAULT_SHEET_MARGIN)
   }, [])
 
   // Block iOS back-swipe gesture: prevent touchstart on the left-edge zone

@@ -41,6 +41,9 @@ export function PaceChart({ year, month }) {
   if (!data) return <div className="flex items-center justify-center h-40 text-muted text-sm">Laden…</div>
 
   const { actualCum, idealCum, daysInMonth, todayDay, diff, isAhead, actualToday, totalBudgetVariable } = data
+  // Zonder budget (van de gekozen categorieën) is er geen tempo te meten:
+  // dan tonen we neutraal wat je tot nu toe uitgaf.
+  const heeftBudget = totalBudgetVariable > 0
 
   const now = new Date()
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1
@@ -88,11 +91,11 @@ export function PaceChart({ year, month }) {
       {
         label: 'Werkelijk',
         data: actualCum,
-        borderColor: isAhead ? GREEN : RED,
+        borderColor: !heeftBudget ? '#8E8E93' : isAhead ? GREEN : RED,
         borderWidth: 2.5,
         pointRadius: 0,
         pointHoverRadius: 5,
-        pointHoverBackgroundColor: isAhead ? GREEN : RED,
+        pointHoverBackgroundColor: !heeftBudget ? '#8E8E93' : isAhead ? GREEN : RED,
         tension: 0.35,
         fill: 'origin',
         backgroundColor: ctx => {
@@ -100,7 +103,10 @@ export function PaceChart({ year, month }) {
           const { ctx: c, chartArea } = chart
           if (!chartArea) return 'transparent'
           const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-          if (isAhead) {
+          if (!heeftBudget) {
+            gradient.addColorStop(0, 'rgba(142, 142, 147, 0.2)')
+            gradient.addColorStop(1, 'rgba(142, 142, 147, 0)')
+          } else if (isAhead) {
             gradient.addColorStop(0, 'rgba(48, 209, 88, 0.25)')
             gradient.addColorStop(0.6, 'rgba(48, 209, 88, 0.08)')
             gradient.addColorStop(1, 'rgba(48, 209, 88, 0)')
@@ -165,11 +171,11 @@ export function PaceChart({ year, month }) {
       {/* Stats card */}
       <div className="card p-5 mb-4">
         <StatCard
-          label={isAhead ? 'Onder budget' : 'Over budget'}
-          value={Math.abs(diff)}
-          tone={isAhead ? 'green' : 'red'}
-          delta={`${pctUsed}%`}
-          deltaTone={isAhead ? 'green' : 'red'}
+          label={!heeftBudget ? 'Uitgegeven' : isAhead ? 'Onder budget' : 'Over budget'}
+          value={heeftBudget ? Math.abs(diff) : actualToday}
+          tone={!heeftBudget ? 'neutral' : isAhead ? 'green' : 'red'}
+          delta={heeftBudget ? `${pctUsed}%` : 'geen budget ingesteld'}
+          deltaTone={!heeftBudget ? 'muted' : isAhead ? 'green' : 'red'}
           deltaOpacity={0.3}
         />
         <div className="flex items-center gap-3 mt-3">
@@ -178,7 +184,7 @@ export function PaceChart({ year, month }) {
               className="h-full rounded-full transition-all duration-500"
               style={{
                 width: `${Math.min(pctUsed, 100)}%`,
-                background: isAhead ? 'var(--color-green)' : 'var(--color-red)',
+                background: !heeftBudget ? 'var(--color-muted)' : isAhead ? 'var(--color-green)' : 'var(--color-red)',
               }}
             />
           </div>

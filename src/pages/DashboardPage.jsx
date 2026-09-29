@@ -40,7 +40,9 @@ export function DashboardPage() {
   const totalBudget = expenseStats.reduce((s, c) => s + c.budget, 0)
   const totalSpent = expenseStats.reduce((s, c) => s + c.spent, 0)
   const totalRemaining = totalBudget - totalSpent
-  const isOver = totalRemaining < 0
+  // Zonder budget is er niets om 'over' te zijn: dan tonen we gewoon wat je uitgaf.
+  const heeftBudget = totalBudget > 0
+  const isOver = heeftBudget && totalRemaining < 0
 
   // Verwachte vaste lasten: dezelfde detectie als de grafiek "Vaste lasten".
   const { open: unpaidRecurring, betaald: paidRecurring, openTotaal: unpaidFixed } =
@@ -110,22 +112,28 @@ export function DashboardPage() {
         <div className="px-4 pt-5 pb-2">
           <div className="card px-5 py-6 text-center">
             <div className="text-[10px] font-bold uppercase tracking-[0.15em] mb-3" style={{ color: 'var(--color-muted)' }}>
-              {isOver ? 'Over budget' : 'Nog beschikbaar'}
+              {!heeftBudget ? 'Uitgegeven deze maand' : isOver ? 'Over budget' : 'Nog beschikbaar'}
             </div>
             {(() => {
-              const p = euroParts(Math.abs(totalRemaining))
+              const p = euroParts(Math.abs(heeftBudget ? totalRemaining : totalSpent))
+              const kleur = !heeftBudget ? '' : isOver ? 'text-red' : 'text-green'
               return (
-                <div className={`leading-none tabular-nums ${isOver ? 'text-red' : 'text-green'}`}>
+                <div className={`leading-none tabular-nums ${kleur}`} style={heeftBudget ? undefined : { color: 'var(--color-text)' }}>
                   <span className="text-2xl font-bold align-top">{isOver ? '-' : ''}€</span>
                   <span className="text-5xl font-extrabold tracking-tight">{p.whole}</span>
                   <span className="text-xl font-semibold align-top" style={{ opacity: 0.5 }}>{p.dec}</span>
                 </div>
               )
             })()}
+            {!heeftBudget && (
+              <Link to="/settings" className="inline-block mt-3 text-xs font-medium" style={{ color: 'var(--color-accent)' }}>
+                Stel maandbudgetten in ›
+              </Link>
+            )}
             <div className="flex justify-center gap-4 mt-5">
               {[
                 { val: totalSpent, label: 'Uitgegeven' },
-                { val: totalExpected, label: 'Verwacht', color: totalExpected > totalBudget ? 'var(--color-red)' : null, tap: () => setShowExpected(true) },
+                { val: totalExpected, label: 'Verwacht', color: heeftBudget && totalExpected > totalBudget ? 'var(--color-red)' : null, tap: () => setShowExpected(true) },
                 { val: totalBudget, label: 'Budget' },
               ].map((item, i) => {
                 const ip = euroParts(item.val)

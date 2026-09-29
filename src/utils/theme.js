@@ -65,7 +65,7 @@ export function gridTheme() {
 }
 
 export const SHEET_MARGIN_SETTING = 'sheetTopMargin'
-export const DEFAULT_SHEET_MARGIN = 24
+export const DEFAULT_SHEET_MARGIN = 8
 
 /** Ruimte tussen statusbalk en de bovenkant van een hoge sheet, in px. */
 export function applySheetMargin(px) {

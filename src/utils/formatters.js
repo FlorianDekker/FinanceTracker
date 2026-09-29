@@ -1,15 +1,12 @@
 import { MONTHS } from '../constants/categories'
 
+/**
+ * "€1.234,56" — met duizendtal-punt, en een minteken vóór het €-teken
+ * ("-€1.000,00"), overal in de app hetzelfde.
+ */
 export function euro(n) {
-  const v = Math.round(n * 100) / 100
-  let s = String(v)
-  if (s.includes('.')) {
-    const [a, b] = s.split('.')
-    s = a + ',' + (b.length === 1 ? b + '0' : b.slice(0, 2))
-  } else {
-    s = s + ',00'
-  }
-  return '€' + s
+  const p = euroParts(n)
+  return (p.sign === '-€' ? '-€' : '€') + p.whole + p.dec
 }
 
 // Returns { whole: '1.234', decimal: ',56', sign: '€' } for split rendering
