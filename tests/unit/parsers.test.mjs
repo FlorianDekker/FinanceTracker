@@ -120,25 +120,47 @@ t('bunq: puntkomma, getekend bedrag, Name als merchant', () => {
 })
 
 /* ── Revolut ──────────────────────────────────────────────────────────── */
+// Gedrag bewust gewijzigd t.o.v. de oude versie: Fee telt nu mee in het
+// bedrag (amount = Amount − Fee, klopt met het Balance-veld), account wordt
+// "Revolut <Product>" i.p.v. kaal "Current", en de waarschuwing over de fee
+// vervalt (zie opdracht). Savings-regel tussen de Current-regels in toetst
+// de sortering per rekening op Completed Date.
 
 const REVOLUT = [
   'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance',
   'CARD_PAYMENT,Current,2026-09-02 08:11:02,2026-09-02 10:02:11,Koffiehuis Fictief,-4.50,0.00,EUR,COMPLETED,120.50',
   'TOPUP,Current,2026-09-03 09:00:00,2026-09-03 09:00:05,Payment from J. Voorbeeld,50.00,0.00,EUR,COMPLETED,170.50',
+  'TOPUP,Savings,2026-09-03 12:00:00,2026-09-03 12:00:05,Van J. Voorbeeld,25.00,0.00,EUR,COMPLETED,25.00',
   'CARD_PAYMENT,Current,2026-09-04 20:15:00,,Restaurant Fictief,-28.00,0.00,EUR,PENDING,142.50',
-  'ATM,Current,2026-09-05 12:00:00,2026-09-05 12:00:30,Cash withdrawal,-20.00,1.50,EUR,COMPLETED,121.00',
+  'ATM,Current,2026-09-05 12:00:00,2026-09-05 12:00:30,Cash withdrawal,-20.00,1.50,EUR,COMPLETED,149.00',
+  'Transfer,Savings,2026-09-06 09:00:00,2026-09-06 09:00:00,Closing transaction,0.00,0.00,EUR,COMPLETED,0.00',
 ].join('\n')
 
-t('Revolut: alleen COMPLETED, datum met tijd, balance', () => {
+t('Revolut: alleen COMPLETED, datum met tijd, fee bij het bedrag opgeteld', () => {
   const { transactions, warnings } = P.parseRevolut(REVOLUT)
-  assert.equal(transactions.length, 3)
-  assert.equal(transactions[0].date, '2026-09-02')
-  assert.equal(transactions[0].merchant, 'Koffiehuis Fictief')
-  assert.equal(transactions[0].amount, 4.5)
-  assert.equal(transactions[0].balance, 120.5)
-  assert.equal(transactions[1].type, 'credit')
+  assert.equal(transactions.length, 4, 'de PENDING-regel en de 0,00 closing-regel tellen niet mee')
+  const current = transactions.filter(t2 => t2.account === 'Revolut Current')
+  const savings = transactions.filter(t2 => t2.account === 'Revolut Savings')
+  assert.equal(current.length, 3)
+  assert.equal(savings.length, 1)
+  assert.equal(current[0].merchant, 'Koffiehuis Fictief')
+  assert.equal(current[0].amount, 4.5)
+  assert.equal(current[0].balance, 120.5)
+  assert.equal(current[0].bankType, 'CARD_PAYMENT')
+  assert.equal(current[1].type, 'credit')
+  assert.equal(current[2].amount, 21.5, 'Amount (20,00) + Fee (1,50)')
+  assert.equal(current[2].fee, 1.5)
+  assert.ok(current[2].remi.includes('1,50'), 'de kosten staan in de remi')
   assert.ok(warnings.some(w => w.includes('COMPLETED')), 'waarschuwing over de PENDING-regel')
-  assert.ok(warnings.some(w => w.toLowerCase().includes('fee')), 'waarschuwing over de fee')
+  assert.ok(!warnings.some(w => w.toLowerCase().includes('fee')), 'geen losse fee-waarschuwing meer (fee telt al mee)')
+})
+
+t('Revolut: rekening écht als laatste mutatie gesorteerd, ook als het bestand dat niet is', () => {
+  // Savings-regel staat in het bestand tussen Current-regels; na het parsen
+  // moet de laatste Current-regel (qua tijd) ook de laatste in de array zijn.
+  const { transactions } = P.parseRevolut(REVOLUT)
+  const current = transactions.filter(t2 => t2.account === 'Revolut Current')
+  assert.deepEqual(current.map(t2 => t2.date), ['2026-09-02', '2026-09-03', '2026-09-05'])
 })
 
 /* ── N26 ──────────────────────────────────────────────────────────────── */

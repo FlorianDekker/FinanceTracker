@@ -1,7 +1,8 @@
 /**
  * Rekeningen: soorten, totalen en het saldo dat uit de bankimport komt.
  *
- * Een rekening met `source: 'abn-import'` heeft geen eigen saldo-invoer: dat
+ * Een rekening met `source: 'bank-import'` (of de oude waarde `'abn-import'`,
+ * zie `isBankImportSource`) heeft geen eigen saldo-invoer: dat
  * saldo komt uit dezelfde berekening als de saldocontrole in Instellingen —
  * het laatste banksaldo uit de import plus wat je daarna handmatig invoerde.
  *
@@ -27,9 +28,32 @@ export function maskAccount(iban) {
   return s.length > 8 ? `…${s.slice(-4)}` : s || 'onbekende rekening'
 }
 
-/** Vaste sleutel per IBAN, zodat een backup-herstel niets hoeft te hernummeren. */
-export function importAccountKey(iban) {
-  return `bank-${String(iban ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')}`
+/**
+ * Een rekening uit de bankimport had altijd `source: 'abn-import'` — dat
+ * heette nog naar de eerste bank die de app ondersteunde. Nu Revolut en
+ * Rabobank er ook in komen heet het generiek `'bank-import'`; bestaande rijen
+ * met de oude waarde blijven via deze check gewoon werken (geen migratie nodig).
+ */
+export function isBankImportSource(source) {
+  return source === 'bank-import' || source === 'abn-import'
+}
+
+/** Vaste sleutel per rekening, zodat een backup-herstel niets hoeft te hernummeren. */
+export function importAccountKey(account) {
+  return `bank-${String(account ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')}`
+}
+
+/** "Revolut Current" blijft zoals het is; een IBAN wordt een leesbare naam. */
+export function labelForAccount(account) {
+  const s = String(account ?? '').trim()
+  if (/^Revolut\s/i.test(s)) return s
+  if (/RABO/i.test(s)) return `Rabobank ${maskAccount(s)}`
+  return `Betaalrekening ${maskAccount(s)}`
+}
+
+/** Revolut Savings/Rabo spaarrekening -> 'spaar', anders de standaard 'betaal'. */
+export function kindForAccount(account) {
+  return /savings$/i.test(String(account ?? '').trim()) ? 'spaar' : 'betaal'
 }
 
 /**

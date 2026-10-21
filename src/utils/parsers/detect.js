@@ -1,6 +1,7 @@
 // Herkent van welke bank een exportbestand komt en zet het om naar transacties.
 import { firstLine, normHeader, sniffDelimiter, parseCsv, stripBom } from './csv'
 import { parseABNExport, parseABNExcelBuffer } from './abn'
+import { parseRabobankPdf } from './rabobankPdf'
 import { parseIng } from './ing'
 import { parseRabobank } from './rabobank'
 import { parseBunq } from './bunq'
@@ -112,6 +113,14 @@ export async function parseBankFile(file) {
       transactions,
       warnings: transactions.length ? [] : ['Geen transacties gevonden in dit Excel-bestand.'],
     }
+  }
+
+  // Alleen Rabobank levert (bij ons) een PDF aan: het rekeningafschrift, voor
+  // wie geen CSV-export van Rabobank kan maken.
+  if (/\.pdf$/i.test(name)) {
+    const buffer = await file.arrayBuffer()
+    const { transactions, warnings, isRabobank, tenNameVan } = await parseRabobankPdf(buffer)
+    return { bank: isRabobank ? 'rabobank' : 'unknown', transactions, warnings, tenNameVan }
   }
 
   const text = await file.text()

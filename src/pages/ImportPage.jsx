@@ -2,7 +2,9 @@ import { useCallback, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { parseBankFile, parseGenericCsv, BANK_LABELS } from '../utils/parsers'
 import { categorizeWithLearning, SALARY_THRESHOLD } from '../utils/categorizer'
-import { getExistingKeys, dedupKey } from '../utils/importHelpers'
+import { getExistingKeys, getExistingAccounts, dedupKey } from '../utils/importHelpers'
+import { markOwnTransfers, collectKnownAccounts } from '../utils/ownTransfers'
+import { addOwnName, useOwnNames } from '../components/settings/OwnNamesSheet'
 import { bulkAddTransactions } from '../hooks/useTransactions'
 import { recordEvent, bulkRecordEvents } from '../utils/merchantLearning'
 import { euro, fmtDate, fmtTimestamp } from '../utils/formatters'
@@ -24,14 +26,14 @@ import { takeFile } from '../utils/fileInput'
 const REVIEW_ONLY_FIELDS = [
   'merchant', 'confidence', 'confidencePct', 'needsManual',
   'remi', 'source', 'eventCount', 'isRecurring', '_originalCategory',
-  'raw', 'counterparty', '_rid',
+  'raw', 'counterparty', '_rid', 'isOwnTransfer', 'ownTransferReason', 'bankType',
 ]
 
 // Eén of twee regels per bank; bewust kort, de rest doet de kolommapper.
 const EXPORT_HINTS = [
   { bank: 'ABN AMRO', hoe: 'Internetbankieren → Zelf regelen → Transacties downloaden. Kies Excel (.xls) of TXT/TAB.' },
   { bank: 'ING', hoe: 'Mijn ING → Overzichten → Downloaden. Kies CSV (puntkomma).' },
-  { bank: 'Rabobank', hoe: 'Rabo Internetbankieren → Betalen & sparen → Transacties downloaden → CSV (kommagescheiden, nieuw formaat).' },
+  { bank: 'Rabobank', hoe: 'Lukt Transacties downloaden → CSV niet (vaak alleen via de zakelijke adviseur)? Download dan het rekeningafschrift als PDF — dat werkt ook.' },
   { bank: 'bunq', hoe: 'App → rekening → Statements/Afschriften → CSV over de gewenste periode.' },
   { bank: 'Revolut', hoe: 'App → Meer → Afschriften → Excel/CSV, taal Engels.' },
   { bank: 'N26', hoe: 'Web-app → Transacties → Download → CSV.' },
@@ -66,6 +68,7 @@ export function ImportPage() {
   const csvMappings = useLiveQuery(() => db.settings.get('csvMappings').then(r => r?.value ?? {}), [], {})
   const salaryThreshold = useLiveQuery(
     () => db.settings.get('salaryThreshold').then(r => Number(r?.value) || SALARY_THRESHOLD), [], SALARY_THRESHOLD)
+  const ownNames = useOwnNames()
 
   // De classificatie loopt async over honderden rijen; stabiele referenties
   // voorkomen dat elke render een nieuwe context maakt en handleFile opnieuw
@@ -111,12 +114,29 @@ export function ImportPage() {
         await categorizeWithLearning(tx.merchant, tx.amount, tx.type, tx.remi, byRole, classifyOptions)
       return { ...tx, category: cat, subcategory: sub, confidence, confidencePct, needsManual, source, eventCount, isRecurring, _originalCategory: cat, note: tx.merchant }
     }))
+
+    // Overboeking tussen eigen rekeningen? Dan telt hij nergens als inkomen of
+    // uitgave: categorie wordt de overboekingsrol. `_originalCategory` blijft
+    // staan op wat de gewone categorisering zou kiezen, zodat uitzetten in de
+    // review (zie toggleOwnTransfer) daar precies op teruggrijpt.
+    const existingAccounts = await getExistingAccounts()
+    const knownAccounts = collectKnownAccounts(
+      existingAccounts.map(account => ({ account })),
+      newOnes.map(tx => ({ account: tx.account })),
+    )
+    const transferKey = byRole.transfer?.key
+    const withTransfers = markOwnTransfers(withCats, { knownAccounts, ownNames }).map(tx => (
+      tx.isOwnTransfer && transferKey
+        ? { ...tx, category: transferKey, subcategory: '', confidence: 'high', confidencePct: 100, needsManual: false, source: 'own-transfer' }
+        : tx
+    ))
+
     // Stabiel per rij, ook als je er later een aantal wegveegt (idx schuift dan op).
-    setPending(withCats.map((tx, i) => ({ ...tx, _rid: i })))
+    setPending(withTransfers.map((tx, i) => ({ ...tx, _rid: i })))
     setSkipped([])
     setBron({ ...info, count: newOnes.length, skipped: parsed.length - newOnes.length })
     setStep('review')
-  }, [byRole, catMap, classifyOptions])
+  }, [byRole, catMap, classifyOptions, ownNames])
 
   const handleFile = useCallback(async e => {
     setError(null)
@@ -131,15 +151,22 @@ export function ImportPage() {
     if (!file) return
     try {
       const isExcel = /\.(xls|xlsx)$/i.test(file.name)
-      const text = isExcel ? null : await file.text()
-      const { bank, transactions, warnings } = await parseBankFile(file)
+      const isPdf = /\.pdf$/i.test(file.name)
+      // PDF/Excel zijn binair: tekst lezen levert rommel op en hoort niet in
+      // de kolommapper-fallback terecht te komen.
+      const text = isExcel || isPdf ? null : await file.text()
+      const { bank, transactions, warnings, tenNameVan } = await parseBankFile(file)
 
       if (transactions.length > 0) {
-        await toReview(transactions, { bank, warnings })
+        await toReview(transactions, { bank, warnings, tenNameVan })
         return
       }
       if (isExcel) {
         setError('Geen transacties gevonden in dit Excel-bestand. Is dit de export van je bank?')
+        return
+      }
+      if (isPdf) {
+        setError(warnings[0] ?? 'Geen transacties gevonden in dit PDF-bestand.')
         return
       }
 
@@ -224,6 +251,14 @@ export function ImportPage() {
     })
   }
 
+  // "eigen rekening"-label uitzetten: terug naar de categorie die de gewone
+  // categorisering zou kiezen (staat nog in _originalCategory).
+  function toggleOwnTransfer(idx) {
+    setPending(p => p.map((t, i) => (
+      i === idx ? { ...t, isOwnTransfer: false, category: t._originalCategory, subcategory: '', source: 'own-transfer-off' } : t
+    )))
+  }
+
   // 💼 in de review: markeer de rij als declaratie voor werk. claimStatus staat
   // niet in REVIEW_ONLY_FIELDS en gaat dus gewoon mee naar de database.
   function toggleClaim(idx) {
@@ -290,10 +325,15 @@ export function ImportPage() {
           </button>
         </div>
 
-        {(bron?.note || bron?.warnings?.length > 0) && (
+        {(bron?.note || bron?.warnings?.length > 0 || bron?.tenNameVan) && (
           <div className="px-4 py-2 text-[11px] text-muted" style={{ background: 'var(--color-surface-2)' }}>
             {bron.note && <div className="text-green">✓ {bron.note}</div>}
             {(bron.warnings ?? []).map((w, i) => <div key={i}>ℹ️ {w}</div>)}
+            {bron.tenNameVan && !ownNames.some(n => n.toLowerCase() === bron.tenNameVan.toLowerCase()) && (
+              <button onClick={() => addOwnName(bron.tenNameVan)} className="text-blue font-medium">
+                🙋 "{bron.tenNameVan}" toevoegen aan Mijn namen (voor eigen overboekingen)
+              </button>
+            )}
           </div>
         )}
 
@@ -334,6 +374,9 @@ export function ImportPage() {
                       {tx.needsManual && (
                         <div className="text-xs text-orange">⚠️ Voeg handmatige transactie toe</div>
                       )}
+                      {tx.isOwnTransfer && (
+                        <div className="text-[11px] text-blue">🔁 eigen rekening</div>
+                      )}
                     </div>
                     <div className="text-right shrink-0">
                       <div className={`flex items-center justify-end gap-1 text-xs ${isLowConf ? 'text-orange' : 'text-green'}`}>
@@ -364,6 +407,16 @@ export function ImportPage() {
                       )}
                     </div>
                   </button>
+                  {tx.isOwnTransfer && (
+                    <button
+                      onClick={() => toggleOwnTransfer(idx)}
+                      title="Toch geen eigen overboeking — gewone categorie teruggeven"
+                      className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base"
+                      style={{ background: 'var(--color-surface-2)' }}
+                    >
+                      🔁
+                    </button>
+                  )}
                   {tx.type === 'credit' && submittedBatches?.length > 0 && (
                     <button
                       onClick={() => setPayoutIdx(idx)}
@@ -456,10 +509,10 @@ export function ImportPage() {
         <label className="block card border-2 border-dashed p-8 text-center cursor-pointer">
           <div className="text-4xl mb-3">📤</div>
           <div className="font-medium">Kies je bankbestand</div>
-          <div className="text-xs text-muted mt-1">.csv, .txt, .tab, .xls of .xlsx</div>
+          <div className="text-xs text-muted mt-1">.csv, .txt, .tab, .xls, .xlsx of .pdf (Rabobank-afschrift)</div>
           <input
             type="file"
-            accept=".csv,.txt,.tab,.xls,.xlsx"
+            accept=".csv,.txt,.tab,.xls,.xlsx,.pdf"
             className="hidden"
             onChange={handleFile}
           />

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Sheet } from '../ui/Sheet'
 import { BedragVeld, DatumVeld, Foutmelding, Pillen, SheetVoet, TekstVeld } from './Fields'
-import { ACCOUNT_KINDS, maskAccount } from '../../utils/wealth/accounts'
+import { ACCOUNT_KINDS, isBankImportSource, maskAccount } from '../../utils/wealth/accounts'
 import { parseBalanceInput } from '../../utils/balance'
 import { euro, fmtDate, today } from '../../utils/formatters'
 import { addAccount, archiveAccount, deleteAccount, setAccountBalance, updateAccount } from '../../hooks/useWealth'
@@ -14,7 +14,7 @@ const KIND_OPTIES = ACCOUNT_KINDS.map(k => ({ key: k.key, label: k.label, icon: 
  */
 export function AccountSheet({ account = null, onClose }) {
   const nieuw = !account
-  const uitImport = account?.source === 'abn-import'
+  const uitImport = isBankImportSource(account?.source)
   const [naam, setNaam] = useState(account?.name ?? '')
   const [soort, setSoort] = useState(account?.kind ?? 'spaar')
   const [saldo, setSaldo] = useState(account?.balance != null && !uitImport ? String(account.balance).replace('.', ',') : '')

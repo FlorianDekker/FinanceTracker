@@ -2,7 +2,10 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { today } from '../utils/formatters'
 import { parseBalanceInput } from '../utils/balance'
-import { activeAccounts, importAccountBalances, importAccountKey, maskAccount, sortAccounts } from '../utils/wealth/accounts'
+import {
+  activeAccounts, importAccountBalances, importAccountKey, isBankImportSource,
+  kindForAccount, labelForAccount, sortAccounts,
+} from '../utils/wealth/accounts'
 import { combinedWealthHistory } from '../utils/wealth/history'
 import { monthOf, round2 } from '../utils/wealth/months'
 
@@ -58,16 +61,16 @@ export async function setProjectionMonths(months) {
  * ------------------------------------------------------------------ */
 
 /**
- * Alle rekeningen op volgorde. Rekeningen met `source: 'abn-import'` krijgen
- * hun saldo uit de bankimport (zelfde rekensom als de saldocontrole), de rest
- * houdt het saldo dat je zelf invoerde.
+ * Alle rekeningen op volgorde. Rekeningen uit de bankimport krijgen hun saldo
+ * uit de bankimport (zelfde rekensom als de saldocontrole), de rest houdt het
+ * saldo dat je zelf invoerde.
  */
 async function loadResolvedAccounts() {
   const rijen = sortAccounts(await db.accounts.toArray())
-  if (!rijen.some(a => a.source === 'abn-import')) return rijen
+  if (!rijen.some(a => isBankImportSource(a.source))) return rijen
   const saldi = importAccountBalances(await db.transactions.toArray())
   return rijen.map(a => {
-    const uitImport = a.source === 'abn-import' ? saldi[a.account] : null
+    const uitImport = isBankImportSource(a.source) ? saldi[a.account] : null
     if (!uitImport || uitImport.balance == null) return a
     return { ...a, balance: uitImport.balance, balanceAt: uitImport.anchorDate, fromImport: uitImport }
   })
@@ -104,10 +107,10 @@ export async function ensureImportAccounts() {
     if (bekend.has(key)) continue
     nieuw.push({
       key,
-      name: `Betaalrekening ${maskAccount(iban)}`,
-      kind: 'betaal',
+      name: labelForAccount(iban),
+      kind: kindForAccount(iban),
       order: order++,
-      source: 'abn-import',
+      source: 'bank-import',
       account: iban,
       balance: saldi[iban].balance,
       balanceAt: saldi[iban].anchorDate,
@@ -201,11 +204,11 @@ export async function snapshotToday(accounts) {
 export async function initWealth() {
   const nieuw = await ensureImportAccounts()
   const rijen = await db.accounts.toArray()
-  const saldi = rijen.some(a => a.source === 'abn-import')
+  const saldi = rijen.some(a => isBankImportSource(a.source))
     ? importAccountBalances(await db.transactions.toArray())
     : {}
   await snapshotToday(rijen.map(a => {
-    const uitImport = a.source === 'abn-import' ? saldi[a.account] : null
+    const uitImport = isBankImportSource(a.source) ? saldi[a.account] : null
     return uitImport?.balance == null ? a : { ...a, balance: uitImport.balance }
   }))
   return nieuw

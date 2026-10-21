@@ -8,6 +8,7 @@
  */
 import { round2 } from './months'
 import { bankAccountHistories } from './bankHistory'
+import { isBankImportSource } from './accounts'
 
 /** Per rekening de laatste momentopname (datum, daarna id). */
 export function latestSnapshots(snapshots) {
@@ -65,7 +66,7 @@ function snapshotSeries(snapshots, accountKey) {
 
 /**
  * Het echte vermogensverloop, met terugwerkende kracht waar dat kan:
- * - rekeningen met `source: 'abn-import'` krijgen hun reeks uit de
+ * - rekeningen uit de bankimport (zie `isBankImportSource`) krijgen hun reeks uit de
  *   transacties zelf (`bankAccountHistories`) — die gaat terug tot het
  *   eerste import-anker, veel verder dan de momentopnames. De momentopnames
  *   van zo'n rekening worden hier *niet* gebruikt: de bankreeks is voor die
@@ -92,7 +93,7 @@ export function combinedWealthHistory(accounts, snapshots, txs) {
 
   const perRekening = {}
   for (const a of rekeningen) {
-    perRekening[a.key] = a.source === 'abn-import' && a.account
+    perRekening[a.key] = isBankImportSource(a.source) && a.account
       ? (bankReeksen[a.account] ?? [])
       : snapshotSeries(snapshots, a.key)
   }

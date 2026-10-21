@@ -1,7 +1,8 @@
 // Revolut CSV-export.
 // Kop: Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
 // Alleen State = COMPLETED telt mee; datums zijn 'YYYY-MM-DD HH:MM:SS'.
-// De kosten (Fee) staan in een eigen kolom en worden niet bij het bedrag opgeteld.
+// Het effectieve bedrag is Amount − Fee (Fee is positief en wordt afgeschreven;
+// het Balance-veld rekent hem al mee — gecontroleerd op een echt Revolut-bestand).
 import { parseCsv, sniffDelimiter, headerIndex, findCol, cell } from './csv'
 import { toIsoDate, parseAmount, makeTransaction, cleanMerchantName } from './common'
 
@@ -12,6 +13,7 @@ export function parseRevolut(text) {
   if (rows.length < 2) return { transactions: [], warnings: ['Geen regels gevonden in het Revolut-bestand.'] }
 
   const index = headerIndex(rows[0])
+  const iType = findCol(index, 'type')
   const iCompleted = findCol(index, 'completed date')
   const iStarted = findCol(index, 'started date')
   const iDesc = findCol(index, 'description')
@@ -28,31 +30,56 @@ export function parseRevolut(text) {
   const transactions = []
   let skipped = 0
   let pending = 0
-  let fees = 0
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r]
     const state = cell(row, iState).toUpperCase()
     if (iState >= 0 && state && state !== 'COMPLETED') { pending++; continue }
 
-    const date = toIsoDate(cell(row, iCompleted) || cell(row, iStarted))
     const signed = parseAmount(cell(row, iAmount))
-    if (parseAmount(cell(row, iFee)) !== 0) fees++
+    const fee = iFee >= 0 ? parseAmount(cell(row, iFee)) : 0
+
+    // "Closing transaction" bij het opheffen van een (sub)rekening: bedrag én
+    // kosten zijn 0. Geen bruikbare mutatie, en geen waarschuwing nodig.
+    if (signed === 0 && fee === 0) continue
+
+    const effectief = signed - fee
+    const dateRaw = cell(row, iCompleted) || cell(row, iStarted)
+    const date = toIsoDate(dateRaw)
+    const bankType = cell(row, iType)
     const balanceRaw = iBalance >= 0 ? cell(row, iBalance) : ''
+    const product = cell(row, iProduct) || 'Current'
+
+    const remi = fee > 0 ? `incl. €${fee.toFixed(2).replace('.', ',')} kosten` : ''
 
     const tx = makeTransaction({
       date,
-      amount: signed,
-      type: signed < 0 ? 'debit' : 'credit',
+      amount: effectief,
+      type: effectief < 0 ? 'debit' : 'credit',
       merchant: cleanMerchantName(cell(row, iDesc)),
-      remi: '',
+      remi,
       raw: row.join(delimiter),
-      account: cell(row, iProduct),
+      account: `Revolut ${product}`,
       balance: balanceRaw ? parseAmount(balanceRaw) : undefined,
     })
-    if (tx) transactions.push(tx); else skipped++
+    if (!tx) { skipped++; continue }
+    if (fee > 0) tx.fee = fee
+    if (bankType) tx.bankType = bankType
+    // Voor de volgorde-correctie hieronder: wordt vóór het terugsturen gesloopt.
+    tx._sortKey = dateRaw
+    transactions.push(tx)
   }
+
+  // Het bestand is niet strikt op datum gesorteerd (regels van een ander
+  // product — bijv. Savings — staan er soms tussendoor). Sorteer per rekening
+  // op Completed/Started Date incl. tijd, zodat de laatste regel van een
+  // rekening ook echt de laatste mutatie is (het saldo-anker, zie balance.js).
+  transactions.sort((a, b) => {
+    if (a.account !== b.account) return a.account < b.account ? -1 : 1
+    return a._sortKey < b._sortKey ? -1 : a._sortKey > b._sortKey ? 1 : 0
+  })
+  for (const tx of transactions) delete tx._sortKey
+
   if (pending) warnings.push(`${pending} regel(s) overgeslagen omdat ze nog niet afgerond zijn (State ≠ COMPLETED).`)
   if (skipped) warnings.push(`${skipped} regel(s) overgeslagen (geen geldige datum of bedrag).`)
-  if (fees) warnings.push(`${fees} regel(s) hebben transactiekosten (Fee); die zijn niet bij het bedrag opgeteld.`)
   return { transactions, warnings }
 }

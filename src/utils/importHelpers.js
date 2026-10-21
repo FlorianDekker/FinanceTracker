@@ -15,6 +15,14 @@ export async function getExistingKeys() {
   return new Set(all.map(t => dedupKey(t.date, t.amount, t.type)))
 }
 
+// Alle rekeningen (IBAN's, "Revolut Current", …) die al in de app voorkomen.
+// Gebruikt om een overboeking naar een eigen rekening te herkennen, zie
+// `src/utils/ownTransfers.js`.
+export async function getExistingAccounts() {
+  const all = await db.transactions.toArray()
+  return all.map(t => t.account).filter(Boolean)
+}
+
 // Serialize all transactions back to CSV
 export async function exportToCsv() {
   const txs = await db.transactions.orderBy('date').toArray()

@@ -25,7 +25,7 @@ await t('bankrekening wordt eenmalig aangemaakt met het verwachte saldo', async 
   assert.equal(await W.ensureImportAccounts(), 1)
   assert.equal(await W.ensureImportAccounts(), 0, 'een tweede keer verandert niets')
   const a = await db.accounts.get('bank-nl01abna0123456789')
-  assert.equal(a.source, 'abn-import')
+  assert.equal(a.source, 'bank-import', 'generieke bron i.p.v. abn-import, zodat Revolut/Rabo er ook in passen')
   assert.equal(a.kind, 'betaal')
   assert.equal(a.balance, 900, '960 uit de import minus de handmatige 60')
   assert.match(a.name, /6789/)

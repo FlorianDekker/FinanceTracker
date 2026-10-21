@@ -194,6 +194,47 @@ export async function extractPdfText(arrayBuffer, opties = {}) {
 }
 
 /**
+ * Losse tekst-items mét positie, voor PDF's waar de layout (kolommen op
+ * x-positie) meetelt — zoals een Rabobank-rekeningafschrift. Ongebruikt door
+ * `extractPdfText`/`itemsToLines`, dus dat gedrag verandert hier niet.
+ * @param {ArrayBuffer|Uint8Array} arrayBuffer
+ * @param {{ maxPages?: number, pdfjs?: object }} [opties]
+ * @returns {Promise<{ str: string, x: number, y: number, page: number }[]>}
+ */
+export async function extractPdfItems(arrayBuffer, opties = {}) {
+  const pdfjs = opties.pdfjs ?? await loadPdfjs()
+  const data = toUint8(arrayBuffer)
+
+  const taak = pdfjs.getDocument({
+    data,
+    isEvalSupported: false,
+    useSystemFonts: false,
+    disableFontFace: true,
+  })
+  const doc = await taak.promise
+  try {
+    const totaal = doc.numPages
+    const max = Math.min(totaal, opties.maxPages ?? 20)
+    const items = []
+    for (let p = 1; p <= max; p++) {
+      const page = await doc.getPage(p)
+      try {
+        const content = await readTextContent(page)
+        for (const it of content.items) {
+          if (typeof it?.str !== 'string' || !it.str.trim() || !it.transform) continue
+          items.push({ str: it.str, x: it.transform[4], y: it.transform[5], page: p })
+        }
+      } finally {
+        page.cleanup?.()
+      }
+    }
+    return items
+  } finally {
+    await doc.destroy?.()
+  }
+}
+
+/**
  * Rendert één PDF-pagina naar een JPEG-Blob (thumbnail of vision-invoer).
  * Alleen in de browser: er is een canvas nodig.
  */

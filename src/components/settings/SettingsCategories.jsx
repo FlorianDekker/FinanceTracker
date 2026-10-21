@@ -4,16 +4,19 @@ import { db } from '../../db/db'
 import { useCategories } from '../../hooks/useCategories'
 import { CategoryManagerSheet } from '../categories/CategoryManagerSheet'
 import { RulesSheet } from './RulesSheet'
+import { OwnNamesSheet, useOwnNames } from './OwnNamesSheet'
 
 /**
- * Instellingen -> Categorieën: beheren (naam, icoon, kleur, volgorde) en
- * herkenningsregels die bij het importeren voorgaan.
+ * Instellingen -> Categorieën: beheren (naam, icoon, kleur, volgorde),
+ * herkenningsregels en eigen namen die bij het importeren voorgaan.
  */
 export function SettingsCategories() {
   const { categories } = useCategories()
   const rulesCount = useLiveQuery(() => db.rules.count(), [])
+  const ownNames = useOwnNames()
   const [managerOpen, setManagerOpen] = useState(false)
   const [rulesOpen, setRulesOpen] = useState(false)
+  const [namesOpen, setNamesOpen] = useState(false)
 
   return (
     <>
@@ -36,11 +39,21 @@ export function SettingsCategories() {
             </div>
             <span className="text-sm text-muted">{rulesCount ?? '…'} ›</span>
           </button>
+
+          <button onClick={() => setNamesOpen(true)} className="w-full flex items-center gap-3 px-4 py-3 text-left" style={{ borderTop: '1px solid var(--color-border)' }}>
+            <span className="text-xl">🙋</span>
+            <div className="flex-1">
+              <div className="text-sm">Mijn namen</div>
+              <div className="text-xs text-muted">Voor het herkennen van overboekingen naar jezelf</div>
+            </div>
+            <span className="text-sm text-muted">{ownNames.length} ›</span>
+          </button>
         </div>
       </section>
 
       <CategoryManagerSheet open={managerOpen} onClose={() => setManagerOpen(false)} />
       <RulesSheet open={rulesOpen} onClose={() => setRulesOpen(false)} />
+      <OwnNamesSheet open={namesOpen} onClose={() => setNamesOpen(false)} />
     </>
   )
 }

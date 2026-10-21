@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AccountSheet } from './AccountSheet'
 import { euro, fmtDate } from '../../utils/formatters'
-import { kindOf } from '../../utils/wealth/accounts'
+import { isBankImportSource, kindOf } from '../../utils/wealth/accounts'
 
 /**
  * Je rekeningen met hun saldo, en daaronder — ingeklapt — het verloop van je
@@ -61,7 +61,7 @@ export function AccountsCard({ accounts }) {
 
 function AccountRow({ account, onClick, laatste }) {
   const soort = kindOf(account.kind)
-  const uitImport = account.source === 'abn-import'
+  const uitImport = isBankImportSource(account.source)
   return (
     <button
       onClick={onClick}
